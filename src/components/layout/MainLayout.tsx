@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface MainLayoutProps {
@@ -17,6 +17,68 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     onTogglePreview
 }) => {
     const hasSidebar = Boolean(sidebar);
+
+    // Resizable split pane state - percentage for workspace width (30-80%)
+    const [splitPosition, setSplitPosition] = useState(40); // 40% workspace, 60% preview
+    const [isDragging, setIsDragging] = useState(false);
+    const [previewScale, setPreviewScale] = useState(0.55); // Default scale
+    const containerRef = useRef<HTMLDivElement>(null);
+    const previewRef = useRef<HTMLDivElement>(null);
+
+    // Calculate preview scale based on actual available width
+    useEffect(() => {
+        const calculateScale = () => {
+            if (!previewRef.current) return;
+            const containerWidth = previewRef.current.parentElement?.clientWidth || 800;
+            // 280mm ≈ 1058px (at 96dpi), need padding too
+            const targetWidth = 1122; // 297mm (A4 width)
+            const scale = Math.min((containerWidth - 40) / targetWidth, 1);
+            setPreviewScale(Math.max(0.45, Math.min(1, scale)));
+        };
+
+        calculateScale();
+        window.addEventListener('resize', calculateScale);
+        return () => window.removeEventListener('resize', calculateScale);
+    }, [splitPosition]);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    }, []);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || !containerRef.current) return;
+
+        const container = containerRef.current;
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = (x / rect.width) * 100;
+
+        // Clamp between 30% and 75%
+        const clampedPercentage = Math.max(30, Math.min(75, percentage));
+        setSplitPosition(clampedPercentage);
+    }, [isDragging]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+
     return (
         <div className="flex min-h-screen w-full bg-[var(--forcs-background)]">
             {/* Sidebar - Sticky on Desktop (optional) */}
@@ -29,26 +91,53 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             {/* Main Content */}
             <div className="flex flex-1 flex-col min-w-0">
                 <div className="flex flex-1 relative">
-                    {/* Workspace Area */}
-                    <div className="flex flex-1 overflow-hidden justify-center bg-[var(--forcs-background)]">
+                    {/* Workspace + Preview Container */}
+                    <div
+                        ref={containerRef}
+                        className="flex flex-1 overflow-hidden justify-center bg-[var(--forcs-background)]"
+                    >
                         <div className="flex w-full max-w-[1920px] bg-white shadow-2xl overflow-hidden">
-                            <main className={`flex-1 overflow-y-auto border-r border-[var(--forcs-border)] ${showPreview ? 'lg:mr-0' : ''}`}>
+                            {/* Workspace Area */}
+                            <main
+                                className="overflow-y-auto border-r border-[var(--forcs-border)]"
+                                style={{
+                                    width: showPreview ? `${splitPosition}%` : '100%',
+                                    transition: isDragging ? 'none' : 'width 0.2s ease'
+                                }}
+                            >
                                 <div className="mx-auto w-full max-w-[1100px] p-4 pb-24 lg:p-8">
                                     {workspace}
                                 </div>
                             </main>
 
-                            {/* Preview Area - Desktop (Fixed width) - Always render but hide when showPreview is false */}
+                            {/* Resizable Divider - Only show on desktop when preview is visible */}
+                            {showPreview && (
+                                <div
+                                    onMouseDown={handleMouseDown}
+                                    className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group sticky top-0 h-screen ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
+                                    title="드래그하여 영역 크기 조절"
+                                    style={{ alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                    <div className={`w-1 h-12 rounded-full ${isDragging ? 'bg-white' : 'bg-gray-400 group-hover:bg-white'} transition-colors`} />
+                                </div>
+                            )}
+
+                            {/* Preview Area */}
                             <aside
-                                className={`hidden lg:flex w-[290mm] flex-col overflow-y-auto bg-[#f1f5f9] border-l border-[var(--forcs-border)] shadow-inner ${!showPreview ? 'lg:hidden' : ''}`}
+                                className={`hidden lg:flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner ${!showPreview ? 'lg:hidden' : ''}`}
                                 style={{
+                                    width: showPreview ? `${100 - splitPosition}%` : '0',
                                     position: showPreview ? 'relative' : 'absolute',
                                     left: showPreview ? 'auto' : '-9999px',
-                                    visibility: showPreview ? 'visible' : 'hidden'
+                                    visibility: showPreview ? 'visible' : 'hidden',
+                                    transition: isDragging ? 'none' : 'width 0.2s ease'
                                 }}
                             >
-                                <div className="p-6 flex justify-center">
-                                    <div className="w-[280mm] origin-top scale-[0.92] xl:scale-100 transition-transform">
+                                <div ref={previewRef} className="p-4 flex justify-center items-start overflow-y-auto overflow-x-auto h-full">
+                                    <div
+                                        className="w-[297mm] origin-top transition-transform"
+                                        style={{ transform: `scale(${previewScale})` }}
+                                    >
                                         {preview}
                                     </div>
                                 </div>

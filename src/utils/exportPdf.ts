@@ -68,11 +68,28 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
         toast.loading('PDF 생성 중... (이미지 캡처)', { id: 'pdf-export' });
 
-        // 1. Get original element dimensions (before cloning)
-        const elementRect = element.getBoundingClientRect();
-        console.log('Element dimensions:', elementRect.width, 'x', elementRect.height);
+        // Reset CSS scale on ancestor element for accurate capture
+        // Find the ancestor with scale transform
+        let scaleWrapper: HTMLElement | null = element.parentElement;
+        let originalTransform = '';
+        while (scaleWrapper) {
+            if (scaleWrapper.style.transform && scaleWrapper.style.transform.includes('scale')) {
+                originalTransform = scaleWrapper.style.transform;
+                scaleWrapper.style.transform = 'scale(1)';
+                // Force reflow to apply the style change
+                void scaleWrapper.offsetHeight;
+                break;
+            }
+            scaleWrapper = scaleWrapper.parentElement;
+        }
 
-        if (elementRect.width === 0 || elementRect.height === 0) {
+        // 1. Get original element dimensions using offsetWidth/Height
+        // These are NOT affected by CSS transforms, unlike getBoundingClientRect
+        const elementWidth = element.offsetWidth;
+        const elementHeight = element.offsetHeight;
+        console.log('Element dimensions (offset):', elementWidth, 'x', elementHeight);
+
+        if (elementWidth === 0 || elementHeight === 0) {
             throw new Error('요소가 화면에 표시되지 않습니다. (width 또는 height가 0)');
         }
 
@@ -85,7 +102,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         const availableWidth = a4Width - (marginX * 2);
         const availableHeight = a4Height - (marginY * 2);
 
-        const originalAspect = elementRect.width / elementRect.height;
+        const originalAspect = elementWidth / elementHeight;
         const targetAspect = availableWidth / availableHeight;
 
         let preImgWidth: number;
@@ -105,17 +122,17 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         }
 
         // pxToMm for text extraction (based on original element dimensions)
-        const prePxToMm = preImgWidth / elementRect.width;
+        const prePxToMm = preImgWidth / elementWidth;
 
         console.log('Pre-calculated PDF dimensions:', {
             preImgWidth, preImgHeight, preOffsetX, preOffsetY, prePxToMm
         });
 
-        // ★ CRITICAL FIX: Extract text from ORIGINAL element BEFORE html2canvas
-        // This ensures pxToMm calculation matches the text coordinates
+        // Create a rect-like object for extractTextElements
+        const elementBounds = element.getBoundingClientRect();
         const textElements: TextElement[] = extractTextElements(
             element,
-            elementRect,
+            elementBounds,
             prePxToMm,
             0
         );
@@ -140,6 +157,11 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
             throw new Error('html2canvas가 빈 캔버스를 반환했습니다.');
         }
 
+        // Restore original CSS scale after capture
+        if (scaleWrapper && originalTransform) {
+            scaleWrapper.style.transform = originalTransform;
+        }
+
         toast.loading('PDF 생성 중... (PDF 변환)', { id: 'pdf-export' });
 
         // Use JPEG quality 0.95
@@ -158,7 +180,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         console.log('PDF dimensions:', {
             a4Width, a4Height, imgWidth, imgHeight, pxToMm, offsetX, offsetY,
             canvasWidth: canvas.width,
-            elementWidth: elementRect.width
+            elementWidth: elementWidth
         });
 
         if (!isFinite(pxToMm) || !isFinite(imgHeight)) {

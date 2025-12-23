@@ -261,13 +261,13 @@ function App() {
           position: 'fixed',
           left: '-9999px',
           top: 0,
-          width: '280mm',
+          width: '297mm',
           height: 'auto',
           pointerEvents: 'none',
           overflow: 'visible',
         }}
       >
-        <div id="pdf-preview-panel" style={{ width: '280mm' }}>
+        <div id="pdf-preview-panel" style={{ width: '297mm' }}>
           <PreviewPanel
             meta={previewSnapshot ? previewSnapshot.meta : meta}
             calculation={
