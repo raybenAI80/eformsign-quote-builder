@@ -214,7 +214,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
         </header>
 
         {/* Dates */}
-        <div className="grid grid-cols-2 gap-8 mb-6 max-w-md">
+        <div className="grid grid-cols-2 gap-8 mb-6 max-w-xl">
           <div>
             <h3 className="text-xs font-bold text-gray-400 tracking-wider mb-1">{LABELS.quoteDate}</h3>
             <p className="text-lg font-bold text-gray-800">{meta.quoteDate ? formatDateWithDay(meta.quoteDate) : '-'}</p>
