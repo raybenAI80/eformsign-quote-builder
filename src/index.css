@@ -1,0 +1,292 @@
+@import url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css');
+
+:root {
+  /* Brand Colors */
+  --forcs-teal: #00a99d;
+  --forcs-teal-dark: #008a81;
+  --forcs-teal-light: #e6f7f6;
+  --forcs-blue: #2c5bf0;
+  /* eformsign Blue */
+  --forcs-blue-light: #eff6ff;
+  --forcs-blue-dark: #1e40af;
+  --forcs-yellow: #ffc107;
+  --forcs-red: #ef4444;
+
+  /* Semantic Colors */
+  --forcs-background: #f8fafc;
+  --forcs-surface: #ffffff;
+  --forcs-border: #e2e8f0;
+
+  /* Text Colors */
+  --forcs-text: #0f172a;
+  --forcs-text-muted: #64748b;
+
+  /* Typography */
+  --font-sans: 'NanumSquare', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--forcs-text);
+  background: var(--forcs-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Paper Layout - A4 가로 전체 너비 */
+.paper {
+  width: 297mm;
+  min-height: 210mm;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  /* For watermark */
+}
+
+@media print {
+
+  /* 페이지 설정: A4 가로 모드, 여백 없음 */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  /* 모든 요소 숨기기 */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 프리뷰 패널과 자식 요소만 표시 */
+  #preview-panel,
+  #preview-panel * {
+    visibility: visible;
+  }
+
+  /* 프리뷰 패널을 페이지 전체에 배치 */
+  #preview-panel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .paper {
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  html {
+    background: white !important;
+  }
+
+  header,
+  nav,
+  .sidebar,
+  .workspace-controls,
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
+/* --- Design System Components --- */
+
+/* 1. Buttons */
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  /* Full Rounded */
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  /* Full Rounded */
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  background: var(--forcs-teal);
+  color: white;
+  padding: 0.625rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 169, 157, 0.2);
+  border: 1px solid transparent;
+}
+
+.btn-primary:hover {
+  background: var(--forcs-teal-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 169, 157, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  /* Full Rounded */
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  background: white;
+  color: var(--forcs-text-muted);
+  border: 1px solid var(--forcs-border);
+  padding: 0.625rem 1.25rem;
+}
+
+.btn-secondary:hover {
+  border-color: var(--forcs-teal);
+  color: var(--forcs-teal);
+  background: var(--forcs-teal-light);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  color: var(--forcs-text-muted);
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background: var(--forcs-teal-light);
+  color: var(--forcs-teal);
+}
+
+/* 2. Brand Identity Elements */
+.brand-bar-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--forcs-blue) 0%, var(--forcs-teal) 100%);
+}
+
+.brand-watermark-bottom {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50%;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+  filter: grayscale(100%);
+}
+
+.quote-number-box {
+  background: var(--forcs-teal-light);
+  border: 1px solid #b2dfdb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+/* 3. Utilities */
+.input-field {
+  border: 1px solid var(--forcs-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--forcs-teal);
+  box-shadow: 0 0 0 3px var(--forcs-teal-light);
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--forcs-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border-color: #cbd5e1;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Rich Text Notes in Preview */
+.notes-html {
+  color: #9ca3af;
+  /* Default gray */
+}
+
+.notes-html font[color] {
+  color: attr(color) !important;
+}
+
+.notes-html b,
+.notes-html strong {
+  font-weight: 700;
+}
+
+.notes-html i,
+.notes-html em {
+  font-style: italic;
+}

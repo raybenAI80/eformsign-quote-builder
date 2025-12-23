@@ -1,0 +1,454 @@
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  QuoteItem,
+  QuoteMeta,
+  CalculationResult,
+  CalculatedRow,
+  QuotePreset,
+  QuoteSnapshot,
+} from '../types';
+import { parseNum, clamp, safeParse } from '../utils/helpers';
+import { DATA_KEY, SUPPLIER_PROFILE, CategoryLabel, DEFAULT_CATEGORY_LABELS, DEFAULT_REFERENCE_NOTES } from '../constants';
+
+interface StoredQuoteData {
+  meta: QuoteMeta;
+  items: QuoteItem[];
+  presets?: QuotePreset[];
+  history?: QuoteSnapshot[];
+  categoryLabels?: CategoryLabel[];
+}
+
+const HISTORY_LIMIT = 10;
+const PRESET_LIMIT = 10;
+
+const generateId = (): string => {
+  const globalCrypto: Crypto | undefined = (globalThis as any)?.crypto;
+  if (globalCrypto?.randomUUID) {
+    return globalCrypto.randomUUID();
+  }
+  if (globalCrypto?.getRandomValues) {
+    const buffer = new Uint8Array(16);
+    globalCrypto.getRandomValues(buffer);
+    buffer[6] = (buffer[6] & 0x0f) | 0x40;
+    buffer[8] = (buffer[8] & 0x3f) | 0x80;
+    const hex = Array.from(buffer, b => b.toString(16).padStart(2, '0'));
+    return (
+      hex.slice(0, 4).join('') +
+      '-' +
+      hex.slice(4, 6).join('') +
+      '-' +
+      hex.slice(6, 8).join('') +
+      '-' +
+      hex.slice(8, 10).join('') +
+      '-' +
+      hex.slice(10, 16).join('')
+    );
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
+export const formatSequence = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '');
+  // Keep only digits, do not auto-pad; cap length to avoid runaway input
+  return digits.slice(0, 6);
+};
+
+export const buildQuoteNo = (initials: string, quoteDate: string, sequence: string): string => {
+  const cleanedInitials = initials.trim().toUpperCase() || 'AA';
+  const datePart = quoteDate
+    ? quoteDate.replace(/-/g, '')
+    : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = formatSequence(sequence);
+  return `FORCS-EFS-${cleanedInitials}-${datePart}${seqPart}`;
+};
+
+export const createDefaultMeta = (): QuoteMeta => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    quoteNo: buildQuoteNo('HT', today, ''),
+    quoteDate: today,
+    validityDays: 30,
+    customerName: '(주)포시먼트치',
+    customerManager: '홍길동 팀장',
+    customerEmail: '',
+    customerContact: '',
+    supplier: SUPPLIER_PROFILE.companyName,
+    contactInitials: 'HT',
+    issueSequence: '',
+    contactName: '김지원',
+    contactDirect: '02-6188-8400',
+    contactMobile: '',
+    contactEmail: 'marypeople@forcs.com',
+    salesManager: '',
+    salesEmail: '',
+    salesContact: '',
+    vatRate: 10,
+    title: '이폼사인 견적서',
+    subtitle: '(주)포시먼트치 - 총액/건당/할인 지표 보기',
+    brandingMode: 'ai',
+    sealMode: 'omitted',
+    referenceNotes: [
+      '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
+      '계약기간: 계약 시작일로 부터 1년',
+      '문서 사용기한: 계약 체결 후, 문서 소진시까지',
+      '문서 소진 시, 본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
+      '클라우드 서비스 업데이트에 따라 추가된 신규 기능은 전면 무상 제공 (일부 기능은 유상, 반영 전 공지)',
+      'Trial 기간 동안 API 연동에 대한 기술지원 요청 발생 시, 유선 및 원격 지원',
+      '본 계약은 상호 신뢰를 바탕으로 계약을 체결하며, 이에 대한 분쟁이 있을 경우 상관례에 따라 상호 협의에 의하여 분쟁을 해결합니다.',
+      '기타 사항은 www.eformsign.com 이용약관에 따릅니다.',
+    ],
+    bizNoLink: SUPPLIER_PROFILE.bizNoLink,
+    bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
+  };
+};
+
+// 빈 상태로 새 견적을 시작할 때 사용할 메타 (오늘 날짜만 채우고 나머지는 비움)
+export const createEmptyMeta = (): QuoteMeta => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    quoteNo: '',
+    quoteDate: today,
+    validityDays: 0,
+    customerName: '',
+    customerManager: '',
+    supplier: '',
+    contactInitials: '',
+    issueSequence: '',
+    contactName: '',
+    contactDirect: '',
+    contactMobile: '',
+    contactEmail: '',
+    customerEmail: '',
+    customerContact: '',
+    salesManager: '',
+    salesEmail: '',
+    salesContact: '',
+    vatRate: 10,
+    title: '',
+    subtitle: '',
+    brandingMode: 'ai',
+    sealMode: 'omitted',
+    referenceNotes: [...DEFAULT_REFERENCE_NOTES],
+    bizNoLink: SUPPLIER_PROFILE.bizNoLink,
+    bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
+  };
+};
+
+const cloneMeta = (meta: QuoteMeta): QuoteMeta => ({ ...meta });
+const cloneItems = (items: QuoteItem[]): QuoteItem[] => items.map(item => ({ ...item }));
+
+const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMeta => {
+  const legacyAi = typeof meta.aiBranding === 'boolean' ? meta.aiBranding : undefined;
+  const defaultNotes = [
+    '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
+    '계약기간: 계약 시작일로 부터 1년',
+    '문서 사용기한: 계약 체결 후, 문서 소진시까지',
+    '문서 소진 시, 본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
+    '클라우드 서비스 업데이트에 따라 추가된 신규 기능은 전면 무상 제공 (일부 기능은 유상, 반영 전 공지)',
+    'Trial 기간 동안 API 연동에 대한 기술지원 요청 발생 시, 유선 및 원격 지원',
+    '본 계약은 상호 신뢰를 바탕으로 계약을 체결하며, 이에 대한 분쟁이 있을 경우 상관례에 따라 상호 협의에 의하여 분쟁을 해결합니다.',
+    '기타 사항은 www.eformsign.com 이용약관에 따릅니다.',
+  ];
+  return {
+    ...meta,
+    supplier: SUPPLIER_PROFILE.companyName,
+    customerName: meta.customerName ?? (meta as any).customer ?? '',
+    customerManager: meta.customerManager ?? '',
+    brandingMode:
+      (typeof legacyAi === 'boolean' ? (legacyAi ? 'ai' : 'default') : meta.brandingMode ?? 'ai'),
+    referenceNotes: meta.referenceNotes?.length ? meta.referenceNotes : defaultNotes,
+  };
+};
+
+export const calculateQuote = (items: QuoteItem[], vatRate: number): CalculationResult => {
+  const rate = vatRate / 100;
+  const rows: CalculatedRow[] = items.map(item => {
+    const unitPrice = parseNum(item.unitPrice);
+    const qty = parseNum(item.qty);
+    const discountPct = parseNum(item.discountPct);
+
+    const msrp = unitPrice * qty;
+    const offer = msrp * (1 - discountPct / 100);
+
+    return {
+      ...item,
+      qty,
+      unitPrice,
+      discountPct,
+      msrp,
+      offer,
+      // Compatibility fields
+      price: msrp,
+      offerPrice: offer,
+      discountRate: discountPct,
+    };
+  });
+
+  const msrpSum = rows.reduce((sum, row) => sum + row.msrp, 0);
+  const offerSum = rows.reduce((sum, row) => sum + row.offer, 0);
+  const vat = offerSum * rate;
+  const grand = offerSum + vat;
+  const totalDiscountPct = msrpSum > 0 ? (1 - offerSum / msrpSum) * 100 : 0;
+
+  // Calculate docsPaidQty and perDocPaid for compatibility
+  let docsPaidQty = 0;
+  let docsPaidOffer = 0;
+  rows.forEach(r => {
+    const isDoc = r.section === 'SaaS' && (String(r.unitLabel ?? '').includes('건') || String(r.category ?? '').includes('문서'));
+    if (isDoc && r.discountPct < 100) {
+      docsPaidQty += r.qty;
+      docsPaidOffer += r.offer;
+    }
+  });
+  const perDocPaid = docsPaidQty > 0 ? docsPaidOffer / docsPaidQty : 0;
+
+  return {
+    rows,
+    msrpSum,
+    offerSum,
+    vat,
+    vatRate,
+    grand,
+    supplyPriceSum: offerSum,
+    vatSum: vat,
+    totalDiscountPct,
+    docsPaidQty,
+    perDocPaid,
+  };
+};
+
+export const useQuote = () => {
+  const [meta, setMeta] = useState<QuoteMeta>(() => createDefaultMeta());
+  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [presets, setPresets] = useState<QuotePreset[]>([]);
+  const [history, setHistory] = useState<QuoteSnapshot[]>([]);
+  const [categoryLabels, setCategoryLabels] = useState<CategoryLabel[]>(() => [...DEFAULT_CATEGORY_LABELS]);
+
+  const saveTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const raw =
+      localStorage.getItem(DATA_KEY) || localStorage.getItem('eformsign_quote_simple') || '';
+    if (!raw) return;
+
+    const parsed = safeParse<StoredQuoteData | null>(raw, null);
+    if (parsed?.meta && parsed?.items) {
+      setMeta(ensureMetaDefaults(parsed.meta));
+      setItems(parsed.items);
+      if (parsed.presets) setPresets(parsed.presets);
+      if (parsed.history) setHistory(parsed.history);
+      if (parsed.categoryLabels) setCategoryLabels(parsed.categoryLabels);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = window.setTimeout(() => {
+      const payload: StoredQuoteData = { meta, items, presets, history, categoryLabels };
+      localStorage.setItem(DATA_KEY, JSON.stringify(payload));
+      saveTimeoutRef.current = null;
+    }, 300);
+
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [meta, items, presets, history, categoryLabels]);
+
+  useEffect(() => {
+    setMeta(prev => {
+      const normalizedSequence = formatSequence(prev.issueSequence);
+      // 빈 이니셜/순번이면 자동 생성하지 않아 초기화 시 필드가 비워진 상태를 유지
+      if (!prev.contactInitials && !normalizedSequence) return prev;
+      const computed = buildQuoteNo(prev.contactInitials, prev.quoteDate, normalizedSequence);
+      if (prev.quoteNo === computed && prev.issueSequence === normalizedSequence) return prev;
+      return { ...prev, quoteNo: computed, issueSequence: normalizedSequence };
+    });
+  }, [meta.contactInitials, meta.quoteDate, meta.issueSequence]);
+
+  useEffect(() => {
+    setMeta(prev => ensureMetaDefaults(prev));
+  }, []);
+
+  const calculation = useMemo<CalculationResult>(() => {
+    return calculateQuote(items, meta.vatRate);
+  }, [items, meta.vatRate]);
+
+  const savePreset = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const preset: QuotePreset = {
+        id: generateId(),
+        name: trimmed,
+        createdAt: new Date().toISOString(),
+        meta: cloneMeta(meta),
+        items: cloneItems(items),
+        summary: {
+          msrpSum: calculation.msrpSum,
+          offerSum: calculation.offerSum,
+          grand: calculation.grand,
+        },
+      };
+      setPresets(prev => [preset, ...prev].slice(0, PRESET_LIMIT));
+    },
+    [meta, items, calculation]
+  );
+
+  const addRow = useCallback((row: Omit<QuoteItem, 'id'>) => {
+    setItems(prev => [...prev, { id: generateId(), ...row }]);
+  }, []);
+
+  const addManyRows = useCallback((factory: () => Omit<QuoteItem, 'id'>, n: number) => {
+    const newItems = Array.from({ length: clamp(n, 1, 999) }, () => ({
+      id: generateId(),
+      ...factory(),
+    }));
+    setItems(prev => [...prev, ...newItems]);
+  }, []);
+
+  const removeRow = useCallback((id: string) => {
+    setItems(prev => prev.filter(r => r.id !== id));
+  }, []);
+
+  const updateRow = useCallback((id: string, patch: Partial<QuoteItem>) => {
+    setItems(prev =>
+      prev.some(r => r.id === id) ? prev.map(r => (r.id === id ? { ...r, ...patch } : r)) : prev
+    );
+  }, []);
+
+  const duplicateRow = useCallback((id: string) => {
+    setItems(prev => {
+      const found = prev.find(r => r.id === id);
+      return found ? [...prev, { ...found, id: generateId() }] : prev;
+    });
+  }, []);
+
+  const resetQuote = useCallback(() => {
+    setMeta(createEmptyMeta());
+    setItems([]);
+    setHistory([]);
+    localStorage.removeItem(DATA_KEY);
+  }, []);
+
+  const applyPreset = useCallback(
+    (id: string) => {
+      const preset = presets.find(p => p.id === id);
+      if (!preset) return;
+      setMeta(ensureMetaDefaults(cloneMeta(preset.meta)));
+      setItems(cloneItems(preset.items));
+    },
+    [presets]
+  );
+
+  const applyPresetAsNew = useCallback(
+    (id: string) => {
+      const preset = presets.find(p => p.id === id);
+      if (!preset) return;
+
+      // Load meta but reset key fields for a "new" quote
+      const newMeta = ensureMetaDefaults(cloneMeta(preset.meta));
+      const defaults = createDefaultMeta();
+
+      newMeta.quoteNo = defaults.quoteNo;
+      newMeta.quoteDate = defaults.quoteDate;
+      newMeta.validityDays = defaults.validityDays;
+      newMeta.issueSequence = ''; // Reset sequence
+
+      setMeta(newMeta);
+      setItems(cloneItems(preset.items));
+    },
+    [presets]
+  );
+
+  const deletePreset = useCallback((id: string) => {
+    setPresets(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const saveSnapshot = useCallback(
+    (label?: string) => {
+      const entry: QuoteSnapshot = {
+        id: generateId(),
+        label: label?.trim() || `${meta.quoteNo} 스냅샷`,
+        createdAt: new Date().toISOString(),
+        meta: cloneMeta(meta),
+        items: cloneItems(items),
+        summary: {
+          msrpSum: calculation.msrpSum,
+          offerSum: calculation.offerSum,
+          grand: calculation.grand,
+        },
+      };
+      setHistory(prev => [entry, ...prev].slice(0, HISTORY_LIMIT));
+    },
+    [meta, items, calculation]
+  );
+
+  const deleteSnapshot = useCallback((id: string) => {
+    setHistory(prev => prev.filter(h => h.id !== id));
+  }, []);
+
+  const restoreSnapshot = useCallback(
+    (id: string) => {
+      const snapshot = history.find(h => h.id === id);
+      if (!snapshot) return;
+      setMeta(ensureMetaDefaults(cloneMeta(snapshot.meta)));
+      setItems(cloneItems(snapshot.items));
+    },
+    [history]
+  );
+
+  const actions = {
+    setMeta,
+    setItems,
+    addRow,
+    addManyRows,
+    removeRow,
+    updateRow,
+    duplicateRow,
+    resetQuote,
+    savePreset,
+    applyPreset,
+    loadPreset: applyPreset,
+    applyPresetAsNew,
+    deletePreset,
+    saveSnapshot,
+    deleteSnapshot,
+    restoreSnapshot,
+    clearHistory: useCallback(() => {
+      setHistory([]);
+    }, []),
+    reorderRow: useCallback((activeId: string, overId: string) => {
+      setItems((prev) => {
+        const oldIndex = prev.findIndex((item) => item.id === activeId);
+        const newIndex = prev.findIndex((item) => item.id === overId);
+        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return prev;
+
+        const newItems = [...prev];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        return newItems;
+      });
+    }, []),
+    // Category label actions
+    setCategoryLabels,
+    updateCategoryLabel: useCallback((section: string, label: string, labelEn?: string) => {
+      setCategoryLabels(prev =>
+        prev.map(cat =>
+          cat.section === section
+            ? { ...cat, label, labelEn: labelEn ?? cat.labelEn }
+            : cat
+        )
+      );
+    }, []),
+    resetCategoryLabels: useCallback(() => {
+      setCategoryLabels([...DEFAULT_CATEGORY_LABELS]);
+    }, []),
+  };
+
+  return { meta, items, calculation, presets, history, categoryLabels, actions };
+};

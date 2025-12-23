@@ -1,0 +1,5 @@
+{
+  "name": "eformsign 견적서 빌더",
+  "description": "eformsign 견적을 신속하게 작성·관리하고 PDF 인쇄와 CSV 내보내기를 지원하는 전문가용 견적서 빌더입니다.",
+  "requestFramePermissions": []
+}

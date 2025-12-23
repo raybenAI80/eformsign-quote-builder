@@ -1,0 +1,6 @@
+﻿<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
+  <rect x='8' y='8' width='104' height='104' fill='#ffffff' stroke='#d1d1d1' stroke-width='3' />
+  <text x='50%' y='48' text-anchor='middle' font-family='Segoe UI, Arial' font-size='28' font-weight='700' fill='#232f3e'>aws</text>
+  <text x='50%' y='72' text-anchor='middle' font-family='Segoe UI, Arial' font-size='14' fill='#f6a30c'>QUALIFIED</text>
+  <text x='50%' y='88' text-anchor='middle' font-family='Segoe UI, Arial' font-size='14' fill='#f6a30c'>SOFTWARE</text>
+</svg>

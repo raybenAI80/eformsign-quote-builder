@@ -1,0 +1,6 @@
+﻿<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'>
+  <ellipse cx='80' cy='60' rx='70' ry='28' fill='#0f8c3e' opacity='0.15' />
+  <ellipse cx='80' cy='60' rx='55' ry='20' fill='none' stroke='#0f8c3e' stroke-width='6' />
+  <text x='80' y='63' text-anchor='middle' font-family='Segoe UI, Arial' font-size='28' font-weight='700' fill='#0f8c3e'>GS</text>
+  <text x='80' y='82' text-anchor='middle' font-family='Segoe UI, Arial' font-size='14' fill='#0f8c3e'>1등급</text>
+</svg>
