@@ -189,7 +189,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
       </aside>
 
       {/* RIGHT CONTENT (WHITE) */}
-      <main className="flex-1 p-[5mm] flex flex-col relative">
+      <main className="flex-1 pl-[2mm] pr-[5mm] py-[5mm] flex flex-col relative">
         {/* Header */}
         <header className="flex justify-between items-start mb-6 border-b-2 border-gray-100 pb-4">
           <div className="text-right">
