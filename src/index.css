@@ -296,3 +296,22 @@ body {
 .notes-html em {
   font-style: italic;
 }
+
+/* Pulse Ring Animation for Step Navigation */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(44, 91, 240, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(44, 91, 240, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(44, 91, 240, 0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

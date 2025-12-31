@@ -1,0 +1,18 @@
+{
+    "geminicodeassist.project": "nth-cocoa-9fv8v",
+    "workbench.editor.autoLockGroups": {
+        "imagePreview.previewEditor": true,
+        "vscode.videoPreview": true,
+        "workbench.input.interactive": true,
+        "default": true,
+        "workbench.editorinputs.searchEditorInput": true
+    },
+    "workbench.editor.closeOnFileDelete": true,
+    "workbench.editor.centeredLayoutFixedWidth": true,
+    "redhat.telemetry.enabled": true,
+    "chatgpt.openOnStartup": true,
+    "workbench.colorTheme": "Default Light Modern",
+	"claudeCode.preferredLocation": "panel",
+	"antigravity.marketplaceGalleryItemURL": "https://marketplace.visualstudio.com/items",
+	"antigravity.marketplaceExtensionGalleryServiceURL": "https://marketplace.visualstudio.com/_apis/public/gallery"
+}
