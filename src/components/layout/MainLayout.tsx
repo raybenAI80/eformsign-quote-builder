@@ -33,7 +33,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             // 280mm ≈ 1058px (at 96dpi), need padding too
             const targetWidth = 1122; // 297mm (A4 width)
             const scale = Math.min((containerWidth - 40) / targetWidth, 1);
-            setPreviewScale(Math.max(0.45, Math.min(1, scale)));
+            setPreviewScale(Math.max(0.4, Math.min(1, scale)));
         };
 
         calculateScale();
@@ -54,8 +54,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         const x = e.clientX - rect.left;
         const percentage = (x / rect.width) * 100;
 
-        // Clamp between 30% and 75%
-        const clampedPercentage = Math.max(30, Math.min(75, percentage));
+        // Clamp between 30% and 60%
+        const clampedPercentage = Math.max(30, Math.min(60, percentage));
         setSplitPosition(clampedPercentage);
     }, [isDragging]);
 
