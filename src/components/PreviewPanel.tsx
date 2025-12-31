@@ -58,7 +58,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
       {/* LEFT SIDEBAR - Split Background Design */}
       <aside className="w-[28%] flex flex-col relative z-10 bg-gray-100">
         {/* Top Section: Light Gray Background (Service Branding) */}
-        <div className="bg-gray-100 pl-1 pr-3 pt-3 pb-1 text-center">
+        <div className="bg-gray-100 pl-2 pr-2 pt-3 pb-1 text-center">
           {/* eformsign Logo */}
           <div className="w-36 mx-auto mb-2">
             <EformsignLogo className="w-full h-auto" />
@@ -88,7 +88,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
 
         {/* Bottom Section: Brand Blue Background (Transaction Info) */}
         <div
-          className="flex-1 p-6 ml-1 mr-3 text-white flex flex-col justify-between"
+          className="flex-1 p-6 pl-3 pr-2 text-white flex flex-col justify-between"
           style={{
             backgroundColor: '#0070B0',
             printColorAdjust: 'exact',

@@ -19,7 +19,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const hasSidebar = Boolean(sidebar);
 
     // Resizable split pane state - percentage for workspace width (30-80%)
-    const [splitPosition, setSplitPosition] = useState(40); // 40% workspace, 60% preview
+    const [splitPosition, setSplitPosition] = useState(50); // 50% workspace, 50% preview
     const [isDragging, setIsDragging] = useState(false);
     const [previewScale, setPreviewScale] = useState(0.55); // Default scale
     const containerRef = useRef<HTMLDivElement>(null);
@@ -28,12 +28,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     // Calculate preview scale based on actual available width
     useEffect(() => {
         const calculateScale = () => {
-            if (!previewRef.current) return;
-            const containerWidth = previewRef.current.parentElement?.clientWidth || 800;
-            // 280mm ≈ 1058px (at 96dpi), need padding too
             const targetWidth = 1122; // 297mm (A4 width)
-            const scale = Math.min((containerWidth - 40) / targetWidth, 1);
-            setPreviewScale(Math.max(0.4, Math.min(1, scale)));
+            let containerWidth: number;
+
+            // On small screens (< 1024px), use window width
+            if (window.innerWidth < 1024) {
+                containerWidth = window.innerWidth;
+            } else if (previewRef.current?.parentElement) {
+                containerWidth = previewRef.current.parentElement.clientWidth;
+            } else {
+                containerWidth = 800;
+            }
+
+            const scale = Math.min((containerWidth - 32) / targetWidth, 1);
+            setPreviewScale(Math.max(0.3, Math.min(1, scale)));
         };
 
         calculateScale();
@@ -97,9 +105,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                         className="flex flex-1 overflow-hidden justify-center bg-[var(--forcs-background)]"
                     >
                         <div className="flex w-full max-w-[1920px] bg-white shadow-2xl overflow-hidden">
-                            {/* Workspace Area */}
+                            {/* Workspace Area - Hidden on small screens */}
                             <main
-                                className="overflow-y-auto border-r border-[var(--forcs-border)]"
+                                className="hidden lg:block overflow-y-auto border-r border-[var(--forcs-border)]"
                                 style={{
                                     width: showPreview ? `${splitPosition}%` : '100%',
                                     transition: isDragging ? 'none' : 'width 0.2s ease'
@@ -114,7 +122,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                             {showPreview && (
                                 <div
                                     onMouseDown={handleMouseDown}
-                                    className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group sticky top-0 h-screen ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
+                                    className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group h-full z-10 ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
                                     title="드래그하여 영역 크기 조절"
                                     style={{ alignItems: 'center', justifyContent: 'center' }}
                                 >
@@ -122,21 +130,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                 </div>
                             )}
 
-                            {/* Preview Area */}
+                            {/* Preview Area - Full width on small screens */}
                             <aside
-                                className={`hidden lg:flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner ${!showPreview ? 'lg:hidden' : ''}`}
+                                className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto ${!showPreview ? 'lg:hidden' : ''}`}
                                 style={{
-                                    width: showPreview ? `${100 - splitPosition}%` : '0',
-                                    position: showPreview ? 'relative' : 'absolute',
-                                    left: showPreview ? 'auto' : '-9999px',
-                                    visibility: showPreview ? 'visible' : 'hidden',
+                                    width: window.innerWidth >= 1024 ? (showPreview ? `${100 - splitPosition}%` : '0') : '100%',
+                                    position: showPreview || window.innerWidth < 1024 ? 'relative' : 'absolute',
+                                    left: showPreview || window.innerWidth < 1024 ? 'auto' : '-9999px',
+                                    visibility: showPreview || window.innerWidth < 1024 ? 'visible' : 'hidden',
                                     transition: isDragging ? 'none' : 'width 0.2s ease'
                                 }}
                             >
-                                <div ref={previewRef} className="p-4 flex justify-center items-start overflow-y-auto overflow-x-auto h-full">
+                                <div ref={previewRef} className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-y-auto overflow-x-hidden h-full">
                                     <div
-                                        className="w-[297mm] origin-top transition-transform"
-                                        style={{ transform: `scale(${previewScale})` }}
+                                        className="w-[297mm] origin-top-left lg:origin-top transition-transform"
+                                        style={{
+                                            transform: `scale(${previewScale}) translateZ(0)`,
+                                            backfaceVisibility: 'hidden'
+                                        }}
                                     >
                                         {preview}
                                     </div>
@@ -146,51 +157,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     </div>
                 </div>
             </div>
-
-            {/* Mobile Preview Toggle FAB (Floating Action Button) */}
-            <div className="fixed bottom-6 right-6 z-50 lg:hidden">
-                <button
-                    onClick={onTogglePreview}
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--forcs-blue)] text-white shadow-lg transition-transform active:scale-90"
-                >
-                    {showPreview ? (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                    ) : (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    )}
-                </button>
-            </div>
-
-            {/* Mobile Preview Modal */}
-            <AnimatePresence>
-                {showPreview && (
-                    <motion.div
-                        initial={{ opacity: 0, y: '100%' }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: '100%' }}
-                        className="fixed inset-0 z-40 flex flex-col bg-gray-100 lg:hidden overflow-y-auto"
-                    >
-                        <div className="sticky top-0 z-10 flex items-center justify-between bg-white px-4 py-3 shadow-sm">
-                            <h3 className="font-bold text-lg">미리보기</h3>
-                            <button onClick={onTogglePreview} className="p-2">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M18 6L6 18M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="p-4 flex justify-center min-h-0 flex-1 overflow-y-auto">
-                            <div className="w-full max-w-[280mm] scale-[0.45] origin-top-left sm:scale-[0.6] md:scale-[0.8]">
-                                {preview}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Mobile components removed - preview is always shown on small screens */}
         </div>
     );
 };

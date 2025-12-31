@@ -68,9 +68,29 @@ export const StepBar: React.FC<StepBarProps> = ({
     // 현재 탭의 인덱스
     const currentIndex = steps.findIndex(s => s.id === activeTab);
 
+    // 반응형 처리를 위한 ResizeObserver, Header.tsx와 동일한 방식
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const [width, setWidth] = React.useState(1000);
+
+    React.useEffect(() => {
+        if (!containerRef.current) return;
+
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setWidth(entry.contentRect.width);
+            }
+        });
+
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
+
+    const showFullLabel = width > 480;
+    const showBadge = width > 550;
+
     return (
-        <div className="w-full">
-            <div className="flex w-full items-center gap-1 rounded-[24px] bg-[#f7fbfa] px-3 py-2.5 shadow-lg shadow-[rgba(0,0,0,0.04)]">
+        <div className="w-full" ref={containerRef}>
+            <div className={`flex w-full items-center gap-1 rounded-[24px] bg-[#f7fbfa] shadow-lg shadow-[rgba(0,0,0,0.04)] ${showFullLabel ? 'px-3 py-2.5' : 'px-1.5 py-2'}`}>
                 {steps.map((step, index) => {
                     const active = activeTab === step.id;
                     const state = stepStates[step.id as TabId];
@@ -80,37 +100,50 @@ export const StepBar: React.FC<StepBarProps> = ({
                     const prevStepCompleted = index > 0 && stepStates[steps[index - 1].id as TabId] === 'ok';
                     const shouldPulse = !active && prevStepCompleted && state !== 'ok';
 
+                    // 아주 좁을 때(showFullLabel false)는 활성화된 탭만 라벨을 보여줄지, 아예 다 숨길지 결정
+                    // 여기서는 깔끔하게 선택된 탭은 라벨을 보여주고, 나머지는 아이콘만 보여주는 하이브리드 방식 시도
+                    // 공간이 너무 좁으면(350px 이하) 선택된 탭도 라벨 숨김
+                    const isVeryNarrow = width < 350;
+                    const shouldShowLabel = showFullLabel || (active && !isVeryNarrow);
+
                     return (
                         <React.Fragment key={step.id}>
                             {/* 화살표 (첫 번째 탭 제외) */}
                             {index > 0 && (
-                                <span className="text-gray-300 text-sm font-light px-0.5">→</span>
+                                <span className={`text-gray-300 text-sm font-light ${showFullLabel ? 'px-0.5' : 'px-0'}`}>→</span>
                             )}
                             <button
-                                className={`group relative flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center transition-all shadow-sm ${active
+                                className={`group relative flex flex-1 items-center justify-center rounded-xl transition-all shadow-sm ${active
                                     ? 'bg-white text-[var(--forcs-blue)] shadow-md ring-1 ring-[var(--forcs-blue)]'
                                     : 'bg-white/90 text-[color:var(--forcs-text-muted)] hover:shadow hover:ring-1 hover:ring-[var(--forcs-border)]'
-                                    } ${shouldPulse ? 'animate-pulse-ring' : ''}`}
+                                    } ${shouldPulse ? 'animate-pulse-ring' : ''} ${showFullLabel ? 'px-3 py-2 gap-2' : 'px-1.5 py-1.5 gap-1.5'}`}
                                 onClick={() => onTabChange(step.id as TabId)}
+                                title={!shouldShowLabel ? step.label : undefined}
                             >
-                                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-[var(--forcs-blue-light)] text-[var(--forcs-blue)]' : 'bg-gray-100 text-gray-500'}`}>
+                                <span className={`flex shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${active ? 'bg-[var(--forcs-blue-light)] text-[var(--forcs-blue)]' : 'bg-gray-100 text-gray-500'} ${showFullLabel ? 'h-7 w-7' : 'h-6 w-6'}`}>
                                     {state === 'ok' ? (
                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--forcs-blue)]">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
                                     ) : active ? step.num : step.icon}
                                 </span>
-                                <span className="flex flex-col items-start leading-tight">
-                                    <span className={`text-[11px] font-bold whitespace-nowrap ${active ? 'text-[var(--forcs-blue)]' : 'text-gray-700'}`}>
-                                        {step.label}
-                                    </span>
-                                    {step.badge && (
-                                        <span className={`text-[10px] font-medium ${active ? 'text-[var(--forcs-blue)]/70' : 'text-gray-400'}`}>
-                                            {step.badge}
+
+                                {shouldShowLabel && (
+                                    <span className="flex flex-col items-start leading-tight overflow-hidden">
+                                        <span className={`text-[11px] font-bold whitespace-nowrap ${active ? 'text-[var(--forcs-blue)]' : 'text-gray-700'}`}>
+                                            {step.label}
                                         </span>
-                                    )}
-                                </span>
-                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass} ${active ? 'ring-2 ring-[var(--forcs-blue-light)]' : ''}`} />
+                                        {step.badge && showBadge && (
+                                            <span className={`text-[10px] font-medium ${active ? 'text-[var(--forcs-blue)]/70' : 'text-gray-400'}`}>
+                                                {step.badge}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
+
+                                {showFullLabel && (
+                                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass} ${active ? 'ring-2 ring-[var(--forcs-blue-light)]' : ''}`} />
+                                )}
                             </button>
                         </React.Fragment>
                     );
