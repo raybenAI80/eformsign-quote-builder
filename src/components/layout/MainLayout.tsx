@@ -209,6 +209,5 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 </div>
             </div>
         </div>
-        </div >
     );
 };
