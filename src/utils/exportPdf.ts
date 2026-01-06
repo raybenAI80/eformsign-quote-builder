@@ -41,19 +41,19 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         // IMPORTANT: Request save location FIRST, before any heavy processing
         // This must happen within 5 seconds of user click (User Activation window)
         const safeFileName = fileName.replace(/[()\/\\:*?"<>|]/g, '_').trim() + '.pdf';
-        let fileHandle: any = null;
+        let fileHandle: FileSystemFileHandle | null = null;
 
-        if ('showSaveFilePicker' in window) {
+        if (window.showSaveFilePicker) {
             try {
-                fileHandle = await (window as any).showSaveFilePicker({
+                fileHandle = await window.showSaveFilePicker({
                     suggestedName: safeFileName,
                     types: [{
                         description: 'PDF Document',
                         accept: { 'application/pdf': ['.pdf'] },
                     }],
                 });
-            } catch (err: any) {
-                if (err.name === 'AbortError') {
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
                     // User cancelled the save dialog
                     return;
                 }
@@ -244,10 +244,11 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
             } else {
                 pdf.setTextColor(255, 255, 255);
                 try {
-                    const gState = new (pdf as any).GState({ opacity: 0.01 });
+                    // @ts-expect-error - jsPDF GState is not in type definitions
+                    const gState = new pdf.GState({ opacity: 0.01 });
                     pdf.setGState(gState);
-                } catch (e) {
-                    // Ignore
+                } catch {
+                    // GState not supported in this version
                 }
             }
 
@@ -271,10 +272,11 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
             // Reset GState
             if (!DEBUG_OCR) {
                 try {
-                    const normalState = new (pdf as any).GState({ opacity: 1 });
+                    // @ts-expect-error - jsPDF GState is not in type definitions
+                    const normalState = new pdf.GState({ opacity: 1 });
                     pdf.setGState(normalState);
-                } catch (e) {
-                    // Ignore
+                } catch {
+                    // GState not supported in this version
                 }
             }
 

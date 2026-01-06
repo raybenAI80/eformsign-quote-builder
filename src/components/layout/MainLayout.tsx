@@ -22,8 +22,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const [splitPosition, setSplitPosition] = useState(50); // 50% workspace, 50% preview
     const [isDragging, setIsDragging] = useState(false);
     const [previewScale, setPreviewScale] = useState(0.55); // Default scale
+    const [scaledHeight, setScaledHeight] = useState<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     // Calculate preview scale based on actual available width
     useEffect(() => {
@@ -48,6 +50,26 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         window.addEventListener('resize', calculateScale);
         return () => window.removeEventListener('resize', calculateScale);
     }, [splitPosition]);
+
+    // Calculate scaled height to remove empty space below preview
+    useEffect(() => {
+        const updateScaledHeight = () => {
+            if (contentRef.current) {
+                const originalHeight = contentRef.current.offsetHeight;
+                setScaledHeight(originalHeight * previewScale);
+            }
+        };
+
+        updateScaledHeight();
+
+        // Use ResizeObserver to detect content height changes
+        const observer = new ResizeObserver(updateScaledHeight);
+        if (contentRef.current) {
+            observer.observe(contentRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [previewScale]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -141,12 +163,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                     transition: isDragging ? 'none' : 'width 0.2s ease'
                                 }}
                             >
-                                <div ref={previewRef} className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-y-auto overflow-x-hidden h-full">
+                                <div
+                                    ref={previewRef}
+                                    className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden"
+                                    style={{
+                                        height: scaledHeight ? `${scaledHeight + 32}px` : 'auto', // 32px for padding
+                                        overflow: 'visible'
+                                    }}
+                                >
                                     <div
-                                        className="w-[297mm] origin-top-left lg:origin-top transition-transform"
+                                        ref={contentRef}
+                                        className="w-[297mm]"
                                         style={{
-                                            transform: `scale(${previewScale}) translateZ(0)`,
-                                            backfaceVisibility: 'hidden'
+                                            transform: `scale(${previewScale})`,
+                                            transformOrigin: window.innerWidth >= 1024 ? 'top center' : 'top left',
                                         }}
                                     >
                                         {preview}

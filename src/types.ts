@@ -9,6 +9,8 @@ export interface QuoteItem {
   unitPrice: number;
   discountPct: number;
   notes: string;
+  /** @deprecated Use `notes` instead. Legacy compatibility field. */
+  note?: string;
 }
 
 export interface QuoteMeta {

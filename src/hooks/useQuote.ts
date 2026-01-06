@@ -22,13 +22,13 @@ const HISTORY_LIMIT = 10;
 const PRESET_LIMIT = 10;
 
 const generateId = (): string => {
-  const globalCrypto: Crypto | undefined = (globalThis as any)?.crypto;
-  if (globalCrypto?.randomUUID) {
-    return globalCrypto.randomUUID();
+  // crypto is available in modern browsers and Node.js 19+
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
   }
-  if (globalCrypto?.getRandomValues) {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const buffer = new Uint8Array(16);
-    globalCrypto.getRandomValues(buffer);
+    crypto.getRandomValues(buffer);
     buffer[6] = (buffer[6] & 0x0f) | 0x40;
     buffer[8] = (buffer[8] & 0x3f) | 0x80;
     const hex = Array.from(buffer, b => b.toString(16).padStart(2, '0'));
@@ -47,14 +47,15 @@ const generateId = (): string => {
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-export const formatSequence = (raw: string): string => {
+export const formatSequence = (raw: string | null | undefined): string => {
+  if (!raw) return '';
   const digits = raw.replace(/\D/g, '');
   // Keep only digits, do not auto-pad; cap length to avoid runaway input
   return digits.slice(0, 6);
 };
 
-export const buildQuoteNo = (initials: string, quoteDate: string, sequence: string): string => {
-  const cleanedInitials = initials.trim().toUpperCase() || 'AA';
+export const buildQuoteNo = (initials: string | null | undefined, quoteDate: string | null | undefined, sequence: string | null | undefined): string => {
+  const cleanedInitials = (initials || '').trim().toUpperCase() || 'AA';
   const datePart = quoteDate
     ? quoteDate.replace(/-/g, '')
     : new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -152,7 +153,7 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
   return {
     ...meta,
     supplier: SUPPLIER_PROFILE.companyName,
-    customerName: meta.customerName ?? (meta as any).customer ?? '',
+    customerName: meta.customerName ?? '',
     customerManager: meta.customerManager ?? '',
     brandingMode:
       (typeof legacyAi === 'boolean' ? (legacyAi ? 'ai' : 'default') : meta.brandingMode ?? 'ai'),

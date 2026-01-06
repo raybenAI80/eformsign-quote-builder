@@ -1,7 +1,7 @@
 
 // Buffer polyfill for @react-pdf/renderer
 import { Buffer } from 'buffer';
-(window as any).Buffer = Buffer;
+window.Buffer = Buffer;
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';

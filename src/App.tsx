@@ -5,7 +5,6 @@ import { useQuote, calculateQuote } from './hooks/useQuote';
 import { exportToImage, exportToPdf } from './utils/exportPdf';
 
 // Layout & Editors
-// Layout & Editors
 import { MainLayout } from './components/layout/MainLayout';
 import { StepBar, TabId } from './components/layout/StepBar';
 import { QuoteSnapshot } from './types';
@@ -17,7 +16,11 @@ import { OptionEditor } from './components/editors/OptionEditor';
 import { HistoryEditor } from './components/editors/HistoryEditor';
 import { ConfirmModal } from './components/ConfirmModal';
 
-function App() {
+// Auth
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
+function QuoteBuilder() {
   const { meta, items, calculation, presets, history, categoryLabels, actions } = useQuote();
   const [activeTab, setActiveTab] = useState<TabId>('options');
   const [showPreview, setShowPreview] = useState(true);
@@ -109,7 +112,7 @@ function App() {
       item.qty * item.unitPrice,
       item.discountPct ?? 0,
       Math.round(item.qty * item.unitPrice * (1 - (item.discountPct ?? 0) / 100)),
-      (item as any).note || item.notes || '',
+      item.note || item.notes || '',
     ]);
 
     const csvContent = [
@@ -293,4 +296,12 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <QuoteBuilder />
+      </ProtectedRoute>
+    </AuthProvider>
+  );
+}
