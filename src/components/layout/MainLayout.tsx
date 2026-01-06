@@ -23,7 +23,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const [splitPosition, setSplitPosition] = useState(50); // 50% workspace, 50% preview
     const [isDragging, setIsDragging] = useState(false);
     const [previewScale, setPreviewScale] = useState(0.55); // Default scale
-    const [scaledHeight, setScaledHeight] = useState<number | null>(null);
+    const [scaledSize, setScaledSize] = useState<{ w: number, h: number } | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -50,21 +50,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         calculateScale();
         window.addEventListener('resize', calculateScale);
         return () => window.removeEventListener('resize', calculateScale);
-    }, [splitPosition, showPreview]); // Added showPreview dependency
+    }, [splitPosition, showPreview]);
 
-    // Calculate scaled height to remove empty space below preview
+    // Calculate scaled dimensions for the wrapper
     useEffect(() => {
-        const updateScaledHeight = () => {
+        const updateScaledSize = () => {
             if (contentRef.current) {
                 const originalHeight = contentRef.current.offsetHeight;
-                setScaledHeight(originalHeight * previewScale);
+                const originalWidth = contentRef.current.offsetWidth; // checking 297mm
+                setScaledSize({
+                    w: originalWidth * previewScale,
+                    h: originalHeight * previewScale
+                });
             }
         };
 
-        updateScaledHeight();
+        updateScaledSize();
 
         // Use ResizeObserver to detect content height changes
-        const observer = new ResizeObserver(updateScaledHeight);
+        const observer = new ResizeObserver(updateScaledSize);
         if (contentRef.current) {
             observer.observe(contentRef.current);
         }
@@ -72,6 +76,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         return () => observer.disconnect();
     }, [previewScale]);
 
+    // ... (Handlers remain same) ...
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         setIsDragging(true);
@@ -134,8 +139,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     >
                         <div className="flex w-full max-w-[1920px] bg-white shadow-2xl overflow-hidden">
                             {/* Workspace Area */}
-                            {/* Mobile: Show only if preview is HIDDEN */}
-                            {/* Desktop: Always show, resize width */}
                             <main
                                 className={`
                                     overflow-y-auto border-r border-[var(--forcs-border)]
@@ -152,7 +155,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                 </div>
                             </main>
 
-                            {/* Resizable Divider - Only show on desktop when preview is visible */}
+                            {/* Resizable Divider */}
                             {showPreview && (
                                 <div
                                     onMouseDown={handleMouseDown}
@@ -165,8 +168,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                             )}
 
                             {/* Preview Area */}
-                            {/* Mobile: Show only if preview is VISIBLE */}
-                            {/* Desktop: Show based on showPreview */}
                             <aside
                                 className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto
                                     ${!showPreview ? 'hidden' : 'block'}
@@ -184,21 +185,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                         overflowY: 'auto'
                                     }}
                                 >
-                                    <div
-                                        style={{
-                                            textAlign: 'center',
-                                            paddingBottom: '2rem'
-                                        }}
-                                    >
+                                    {/* Centered Wrapper */}
+                                    <div className="flex flex-col items-center justify-start min-h-full pb-8">
                                         <div
-                                            ref={contentRef}
-                                            className="w-[297mm] shadow-lg bg-white origin-top-left lg:origin-top-center"
                                             style={{
-                                                transform: `scale(${previewScale})`,
-                                                marginBottom: `-${(1 - previewScale) * 100}%` // visual compensation
+                                                width: scaledSize?.w ?? 'auto',
+                                                height: scaledSize?.h ?? 'auto',
+                                                visibility: scaledSize ? 'visible' : 'hidden', // Avoid flash
                                             }}
                                         >
-                                            {preview}
+                                            <div
+                                                ref={contentRef}
+                                                className="w-[297mm] shadow-lg bg-white origin-top-left"
+                                                style={{
+                                                    transform: `scale(${previewScale})`,
+                                                }}
+                                            >
+                                                {preview}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
