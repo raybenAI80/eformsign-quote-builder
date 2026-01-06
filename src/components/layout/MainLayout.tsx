@@ -131,87 +131,84 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     {header}
                 </div>
 
-                <div className="flex flex-1 relative">
+                <div
+                    ref={containerRef}
+                    className="flex flex-1 relative overflow-hidden justify-center bg-[var(--forcs-background)]"
+                >
                     {/* Workspace + Preview Container */}
-                    <div className="flex flex-1 relative">
-                        {/* Workspace + Preview Container */}
-                        <div
-                            ref={containerRef}
-                            className="flex flex-1 overflow-hidden justify-center bg-[var(--forcs-background)]"
-                        >
-                            <div className="flex w-full max-w-[1920px] h-full bg-white shadow-2xl overflow-hidden">
-                                {/* Workspace Area */}
-                                <main
-                                    className={`
+                    <div className="flex w-full max-w-[1920px] h-full bg-white shadow-2xl overflow-hidden">
+                        {/* Workspace Area */}
+                        <main
+                            className={`
                                     overflow-y-auto border-r border-[var(--forcs-border)]
                                     ${showPreview ? 'hidden lg:block' : 'block w-full'}
                                 `}
-                                    style={{
-                                        width: (window.innerWidth >= 1024 && showPreview) ? `${splitPosition}%` : (showPreview ? '0' : '100%'),
-                                        transition: isDragging ? 'none' : 'width 0.2s ease',
-                                        display: (window.innerWidth < 1024 && showPreview) ? 'none' : 'block'
-                                    }}
-                                >
-                                    <div className="mx-auto w-full max-w-[1100px] p-4 pb-24 lg:p-8">
-                                        {workspace}
-                                    </div>
-                                </main>
+                            style={{
+                                width: (window.innerWidth >= 1024 && showPreview) ? `${splitPosition}%` : (showPreview ? '0' : '100%'),
+                                transition: isDragging ? 'none' : 'width 0.2s ease',
+                                display: (window.innerWidth < 1024 && showPreview) ? 'none' : 'block'
+                            }}
+                        >
+                            <div className="mx-auto w-full max-w-[1100px] p-4 pb-24 lg:p-8">
+                                {workspace}
+                            </div>
+                        </main>
 
-                                {/* Resizable Divider */}
-                                {showPreview && (
-                                    <div
-                                        onMouseDown={handleMouseDown}
-                                        className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group h-full z-10 items-center justify-center ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
-                                        title="드래그하여 영역 크기 조절"
-                                    >
-                                        <div className={`w-1 h-12 rounded-full ${isDragging ? 'bg-white' : 'bg-gray-400 group-hover:bg-white'} transition-colors`} />
-                                    </div>
-                                )}
+                        {/* Resizable Divider */}
+                        {showPreview && (
+                            <div
+                                onMouseDown={handleMouseDown}
+                                className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group h-full z-10 items-center justify-center ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
+                                title="드래그하여 영역 크기 조절"
+                            >
+                                <div className={`w-1 h-12 rounded-full ${isDragging ? 'bg-white' : 'bg-gray-400 group-hover:bg-white'} transition-colors`} />
+                            </div>
+                        )}
 
-                                {/* Preview Area */}
-                                <aside
-                                    className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto
+                        {/* Preview Area */}
+                        <aside
+                            className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto
                                     ${!showPreview ? 'hidden' : 'flex'}
                                 `}
-                                    style={{
-                                        width: window.innerWidth >= 1024 ? `${100 - splitPosition}%` : '100%',
-                                        transition: isDragging ? 'none' : 'width 0.2s ease',
-                                        display: !showPreview ? 'none' : 'flex'
-                                    }}
-                                >
+                            style={{
+                                width: window.innerWidth >= 1024 ? `${100 - splitPosition}%` : '100%',
+                                transition: isDragging ? 'none' : 'width 0.2s ease',
+                                display: !showPreview ? 'none' : 'flex'
+                            }}
+                        >
+                            <div
+                                ref={previewRef}
+                                className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden flex-1"
+                                style={{
+                                    overflowY: 'auto'
+                                }}
+                            >
+                                {/* Centered Wrapper */}
+                                <div className="flex flex-col items-center justify-start min-h-full pb-8">
                                     <div
-                                        ref={previewRef}
-                                        className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden flex-1"
                                         style={{
-                                            overflowY: 'auto'
+                                            width: scaledSize?.w ?? 'auto',
+                                            height: scaledSize?.h ?? 'auto',
+                                            visibility: scaledSize ? 'visible' : 'hidden', // Avoid flash
                                         }}
                                     >
-                                        {/* Centered Wrapper */}
-                                        <div className="flex flex-col items-center justify-start min-h-full pb-8">
-                                            <div
-                                                style={{
-                                                    width: scaledSize?.w ?? 'auto',
-                                                    height: scaledSize?.h ?? 'auto',
-                                                    visibility: scaledSize ? 'visible' : 'hidden', // Avoid flash
-                                                }}
-                                            >
-                                                <div
-                                                    ref={contentRef}
-                                                    className="w-[297mm] shadow-lg bg-white origin-top-left"
-                                                    style={{
-                                                        transform: `scale(${previewScale})`,
-                                                    }}
-                                                >
-                                                    {preview}
-                                                </div>
-                                            </div>
+                                        <div
+                                            ref={contentRef}
+                                            className="w-[297mm] shadow-lg bg-white origin-top-left"
+                                            style={{
+                                                transform: `scale(${previewScale})`,
+                                            }}
+                                        >
+                                            {preview}
                                         </div>
                                     </div>
-                                </aside>
+                                </div>
                             </div>
-                        </div>
+                        </aside>
                     </div>
                 </div>
             </div>
-            );
+        </div>
+        </div >
+    );
 };
