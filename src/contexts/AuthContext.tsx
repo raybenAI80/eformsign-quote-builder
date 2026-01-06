@@ -20,6 +20,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         console.log('🔄 AuthProvider mounted');
+        console.log('📍 Current URL:', window.location.href); // URL 디버깅
+
         // 현재 세션 가져오기
         supabase.auth.getSession().then(({ data: { session }, error }) => {
             if (error) console.error('❌ getSession error:', error);
