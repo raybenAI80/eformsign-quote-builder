@@ -43,6 +43,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
             console.log('🔔 onAuthStateChange:', event, session);
+
+            // 해시에 토큰이 있는데 세션이 없다면, 초기 SIGNED_OUT 이벤트를 무시하고 기다림
+            const hasHashToken = window.location.hash.includes('access_token');
+            if ((event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') && !session && hasHashToken) {
+                console.log('⏳ Ignoring SIGNED_OUT/INITIAL because hash token is present');
+                return;
+            }
+
             handleSession(session);
             setLoading(false);
         });
