@@ -220,18 +220,19 @@ function QuoteBuilder() {
         showPreview={showPreview}
         onTogglePreview={() => setShowPreview(!showPreview)}
         sidebar={null}
+        header={
+          <Header
+            onExportCSV={handleExportCSV}
+            onExportImage={handleExportImage}
+            onExportPdf={handleExportPdf}
+            onReset={handleReset}
+            showPreview={showPreview}
+            onTogglePreview={() => setShowPreview(!showPreview)}
+            onTempSave={handleTempSave}
+          />
+        }
         workspace={
           <div className="space-y-6">
-            <Header
-              onExportCSV={handleExportCSV}
-              onExportImage={handleExportImage}
-              onExportPdf={handleExportPdf}
-              onReset={handleReset}
-              showPreview={showPreview}
-              onTogglePreview={() => setShowPreview(!showPreview)}
-              onTempSave={handleTempSave}
-            />
-
             <StepBar
               activeTab={activeTab}
               onTabChange={setActiveTab}

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 
 interface MainLayoutProps {
+    header: React.ReactNode;
     sidebar?: React.ReactNode;
     workspace: React.ReactNode;
     preview: React.ReactNode;
@@ -10,6 +10,7 @@ interface MainLayoutProps {
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
+    header,
     sidebar,
     workspace,
     preview,
@@ -33,7 +34,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             const targetWidth = 1122; // 297mm (A4 width)
             let containerWidth: number;
 
-            // On small screens (< 1024px), use window width
+            // On mobile, force checking window width or parent
             if (window.innerWidth < 1024) {
                 containerWidth = window.innerWidth;
             } else if (previewRef.current?.parentElement) {
@@ -49,7 +50,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         calculateScale();
         window.addEventListener('resize', calculateScale);
         return () => window.removeEventListener('resize', calculateScale);
-    }, [splitPosition]);
+    }, [splitPosition, showPreview]); // Added showPreview dependency
 
     // Calculate scaled height to remove empty space below preview
     useEffect(() => {
@@ -120,6 +121,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
             {/* Main Content */}
             <div className="flex flex-1 flex-col min-w-0">
+                {/* Header Area - Always Visible */}
+                <div className="w-full z-20 bg-white border-b border-[var(--forcs-border)]">
+                    {header}
+                </div>
+
                 <div className="flex flex-1 relative">
                     {/* Workspace + Preview Container */}
                     <div
@@ -127,12 +133,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                         className="flex flex-1 overflow-hidden justify-center bg-[var(--forcs-background)]"
                     >
                         <div className="flex w-full max-w-[1920px] bg-white shadow-2xl overflow-hidden">
-                            {/* Workspace Area - Hidden on small screens */}
+                            {/* Workspace Area */}
+                            {/* Mobile: Show only if preview is HIDDEN */}
+                            {/* Desktop: Always show, resize width */}
                             <main
-                                className="hidden lg:block overflow-y-auto border-r border-[var(--forcs-border)]"
+                                className={`
+                                    overflow-y-auto border-r border-[var(--forcs-border)]
+                                    ${showPreview ? 'hidden lg:block' : 'block w-full'}
+                                `}
                                 style={{
-                                    width: showPreview ? `${splitPosition}%` : '100%',
-                                    transition: isDragging ? 'none' : 'width 0.2s ease'
+                                    width: (window.innerWidth >= 1024 && showPreview) ? `${splitPosition}%` : (showPreview ? '0' : '100%'),
+                                    transition: isDragging ? 'none' : 'width 0.2s ease',
+                                    display: (window.innerWidth < 1024 && showPreview) ? 'none' : 'block'
                                 }}
                             >
                                 <div className="mx-auto w-full max-w-[1100px] p-4 pb-24 lg:p-8">
@@ -152,34 +164,42 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                                 </div>
                             )}
 
-                            {/* Preview Area - Full width on small screens */}
+                            {/* Preview Area */}
+                            {/* Mobile: Show only if preview is VISIBLE */}
+                            {/* Desktop: Show based on showPreview */}
                             <aside
-                                className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto ${!showPreview ? 'lg:hidden' : ''}`}
+                                className={`flex flex-col overflow-hidden bg-[#f1f5f9] shadow-inner w-full lg:w-auto
+                                    ${!showPreview ? 'hidden' : 'block'}
+                                `}
                                 style={{
-                                    width: window.innerWidth >= 1024 ? (showPreview ? `${100 - splitPosition}%` : '0') : '100%',
-                                    position: showPreview || window.innerWidth < 1024 ? 'relative' : 'absolute',
-                                    left: showPreview || window.innerWidth < 1024 ? 'auto' : '-9999px',
-                                    visibility: showPreview || window.innerWidth < 1024 ? 'visible' : 'hidden',
-                                    transition: isDragging ? 'none' : 'width 0.2s ease'
+                                    width: window.innerWidth >= 1024 ? `${100 - splitPosition}%` : '100%',
+                                    transition: isDragging ? 'none' : 'width 0.2s ease',
+                                    display: !showPreview ? 'none' : 'flex'
                                 }}
                             >
                                 <div
                                     ref={previewRef}
-                                    className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden"
+                                    className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden flex-1"
                                     style={{
-                                        height: scaledHeight ? `${scaledHeight + 32}px` : 'auto', // 32px for padding
-                                        overflow: 'visible'
+                                        overflowY: 'auto'
                                     }}
                                 >
                                     <div
-                                        ref={contentRef}
-                                        className="w-[297mm]"
                                         style={{
-                                            transform: `scale(${previewScale})`,
-                                            transformOrigin: window.innerWidth >= 1024 ? 'top center' : 'top left',
+                                            textAlign: 'center',
+                                            paddingBottom: '2rem'
                                         }}
                                     >
-                                        {preview}
+                                        <div
+                                            ref={contentRef}
+                                            className="w-[297mm] shadow-lg bg-white origin-top-left lg:origin-top-center"
+                                            style={{
+                                                transform: `scale(${previewScale})`,
+                                                marginBottom: `-${(1 - previewScale) * 100}%` // visual compensation
+                                            }}
+                                        >
+                                            {preview}
+                                        </div>
                                     </div>
                                 </div>
                             </aside>
@@ -187,7 +207,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                     </div>
                 </div>
             </div>
-            {/* Mobile components removed - preview is always shown on small screens */}
         </div>
     );
 };
