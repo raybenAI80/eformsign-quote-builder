@@ -20,39 +20,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         console.log('🔄 AuthProvider mounted');
-        console.log('📍 Current URL:', window.location.href); // URL 디버깅
+        console.log('📍 Current URL:', window.location.href);
 
-        // 현재 세션 가져오기
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
-            if (error) console.error('❌ getSession error:', error);
-            console.log('🔍 Initial getSession result:', session);
+        // 해시에서 토큰 수동 파싱
+        const parseHashParams = () => {
+            const hash = window.location.hash.substring(1); // # 제거
+            const params = new URLSearchParams(hash);
+            return {
+                access_token: params.get('access_token'),
+                refresh_token: params.get('refresh_token'),
+            };
+        };
 
-            // 해시에 토큰이 있는데 세션이 아직 없다면, onAuthStateChange가 처리할 때까지 기다림 (로딩 유지)
-            const hasHashToken = window.location.hash.includes('access_token');
-            if (!session && hasHashToken) {
-                console.log('⏳ Token detected in hash, waiting for onAuthStateChange...');
-                return;
+        const initAuth = async () => {
+            const hashParams = parseHashParams();
+
+            // 해시에 토큰이 있다면 수동으로 세션 설정
+            if (hashParams.access_token && hashParams.refresh_token) {
+                console.log('🔑 Found tokens in hash, manually setting session...');
+                try {
+                    const { data, error } = await supabase.auth.setSession({
+                        access_token: hashParams.access_token,
+                        refresh_token: hashParams.refresh_token,
+                    });
+
+                    if (error) {
+                        console.error('❌ setSession error:', error);
+                        setLoading(false);
+                        return;
+                    }
+
+                    console.log('✅ Session set successfully:', data.session);
+                    // 해시 제거 (깔끔한 URL 유지)
+                    window.history.replaceState(null, '', window.location.pathname);
+                    handleSession(data.session);
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    console.error('❌ Failed to set session from hash:', err);
+                }
             }
 
+            // 기존 세션 확인
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) console.error('❌ getSession error:', error);
+            console.log('🔍 Initial getSession result:', session);
             handleSession(session);
             setLoading(false);
-        });
+        };
+
+        initAuth();
 
         // 인증 상태 변경 구독
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
             console.log('🔔 onAuthStateChange:', event, session);
-
-            // 해시에 토큰이 있는데 세션이 없다면, 초기 SIGNED_OUT 이벤트를 무시하고 기다림
-            const hasHashToken = window.location.hash.includes('access_token');
-            if ((event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') && !session && hasHashToken) {
-                console.log('⏳ Ignoring SIGNED_OUT/INITIAL because hash token is present');
-                return;
+            // SIGNED_IN 이벤트일 때만 처리 (초기화는 initAuth에서 처리)
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                handleSession(session);
+            } else if (event === 'SIGNED_OUT') {
+                handleSession(null);
             }
-
-            handleSession(session);
-            setLoading(false);
         });
 
         return () => subscription.unsubscribe();
