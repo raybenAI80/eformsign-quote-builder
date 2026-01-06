@@ -26,6 +26,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supabase.auth.getSession().then(({ data: { session }, error }) => {
             if (error) console.error('❌ getSession error:', error);
             console.log('🔍 Initial getSession result:', session);
+
+            // 해시에 토큰이 있는데 세션이 아직 없다면, onAuthStateChange가 처리할 때까지 기다림 (로딩 유지)
+            const hasHashToken = window.location.hash.includes('access_token');
+            if (!session && hasHashToken) {
+                console.log('⏳ Token detected in hash, waiting for onAuthStateChange...');
+                return;
+            }
+
             handleSession(session);
             setLoading(false);
         });
