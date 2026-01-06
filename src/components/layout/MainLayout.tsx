@@ -158,7 +158,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                         {showPreview && (
                             <div
                                 onMouseDown={handleMouseDown}
-                                className={`hidden lg:flex w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group h-full z-10 items-center justify-center ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
+                                className={`hidden lg:flex flex-col w-2 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-[var(--forcs-teal)] transition-colors group h-full z-10 items-center justify-center ${isDragging ? 'bg-[var(--forcs-teal)]' : ''}`}
                                 title="드래그하여 영역 크기 조절"
                             >
                                 <div className={`w-1 h-12 rounded-full ${isDragging ? 'bg-white' : 'bg-gray-400 group-hover:bg-white'} transition-colors`} />
