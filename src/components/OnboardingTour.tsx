@@ -95,6 +95,17 @@ const steps: Step[] = [
     },
 ];
 
+// 한글 locale 설정
+const koreanLocale = {
+    back: '이전',
+    close: '닫기',
+    last: '완료',
+    next: '다음',
+    nextLabelWithProgress: '다음',
+    open: '열기',
+    skip: '건너뛰기',
+};
+
 export const OnboardingTour: React.FC<OnboardingTourProps> = ({ run, onComplete }) => {
     const handleJoyrideCallback = (data: CallBackProps) => {
         const { status, action } = data;
@@ -111,18 +122,12 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ run, onComplete 
             steps={steps}
             run={run}
             continuous
-            showProgress
             showSkipButton
             scrollToFirstStep
             disableOverlayClose
+            hideCloseButton={false}
             callback={handleJoyrideCallback}
-            locale={{
-                back: '이전',
-                close: '닫기',
-                last: '완료',
-                next: '다음',
-                skip: '건너뛰기',
-            }}
+            locale={koreanLocale}
             styles={{
                 options: {
                     primaryColor: '#0070B0',

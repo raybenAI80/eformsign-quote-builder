@@ -72,10 +72,9 @@ export const Header: React.FC<HeaderProps> = ({
               className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-50 text-purple-700 px-3 py-1.5 text-xs font-bold shadow-sm hover:bg-purple-100 hover:border-purple-400 transition-colors"
               title="사용 가이드"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
               </svg>
               <span>사용가이드</span>
             </button>
