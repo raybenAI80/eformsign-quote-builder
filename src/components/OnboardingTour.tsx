@@ -31,7 +31,7 @@ const steps: Step[] = [
                     견적서 작성은 4단계로 진행됩니다:
                 </p>
                 <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• <strong>옵션 설정</strong>: 회사 정보, 로고, 테마 색상 등 브랜딩 설정</li>
+                    <li>• <strong>옵션 설정</strong>: 견적서 모드 선택 및 템플릿 관리</li>
                     <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보 입력</li>
                     <li>• <strong>항목</strong>: 서비스 및 옵션 항목 구성 (프리셋 활용)</li>
                     <li>• <strong>기록</strong>: 견적서 저장 내역 및 버전 관리</li>
@@ -51,7 +51,7 @@ const steps: Step[] = [
                 </p>
             </div>
         ),
-        placement: 'right',
+        placement: 'center',
     },
     {
         target: '[data-tour="step-bar"]',
@@ -151,7 +151,10 @@ export const OnboardingTour: React.FC<OnboardingTourPropsWithTab> = ({ run, onCo
         } else if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
             const nextStepIndex = index + (action === ACTIONS.PREV ? -1 : 1);
 
-            if (index === ITEM_MANAGEMENT_STEP_INDEX - 1 && action === ACTIONS.NEXT) {
+            if (index === 1 && action === ACTIONS.NEXT) {
+                onTabChange?.('basic');
+                setTimeout(() => setStepIndex(nextStepIndex), 100);
+            } else if (index === ITEM_MANAGEMENT_STEP_INDEX - 1 && action === ACTIONS.NEXT) {
                 onTabChange?.('items');
                 setTimeout(() => setStepIndex(nextStepIndex), 100);
             } else if (index === ITEM_MANAGEMENT_STEP_INDEX && action === ACTIONS.PREV) {
