@@ -44,10 +44,10 @@ const steps: Step[] = [
         target: '[data-tour="workspace"]',
         content: (
             <div>
-                <h3 className="font-bold text-gray-900 mb-2">✏️ 작업 영역</h3>
+                <h3 className="font-bold text-gray-900 mb-2">📝 기본 정보 입력</h3>
                 <p className="text-gray-600 text-sm">
-                    선택한 탭에 따라 이 영역에서 정보를 입력하고 수정할 수 있습니다.
-                    각 필드를 채워가며 견적서를 완성하세요.
+                    견적 일자, 고객사, 영업 담당자 정보 등 핵심 정보를 입력하세요.
+                    로그인 시 담당자 정보는 자동으로 채워집니다.
                 </p>
             </div>
         ),
