@@ -31,10 +31,10 @@ const steps: Step[] = [
                     견적서 작성은 4단계로 진행됩니다:
                 </p>
                 <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보</li>
-                    <li>• <strong>항목</strong>: 서비스 및 옵션 추가</li>
-                    <li>• <strong>옵션</strong>: 브랜딩, 프리셋 관리</li>
-                    <li>• <strong>기록</strong>: 스냅샷 및 히스토리</li>
+                    <li>• <strong>옵션 설정</strong>: 회사 정보, 로고, 테마 색상 등 브랜딩 설정</li>
+                    <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보 입력</li>
+                    <li>• <strong>항목</strong>: 서비스 및 옵션 항목 구성 (프리셋 활용)</li>
+                    <li>• <strong>기록</strong>: 견적서 저장 내역 및 버전 관리</li>
                 </ul>
             </div>
         ),
