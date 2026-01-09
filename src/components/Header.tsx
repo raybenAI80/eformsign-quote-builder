@@ -10,6 +10,7 @@ interface HeaderProps {
   showPreview: boolean;
   onTogglePreview: () => void;
   onTempSave: () => void;
+  onStartTour?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   showPreview,
   onTogglePreview,
   onTempSave,
+  onStartTour,
 }) => {
   const { user, signOut } = useAuth();
   const headerRef = React.useRef<HTMLElement>(null);
@@ -63,6 +65,21 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </>
           )}
+          {/* 사용가이드 버튼 - 제목 옆에 배치 */}
+          {onStartTour && (
+            <button
+              onClick={onStartTour}
+              className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-50 text-purple-700 px-3 py-1.5 text-xs font-bold shadow-sm hover:bg-purple-100 hover:border-purple-400 transition-colors"
+              title="사용 가이드"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>사용가이드</span>
+            </button>
+          )}
         </div>
 
         {/* Right: User & Actions */}
@@ -95,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="h-4 w-px bg-gray-200 mx-1 hidden md:block" />
 
           {/* Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0" data-tour="header-actions">
             {/* Preview Toggle */}
             <div className="flex items-center gap-1.5 mr-1">
               {showPreviewText && (

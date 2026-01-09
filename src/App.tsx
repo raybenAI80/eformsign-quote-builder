@@ -15,6 +15,7 @@ import { ItemEditor } from './components/editors/ItemEditor';
 import { OptionEditor } from './components/editors/OptionEditor';
 import { HistoryEditor } from './components/editors/HistoryEditor';
 import { ConfirmModal } from './components/ConfirmModal';
+import { OnboardingTour, hasCompletedOnboarding, resetOnboarding } from './components/OnboardingTour';
 
 // Auth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -26,6 +27,29 @@ function QuoteBuilder() {
   const [activeTab, setActiveTab] = useState<TabId>('options');
   const [showPreview, setShowPreview] = useState(true);
   const [previewSnapshot, setPreviewSnapshot] = useState<QuoteSnapshot | null>(null);
+
+  // Onboarding Tour State
+  const [runTour, setRunTour] = useState(false);
+
+  // 첫 방문 시 자동으로 투어 시작
+  useEffect(() => {
+    // 약간의 딜레이를 주어 UI가 렌더링된 후 투어 시작
+    const timer = setTimeout(() => {
+      if (!hasCompletedOnboarding()) {
+        setRunTour(true);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleStartTour = useCallback(() => {
+    resetOnboarding();
+    setRunTour(true);
+  }, []);
+
+  const handleTourComplete = useCallback(() => {
+    setRunTour(false);
+  }, []);
 
   // 로그인 시 사용자 정보로 영업 담당자 정보 자동 입력
   useEffect(() => {
@@ -250,10 +274,11 @@ function QuoteBuilder() {
             showPreview={showPreview}
             onTogglePreview={() => setShowPreview(!showPreview)}
             onTempSave={handleTempSave}
+            onStartTour={handleStartTour}
           />
         }
         workspace={
-          <div className="space-y-6">
+          <div className="space-y-6" data-tour="workspace">
             <StepBar
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -266,18 +291,23 @@ function QuoteBuilder() {
           </div>
         }
         preview={
-          <PreviewPanel
-            meta={previewSnapshot ? previewSnapshot.meta : meta}
-            calculation={
-              previewSnapshot
-                ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate)
-                : calculation
-            }
-            categoryLabels={categoryLabels}
-            showPolicies={true}
-          />
+          <div data-tour="preview-panel">
+            <PreviewPanel
+              meta={previewSnapshot ? previewSnapshot.meta : meta}
+              calculation={
+                previewSnapshot
+                  ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate)
+                  : calculation
+              }
+              categoryLabels={categoryLabels}
+              showPolicies={true}
+            />
+          </div>
         }
       />
+
+      {/* Onboarding Tour */}
+      <OnboardingTour run={runTour} onComplete={handleTourComplete} />
 
       {/* Hidden container for PDF export - always rendered with proper dimensions */}
       <div

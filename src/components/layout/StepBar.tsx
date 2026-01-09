@@ -89,7 +89,7 @@ export const StepBar: React.FC<StepBarProps> = ({
     const showBadge = width > 550;
 
     return (
-        <div className="w-full" ref={containerRef}>
+        <div className="w-full" ref={containerRef} data-tour="step-bar">
             <div className={`flex w-full items-center gap-1 rounded-[24px] bg-[#f7fbfa] shadow-lg shadow-[rgba(0,0,0,0.04)] ${showFullLabel ? 'px-3 py-2.5' : 'px-1.5 py-2'}`}>
                 {steps.map((step, index) => {
                     const active = activeTab === step.id;
