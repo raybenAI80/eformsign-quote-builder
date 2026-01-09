@@ -59,7 +59,7 @@ const steps: Step[] = [
             <div>
                 <h3 className="font-bold text-gray-900 mb-2">📦 항목 관리</h3>
                 <p className="text-gray-600 text-sm mb-2">
-                    상단의 <strong>"항목"</strong> 탭을 클릭하면 다양한 <strong>프리셋</strong>을 확인할 수 있습니다.
+                    이곳에서 다양한 <strong>프리셋</strong>을 통해 견적서를 쉽고 빠르게 구성할 수 있습니다.
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1">
                     <li>• 프리셋 버튼을 클릭하여 항목 추가</li>
@@ -133,23 +133,33 @@ interface OnboardingTourPropsWithTab {
 }
 
 export const OnboardingTour: React.FC<OnboardingTourPropsWithTab> = ({ run, onComplete, onTabChange }) => {
+    const [stepIndex, setStepIndex] = useState(0);
+
+    useEffect(() => {
+        if (run) {
+            setStepIndex(0);
+        }
+    }, [run]);
+
     const handleJoyrideCallback = (data: CallBackProps) => {
-        const { status, action, index, type } = data;
+        const { action, index, status, type } = data;
         const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
-
-        // 항목 관리 단계에 도달했을 때 "항목" 탭으로 전환
-        if (type === EVENTS.STEP_AFTER && index === ITEM_MANAGEMENT_STEP_INDEX - 1 && action === ACTIONS.NEXT) {
-            onTabChange?.('items');
-        }
-
-        // 이전 버튼으로 돌아갈 때 적절한 탭으로 복귀
-        if (type === EVENTS.STEP_AFTER && index === ITEM_MANAGEMENT_STEP_INDEX && action === ACTIONS.PREV) {
-            onTabChange?.('basic');
-        }
 
         if (finishedStatuses.includes(status)) {
             localStorage.setItem(ONBOARDING_KEY, 'true');
             onComplete();
+        } else if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
+            const nextStepIndex = index + (action === ACTIONS.PREV ? -1 : 1);
+
+            if (index === ITEM_MANAGEMENT_STEP_INDEX - 1 && action === ACTIONS.NEXT) {
+                onTabChange?.('items');
+                setTimeout(() => setStepIndex(nextStepIndex), 100);
+            } else if (index === ITEM_MANAGEMENT_STEP_INDEX && action === ACTIONS.PREV) {
+                onTabChange?.('basic');
+                setTimeout(() => setStepIndex(nextStepIndex), 100);
+            } else {
+                setStepIndex(nextStepIndex);
+            }
         }
     };
 
@@ -157,6 +167,7 @@ export const OnboardingTour: React.FC<OnboardingTourPropsWithTab> = ({ run, onCo
         <Joyride
             steps={steps}
             run={run}
+            stepIndex={stepIndex}
             continuous
             showSkipButton
             scrollToFirstStep
