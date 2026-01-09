@@ -142,7 +142,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                   {meta.contactName || SUPPLIER_PROFILE.salesManager}
                   {meta.contactTitle && <span className="ml-1 font-normal opacity-90">{meta.contactTitle}</span>}
                 </p>
-                <p className="opacity-90">{meta.contactEmail || SUPPLIER_PROFILE.salesEmail}</p>
+                <p className="opacity-90">
+                  {meta.contactEmail
+                    ? (meta.contactEmail.includes('@') ? meta.contactEmail : `${meta.contactEmail}@forcs.com`)
+                    : SUPPLIER_PROFILE.salesEmail}
+                </p>
                 {meta.contactMobile && <p className="opacity-90">{meta.contactMobile}</p>}
                 {meta.contactDirect && <p className="opacity-90">{meta.contactDirect}</p>}
                 {!meta.contactMobile && !meta.contactDirect && (
