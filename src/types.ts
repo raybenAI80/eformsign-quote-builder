@@ -25,6 +25,7 @@ export interface QuoteMeta {
   contactInitials: string;
   issueSequence: string;
   contactName: string;
+  contactTitle: string;
   contactDirect: string;
   contactMobile: string;
   contactEmail: string;

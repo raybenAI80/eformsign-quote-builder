@@ -274,6 +274,18 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                         <label className="mb-1.5 block text-xs font-bold text-gray-700">
+                            직책
+                        </label>
+                        <input
+                            type="text"
+                            className="input-field w-full bg-gray-50/50"
+                            value={meta.contactTitle || ''}
+                            onChange={e => setMeta(m => ({ ...m, contactTitle: e.target.value }))}
+                            placeholder="예: 프로, 파트리더, 팀장"
+                        />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                        <label className="mb-1.5 block text-xs font-bold text-gray-700">
                             이메일
                         </label>
                         <div className="flex items-center gap-2">

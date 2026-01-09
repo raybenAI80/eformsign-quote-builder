@@ -138,7 +138,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <div className="pb-4 border-b border-white/20">
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-2">{LABELS.contact}</h3>
               <div className="text-sm leading-relaxed space-y-1">
-                <p className="text-lg font-semibold">{meta.contactName || SUPPLIER_PROFILE.salesManager}</p>
+                <p className="text-lg font-semibold">
+                  {meta.contactName || SUPPLIER_PROFILE.salesManager}
+                  {meta.contactTitle && <span className="ml-1 font-normal opacity-90">{meta.contactTitle}</span>}
+                </p>
                 <p className="opacity-90">{meta.contactEmail || SUPPLIER_PROFILE.salesEmail}</p>
                 {meta.contactMobile && <p className="opacity-90">{meta.contactMobile}</p>}
                 {meta.contactDirect && <p className="opacity-90">{meta.contactDirect}</p>}

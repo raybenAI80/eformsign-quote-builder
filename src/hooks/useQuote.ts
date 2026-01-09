@@ -77,6 +77,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     contactInitials: '',
     issueSequence: '',
     contactName: '',
+    contactTitle: '',
     contactDirect: '',
     contactMobile: '',
     contactEmail: '',
@@ -90,8 +91,8 @@ export const createDefaultMeta = (): QuoteMeta => {
     sealMode: 'omitted',
     referenceNotes: [
       '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
-      '계약기간: 계약 시작일로 부터 1년',
-      '문서 사용기한: 계약 체결 후, 문서 소진시까지',
+      '계약기간: 계약 시작일로 부터 1년입니다.',
+      '문서 사용기한: 계약 시작일로부터 최대 2년까지 사용할 수 있습니다.',
       '문서 소진 시, 본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
       '클라우드 서비스 업데이트에 따라 추가된 신규 기능은 전면 무상 제공 (일부 기능은 유상, 반영 전 공지)',
       'Trial 기간 동안 API 연동에 대한 기술지원 요청 발생 시, 유선 및 원격 지원',
@@ -116,6 +117,7 @@ export const createEmptyMeta = (): QuoteMeta => {
     contactInitials: '',
     issueSequence: '',
     contactName: '',
+    contactTitle: '',
     contactDirect: '',
     contactMobile: '',
     contactEmail: '',
@@ -142,8 +144,8 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
   const legacyAi = typeof meta.aiBranding === 'boolean' ? meta.aiBranding : undefined;
   const defaultNotes = [
     '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
-    '계약기간: 계약 시작일로 부터 1년',
-    '문서 사용기한: 계약 체결 후, 문서 소진시까지',
+    '계약기간: 계약 시작일로 부터 1년입니다.',
+    '문서 사용기한: 계약 시작일로부터 최대 2년까지 사용할 수 있습니다.',
     '문서 소진 시, 본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
     '클라우드 서비스 업데이트에 따라 추가된 신규 기능은 전면 무상 제공 (일부 기능은 유상, 반영 전 공지)',
     'Trial 기간 동안 API 연동에 대한 기술지원 요청 발생 시, 유선 및 원격 지원',

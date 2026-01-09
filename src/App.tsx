@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 
 import { useQuote, calculateQuote } from './hooks/useQuote';
@@ -17,14 +17,35 @@ import { HistoryEditor } from './components/editors/HistoryEditor';
 import { ConfirmModal } from './components/ConfirmModal';
 
 // Auth
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function QuoteBuilder() {
+  const { user } = useAuth();
   const { meta, items, calculation, presets, history, categoryLabels, actions } = useQuote();
   const [activeTab, setActiveTab] = useState<TabId>('options');
   const [showPreview, setShowPreview] = useState(true);
   const [previewSnapshot, setPreviewSnapshot] = useState<QuoteSnapshot | null>(null);
+
+  // 로그인 시 사용자 정보로 영업 담당자 정보 자동 입력
+  useEffect(() => {
+    if (user) {
+      const userName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+      const userEmail = user.email || '';
+
+      // 영업 담당자 이름이 비어있으면 자동 입력
+      if (!meta.contactName && userName) {
+        actions.setMeta((prev: typeof meta) => ({ ...prev, contactName: userName }));
+      }
+
+      // 영업 담당자 이메일이 비어있으면 자동 입력
+      if (!meta.contactEmail && userEmail) {
+        // 이메일에서 @forcs.com 도메인 제거하여 로컬 부분만 저장
+        const emailLocal = userEmail.replace('@forcs.com', '');
+        actions.setMeta((prev: typeof meta) => ({ ...prev, contactEmail: emailLocal }));
+      }
+    }
+  }, [user]); // user 변경 시에만 실행 (meta, actions는 의존성에서 제외하여 무한 루프 방지)
 
   // Confirm Modal State
   const [confirmModal, setConfirmModal] = useState<{
