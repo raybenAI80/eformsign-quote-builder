@@ -54,6 +54,23 @@ const steps: Step[] = [
         placement: 'right',
     },
     {
+        target: '[data-tour="step-bar"]',
+        content: (
+            <div>
+                <h3 className="font-bold text-gray-900 mb-2">📦 항목 관리</h3>
+                <p className="text-gray-600 text-sm mb-2">
+                    상단의 <strong>"항목"</strong> 탭을 클릭하면 다양한 <strong>프리셋</strong>을 확인할 수 있습니다.
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• 프리셋 버튼을 클릭하여 항목 추가</li>
+                    <li>• 목적에 맞게 수량, 단가, 할인율 수정</li>
+                    <li>• 드래그하여 항목 순서 변경 가능</li>
+                </ul>
+            </div>
+        ),
+        placement: 'bottom',
+    },
+    {
         target: '[data-tour="preview-panel"]',
         content: (
             <div>
@@ -106,10 +123,29 @@ const koreanLocale = {
     skip: '건너뛰기',
 };
 
-export const OnboardingTour: React.FC<OnboardingTourProps> = ({ run, onComplete }) => {
+// 항목 관리 단계의 인덱스 (0부터 시작)
+const ITEM_MANAGEMENT_STEP_INDEX = 3;
+
+interface OnboardingTourPropsWithTab {
+    run: boolean;
+    onComplete: () => void;
+    onTabChange?: (tab: string) => void;
+}
+
+export const OnboardingTour: React.FC<OnboardingTourPropsWithTab> = ({ run, onComplete, onTabChange }) => {
     const handleJoyrideCallback = (data: CallBackProps) => {
-        const { status, action } = data;
+        const { status, action, index, type } = data;
         const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        // 항목 관리 단계에 도달했을 때 "항목" 탭으로 전환
+        if (type === EVENTS.STEP_AFTER && index === ITEM_MANAGEMENT_STEP_INDEX - 1 && action === ACTIONS.NEXT) {
+            onTabChange?.('items');
+        }
+
+        // 이전 버튼으로 돌아갈 때 적절한 탭으로 복귀
+        if (type === EVENTS.STEP_AFTER && index === ITEM_MANAGEMENT_STEP_INDEX && action === ACTIONS.PREV) {
+            onTabChange?.('basic');
+        }
 
         if (finishedStatuses.includes(status)) {
             localStorage.setItem(ONBOARDING_KEY, 'true');

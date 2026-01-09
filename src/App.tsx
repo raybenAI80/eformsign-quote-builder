@@ -307,7 +307,11 @@ function QuoteBuilder() {
       />
 
       {/* Onboarding Tour */}
-      <OnboardingTour run={runTour} onComplete={handleTourComplete} />
+      <OnboardingTour
+        run={runTour}
+        onComplete={handleTourComplete}
+        onTabChange={(tab: string) => setActiveTab(tab as TabId)}
+      />
 
       {/* Hidden container for PDF export - always rendered with proper dimensions */}
       <div
