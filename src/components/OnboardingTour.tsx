@@ -39,6 +39,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'bottom',
+        disableBeacon: true,
     },
     {
         target: '[data-tour="workspace"]',
@@ -52,6 +53,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'center',
+        disableBeacon: true,
     },
     {
         target: '[data-tour="step-bar"]',
@@ -69,6 +71,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'bottom',
+        disableBeacon: true,
     },
     {
         target: '[data-tour="preview-panel"]',
@@ -82,6 +85,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'left',
+        disableBeacon: true,
     },
     {
         target: '[data-tour="header-actions"]',
@@ -95,6 +99,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'bottom',
+        disableBeacon: true,
     },
     {
         target: 'body',
@@ -109,6 +114,7 @@ const steps: Step[] = [
             </div>
         ),
         placement: 'center',
+        disableBeacon: true,
     },
 ];
 
