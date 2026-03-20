@@ -137,13 +137,25 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                         <input
                             type="text"
                             className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
-                            value={item.unitPrice ? Number(item.unitPrice).toLocaleString() : ''}
+                            value={typeof item.unitPrice === 'string' && isNaN(Number(item.unitPrice)) ? item.unitPrice : (item.unitPrice ? Number(item.unitPrice).toLocaleString() : '')}
                             onChange={e => {
-                                const val = e.target.value.replace(/[^0-9]/g, '');
-                                onUpdate({ unitPrice: val ? parseInt(val, 10) : 0 });
+                                const raw = e.target.value;
+                                const numOnly = raw.replace(/[^0-9]/g, '');
+                                // If the input is purely numeric (or empty), store as number
+                                if (raw === '' || raw === numOnly || raw === Number(numOnly).toLocaleString()) {
+                                    onUpdate({ unitPrice: numOnly ? parseInt(numOnly, 10) : 0 });
+                                } else {
+                                    // Text/symbol input — store as string
+                                    onUpdate({ unitPrice: raw });
+                                }
                             }}
                             placeholder="0"
                         />
+                        {item.discountPct > 0 && typeof item.unitPrice === 'number' && item.unitPrice > 0 && (
+                            <span className="mt-0.5 block text-[10px] text-red-500 text-right">
+                                ↳ 할인가 {Math.round(item.unitPrice * (1 - item.discountPct / 100)).toLocaleString()}원
+                            </span>
+                        )}
                     </label>
                     <label className="block group/field sm:col-span-4">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">

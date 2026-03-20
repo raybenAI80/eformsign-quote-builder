@@ -56,21 +56,28 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
     <div id="preview-panel" className='paper flex flex-row min-h-[297mm] bg-white text-[var(--forcs-text)] relative overflow-hidden font-sans'>
 
       {/* LEFT SIDEBAR - Split Background Design */}
-      <aside className="w-[28%] flex flex-col relative z-10 bg-gray-100">
+      <aside className="w-[22%] flex flex-col relative z-10 bg-gray-100">
         {/* Top Section: Light Gray Background (Service Branding) */}
-        <div className="bg-gray-100 pl-2 pr-2 pt-3 pb-1 text-center">
+        <div className="bg-gray-100 pl-1.5 pr-1.5 pt-2 pb-1 text-center">
           {/* eformsign Logo */}
-          <div className="w-36 mx-auto mb-2">
+          <div className="w-28 mx-auto mb-1.5">
             <EformsignLogo className="w-full h-auto" />
           </div>
 
-          {/* Full Promotional Section (전자 계약 + AI + 노트북 + 마케팅 문구) */}
-          <div className="pb-0">
-            <img
-              src="/promo-full.png"
-              alt="eformsign 전자계약 프로모션"
-              className="w-full h-auto mx-auto"
-            />
+          {/* Promotional Image - cropped to hide unreadable small text */}
+          <div className="pb-0 overflow-hidden">
+            <img src="/promo-full.png" alt="eformsign 전자계약 프로모션" className="w-full h-auto mx-auto" style={{ marginBottom: '-28%' }} />
+          </div>
+
+          {/* Readable text replacing cropped bottom portion */}
+          <div className="bg-white px-2 py-2 text-center space-y-1">
+            <p className="text-[9px] text-gray-500 leading-normal">
+              클릭 한번으로 서식 완성!<br/>
+              AI비서가 전자계약을 도와드립니다.
+            </p>
+            <p className="text-[11px] font-extrabold text-gray-800 leading-snug">
+              번거로움 없는 전자계약으로<br/>여러분을 초대합니다.
+            </p>
           </div>
 
           {/* Divider */}
@@ -81,26 +88,26 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <img
               src="/badges/logo.png"
               alt="eformsign Certifications"
-              className="h-10 w-auto mx-auto"
+              className="h-8 w-auto mx-auto"
             />
           </div>
         </div>
 
         {/* Bottom Section: Brand Blue Background (Transaction Info) */}
         <div
-          className="flex-1 p-6 pl-3 pr-2 text-white flex flex-col justify-between"
+          className="flex-1 p-4 pl-2.5 pr-1.5 text-white flex flex-col justify-between"
           style={{
             backgroundColor: '#0070B0',
             printColorAdjust: 'exact',
             WebkitPrintColorAdjust: 'exact'
           }}
         >
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Supplier Info (Company) */}
             <div className="pb-4 border-b border-white/20">
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-3">{LABELS.supplier}</h3>
               <div className="text-sm leading-relaxed space-y-1">
-                <p className="text-xl font-extrabold">{SUPPLIER_PROFILE.companyName}</p>
+                <p className="text-lg font-extrabold">{SUPPLIER_PROFILE.companyName}</p>
                 <p className="opacity-90">{SUPPLIER_PROFILE.address}</p>
                 <p className="opacity-90">{SUPPLIER_PROFILE.addressBuilding}</p>
                 <p className="opacity-90">사업자등록번호: {SUPPLIER_PROFILE.bizNo}</p>
@@ -127,7 +134,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <div className="pb-4 border-b border-white/20">
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-3">{LABELS.billTo}</h3>
               <div className="text-sm leading-relaxed space-y-1">
-                <p className="text-xl font-bold">{meta.customerName || '고객사명'}</p>
+                <p className="text-lg font-bold">{meta.customerName || '고객사명'}</p>
                 {meta.customerManager && <p className="opacity-90 font-medium">{meta.customerManager}</p>}
                 {meta.customerEmail && <p className="opacity-90">{meta.customerEmail}</p>}
                 {meta.customerContact && <p className="opacity-90">{meta.customerContact}</p>}
@@ -138,7 +145,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <div className="pb-4 border-b border-white/20">
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-2">{LABELS.contact}</h3>
               <div className="text-sm leading-relaxed space-y-1">
-                <p className="text-lg font-semibold">
+                <p className="text-base font-semibold">
                   {meta.contactName || SUPPLIER_PROFILE.salesManager}
                   {meta.contactTitle && <span className="ml-1 font-normal opacity-90">{meta.contactTitle}</span>}
                 </p>
@@ -156,16 +163,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Payment Info */}
-            <div className="pt-6">
+            <div className="pt-4">
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-3">{LABELS.payment}</h3>
               <div className="text-xs font-medium opacity-90 leading-relaxed space-y-1">
-                <p className="font-semibold text-lg">{SUPPLIER_PROFILE.bankName}</p>
+                <p className="font-semibold text-base">{SUPPLIER_PROFILE.bankName}</p>
                 <p>{SUPPLIER_PROFILE.accountNo}</p>
                 <p>예금주: {SUPPLIER_PROFILE.depositor}</p>
                 <p className="pt-1">대금지불조건: 세금계산서 발행 후<br />30일이내 현금 또는 카드결제</p>
-                <div className="flex gap-4 pt-3 text-xs font-medium">
+                <div className="flex flex-wrap gap-2 pt-3 text-xs font-medium">
                   <a
                     href={meta.bizNoLink || SUPPLIER_PROFILE.bizNoLink}
                     target="_blank"
@@ -189,14 +196,14 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             {/* Total Due */}
             <div>
               <h3 className="text-xs font-bold tracking-wider opacity-80 mb-1">{LABELS.total}</h3>
-              <p className="text-2xl font-extrabold tracking-tight whitespace-nowrap">{toKRW(calculation.grand)}</p>
+              <p className="text-xl font-extrabold tracking-tight whitespace-nowrap">{toKRW(calculation.grand)}</p>
             </div>
           </div>
         </div>
       </aside>
 
       {/* RIGHT CONTENT (WHITE) */}
-      <main className="flex-1 pl-[2mm] pr-[5mm] py-[5mm] flex flex-col relative">
+      <main className="flex-1 px-[3mm] py-[5mm] flex flex-col relative">
         {/* Header */}
         <header className="flex justify-between items-start mb-6 border-b-2 border-gray-100 pb-4">
           <div className="text-right">
@@ -221,7 +228,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
         </header>
 
         {/* Dates */}
-        <div className="grid grid-cols-2 gap-8 mb-6 max-w-xl">
+        <div className="grid grid-cols-2 gap-8 mb-6">
           <div>
             <h3 className="text-xs font-bold text-gray-400 tracking-wider mb-1">{LABELS.quoteDate}</h3>
             <p className="text-lg font-bold text-gray-800">{meta.quoteDate ? formatDateWithDay(meta.quoteDate) : '-'}</p>
@@ -237,11 +244,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider w-[45%]">{LABELS.itemDesc}</th>
-                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[8%]">{LABELS.qty}</th>
-                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[14%]">{LABELS.price}</th>
-                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[10%]">{LABELS.discount}</th>
-                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[18%]">{LABELS.amount}</th>
+                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider w-[42%]">{LABELS.itemDesc}</th>
+                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[10%]">{LABELS.qty}</th>
+                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[16%]">{LABELS.price}</th>
+                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[12%]">{LABELS.discount}</th>
+                <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[20%]">{LABELS.amount}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -298,10 +305,23 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                             )}
                           </td>
                           <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{nf.format(row.qty)}</td>
-                          <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{nf.format(row.unitPrice)}</td>
+                          <td className="py-2 text-right align-top">
+                            {typeof row.unitPrice === 'number' ? (
+                              <>
+                                <span className="text-sm font-medium text-gray-600">{nf.format(row.unitPrice)}</span>
+                                {row.discountPct > 0 && (
+                                  <div className="text-[10px] text-red-500">→ {nf.format(Math.round(row.unitPrice * (1 - row.discountPct / 100)))}</div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-sm font-medium text-gray-600">{row.unitPrice}</span>
+                            )}
+                          </td>
                           <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${row.discountPct}%` : '-'}</td>
                           <td className="py-2 text-right align-top">
-                            {row.discountPct > 0 ? (
+                            {typeof row.unitPrice !== 'number' && isNaN(Number(row.unitPrice)) ? (
+                              <span className="text-sm text-gray-400">-</span>
+                            ) : row.discountPct > 0 ? (
                               <div className="text-right">
                                 <div className="text-xs text-gray-400">(정가 {nf.format(row.price)})</div>
                                 <div className="text-sm font-bold text-blue-600">{nf.format(row.offerPrice)}</div>
@@ -326,7 +346,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
 
         {/* Summary */}
         <div className="mt-8 flex justify-end">
-          <div className="w-[60%] bg-gray-50/70 overflow-hidden">
+          <div className="w-[65%] bg-gray-50/70 overflow-hidden">
             {/* 상세 내역 */}
             <div className="p-5 space-y-2.5">
               {calculation.msrpSum > calculation.offerSum && (
