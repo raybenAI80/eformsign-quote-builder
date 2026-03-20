@@ -6,7 +6,7 @@ export interface QuoteItem {
   item: string;
   unitLabel: string;
   qty: number;
-  unitPrice: number;
+  unitPrice: number | string;
   discountPct: number;
   notes: string;
   /** @deprecated Use `notes` instead. Legacy compatibility field. */

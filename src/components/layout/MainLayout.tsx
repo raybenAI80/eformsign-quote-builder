@@ -43,7 +43,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 containerWidth = 800;
             }
 
-            const scale = Math.min((containerWidth - 32) / targetWidth, 1);
+            const scale = Math.min((containerWidth - 16) / targetWidth, 1);
             setPreviewScale(Math.max(0.3, Math.min(1, scale)));
         };
 
@@ -179,7 +179,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                         >
                             <div
                                 ref={previewRef}
-                                className="p-2 sm:p-4 flex justify-start lg:justify-center items-start overflow-x-hidden flex-1"
+                                className="p-1 sm:p-2 flex justify-start lg:justify-center items-start overflow-x-hidden flex-1"
                                 style={{
                                     overflowY: 'auto'
                                 }}
