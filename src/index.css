@@ -28,7 +28,7 @@
   --forcs-text-muted: #64748b;
 
   /* Typography */
-  --font-sans: 'NanumSquare', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-sans: 'NanumSquare', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
 }
 
 * {

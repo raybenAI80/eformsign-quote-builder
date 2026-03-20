@@ -166,17 +166,17 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
 export const calculateQuote = (items: QuoteItem[], vatRate: number): CalculationResult => {
   const rate = vatRate / 100;
   const rows: CalculatedRow[] = items.map(item => {
-    const unitPrice = parseNum(item.unitPrice);
+    const numericPrice = parseNum(item.unitPrice);
     const qty = parseNum(item.qty);
     const discountPct = parseNum(item.discountPct);
 
-    const msrp = unitPrice * qty;
-    const offer = msrp * (1 - discountPct / 100);
+    const msrp = numericPrice * qty;
+    const offer = Math.round(msrp * (1 - discountPct / 100));
 
     return {
       ...item,
       qty,
-      unitPrice,
+      unitPrice: item.unitPrice, // preserve original (number or string)
       discountPct,
       msrp,
       offer,
@@ -189,7 +189,7 @@ export const calculateQuote = (items: QuoteItem[], vatRate: number): Calculation
 
   const msrpSum = rows.reduce((sum, row) => sum + row.msrp, 0);
   const offerSum = rows.reduce((sum, row) => sum + row.offer, 0);
-  const vat = offerSum * rate;
+  const vat = Math.round(offerSum * rate);
   const grand = offerSum + vat;
   const totalDiscountPct = msrpSum > 0 ? (1 - offerSum / msrpSum) * 100 : 0;
 

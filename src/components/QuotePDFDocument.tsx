@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     },
     // LEFT SIDEBAR
     sidebar: {
-        width: '34%',
+        width: '22%',
         flexDirection: 'column',
     },
     sidebarTop: {
@@ -54,8 +54,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logo: {
-        width: 140,
-        marginBottom: 8,
+        width: 110,
+        marginBottom: 6,
     },
     promoImage: {
         width: '100%',
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     },
     sidebarBottom: {
         flex: 1,
-        padding: 20,
+        padding: 14,
         color: COLORS.white,
     },
     sectionTitle: {
@@ -81,13 +81,13 @@ const styles = StyleSheet.create({
     sectionDivider: {
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.2)',
-        paddingBottom: 12,
-        marginBottom: 12,
+        paddingBottom: 10,
+        marginBottom: 10,
     },
     companyName: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: 800,
-        marginBottom: 4,
+        marginBottom: 3,
     },
     infoText: {
         fontSize: 9,
@@ -102,8 +102,9 @@ const styles = StyleSheet.create({
     },
     linkRow: {
         flexDirection: 'row',
-        gap: 16,
-        marginTop: 12,
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 10,
     },
     link: {
         fontSize: 9,
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
         textDecoration: 'underline',
     },
     totalDue: {
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: 800,
         letterSpacing: -0.5,
     },
@@ -419,8 +420,13 @@ export const QuotePDFDocument: React.FC<QuotePDFDocumentProps> = ({ meta, calcul
                                     {(row.notes || row.note) && <Text style={styles.itemNotes}>{row.notes || row.note}</Text>}
                                 </View>
                                 <Text style={[styles.cellText, styles.colQty]}>{nf.format(row.qty)}</Text>
-                                <Text style={[styles.cellText, styles.colPrice]}>{nf.format(row.unitPrice)}</Text>
-                                <Text style={[styles.cellTextBold, styles.colTotal]}>{nf.format(row.offerPrice)}</Text>
+                                <View style={styles.colPrice}>
+                                    <Text style={styles.cellText}>{typeof row.unitPrice === 'number' ? nf.format(row.unitPrice) : String(row.unitPrice)}</Text>
+                                    {typeof row.unitPrice === 'number' && row.discountPct > 0 && (
+                                        <Text style={{ fontSize: 7, color: '#ef4444' }}>→ {nf.format(Math.round(row.unitPrice * (1 - row.discountPct / 100)))}</Text>
+                                    )}
+                                </View>
+                                <Text style={[styles.cellTextBold, styles.colTotal]}>{typeof row.unitPrice !== 'number' && isNaN(Number(row.unitPrice)) ? '-' : nf.format(row.offerPrice)}</Text>
                             </View>
                         ))}
                     </View>
