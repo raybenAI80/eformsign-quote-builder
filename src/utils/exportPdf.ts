@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import download from 'downloadjs';
 import { loadNanumSquareFonts, registerNanumSquareFont } from './fontLoader';
 import { extractTextElements, TextElement } from './textExtractor';
+import { QuoteMeta, QuoteItem } from '../types';
 
 export const exportToImage = async (elementId: string, fileName: string) => {
     const element = document.getElementById(elementId);
@@ -303,5 +304,160 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
     } catch (error) {
         console.error('Error exporting to PDF:', error);
         toast.error('PDF 저장 중 오류가 발생했습니다.', { id: 'pdf-export' });
+    }
+};
+
+/**
+ * Capture one page from the hidden merge panel into the jsPDF document.
+ */
+async function capturePageIntoPdf(
+    pdf: jsPDF,
+    element: HTMLElement,
+    isFirstPage: boolean
+): Promise<void> {
+    // Reset scale transform for accurate capture
+    let scaleWrapper: HTMLElement | null = element.parentElement;
+    let originalTransform = '';
+    while (scaleWrapper) {
+        if (scaleWrapper.style.transform && scaleWrapper.style.transform.includes('scale')) {
+            originalTransform = scaleWrapper.style.transform;
+            scaleWrapper.style.transform = 'scale(1)';
+            void scaleWrapper.offsetHeight;
+            break;
+        }
+        scaleWrapper = scaleWrapper.parentElement;
+    }
+
+    const elementWidth = element.offsetWidth;
+    const elementHeight = element.offsetHeight;
+
+    const a4Width = 210;
+    const a4Height = 297;
+    const marginX = 2;
+    const marginY = 2;
+    const availableWidth = a4Width - marginX * 2;
+    const availableHeight = a4Height - marginY * 2;
+    const originalAspect = elementWidth / elementHeight;
+    const targetAspect = availableWidth / availableHeight;
+
+    let imgWidth: number, imgHeight: number, offsetX: number, offsetY: number;
+    if (originalAspect > targetAspect) {
+        imgWidth = availableWidth;
+        imgHeight = imgWidth / originalAspect;
+        offsetX = marginX;
+        offsetY = marginY;
+    } else {
+        imgHeight = availableHeight;
+        imgWidth = imgHeight * originalAspect;
+        offsetX = marginX + (availableWidth - imgWidth) / 2;
+        offsetY = marginY;
+    }
+
+    const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+    });
+
+    if (scaleWrapper && originalTransform) {
+        scaleWrapper.style.transform = originalTransform;
+    }
+
+    if (!canvas.width || !canvas.height) {
+        throw new Error('html2canvas가 빈 캔버스를 반환했습니다.');
+    }
+
+    if (!isFirstPage) {
+        pdf.addPage();
+    }
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
+}
+
+/**
+ * Render multiple quotes into a single multi-page PDF.
+ *
+ * @param quotes        Array of quote data to merge (each becomes one A4 page)
+ * @param fileName      Output filename (without .pdf)
+ * @param setRenderData Setter that swaps the hidden merge panel's data; pass null to clean up
+ * @param elementId     DOM id of the hidden render panel (default: 'pdf-merge-panel')
+ */
+export const exportMergedPdf = async (
+    quotes: Array<{ name: string; meta: QuoteMeta; items: QuoteItem[] }>,
+    fileName: string,
+    setRenderData: (data: { meta: QuoteMeta; items: QuoteItem[] } | null) => void,
+    elementId: string = 'pdf-merge-panel'
+): Promise<boolean> => {
+    if (quotes.length === 0) {
+        toast.error('병합할 견적서를 선택해주세요.');
+        return false;
+    }
+
+    const safeFileName = fileName.replace(/[()\/\\:*?"<>|]/g, '_').trim() + '.pdf';
+    let fileHandle: FileSystemFileHandle | null = null;
+
+    // Request save location first (User Activation window)
+    if (window.showSaveFilePicker) {
+        try {
+            fileHandle = await window.showSaveFilePicker({
+                suggestedName: safeFileName,
+                types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }],
+            });
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') return false;
+            console.warn('File System Access API failed, will use fallback:', err);
+        }
+    }
+
+    toast.loading(`병합 PDF 생성 중... (0/${quotes.length})`, { id: 'pdf-merge' });
+
+    try {
+        await loadNanumSquareFonts();
+
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+        registerNanumSquareFont(pdf);
+
+        for (let i = 0; i < quotes.length; i++) {
+            toast.loading(`병합 PDF 생성 중... (${i + 1}/${quotes.length})`, { id: 'pdf-merge' });
+
+            // Swap data in the hidden panel
+            setRenderData({ meta: quotes[i].meta, items: quotes[i].items });
+
+            // Wait for React to re-render (two animation frames = reliable render)
+            await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+            // Extra settle time for complex layouts
+            await new Promise<void>(resolve => setTimeout(resolve, 150));
+
+            const element = document.getElementById(elementId);
+            if (!element) throw new Error(`병합 렌더링 패널(#${elementId})을 찾을 수 없습니다.`);
+
+            await capturePageIntoPdf(pdf, element, i === 0);
+        }
+
+        const blob = pdf.output('blob');
+        if (fileHandle) {
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            toast.success(`${quotes.length}개 견적서 병합 PDF 저장 완료!`, { id: 'pdf-merge' });
+        } else {
+            download(blob, safeFileName, 'application/pdf');
+            toast.success(`${quotes.length}개 견적서 병합 PDF 다운로드 완료!`, { id: 'pdf-merge' });
+        }
+        return true;
+    } catch (error) {
+        console.error('Error exporting merged PDF:', error);
+        toast.error('병합 PDF 저장 중 오류가 발생했습니다.', { id: 'pdf-merge' });
+        return false;
+    } finally {
+        setRenderData(null);
     }
 };

@@ -318,6 +318,10 @@ export const QuotePDFDocument: React.FC<QuotePDFDocumentProps> = ({ meta, calcul
     const quoteTitle = meta.brandingMode === 'ai' ? 'AI 견적서' :
         meta.brandingMode === 'public' ? '공공 견적서' : '견적서';
 
+    const hasEnterprise = calculation.rows.some(
+        r => r.section === 'SaaS' && String(r.item).includes('Enterprise')
+    );
+
     return (
         <Document>
             <Page size="A4" orientation="landscape" style={styles.page}>
@@ -362,17 +366,19 @@ export const QuotePDFDocument: React.FC<QuotePDFDocumentProps> = ({ meta, calcul
                             {meta.contactDirect && <Text style={styles.infoText}>{meta.contactDirect}</Text>}
                         </View>
 
-                        {/* PAYMENT INFO Section */}
-                        <View style={styles.sectionDivider}>
-                            <Text style={styles.sectionTitle}>PAYMENT INFO</Text>
-                            <Text style={[styles.infoTextBold, { fontSize: 11 }]}>{SUPPLIER_PROFILE.bankName}</Text>
-                            <Text style={styles.infoText}>{SUPPLIER_PROFILE.accountNo}</Text>
-                            <Text style={styles.infoText}>예금주: {SUPPLIER_PROFILE.depositor}</Text>
-                            <View style={styles.linkRow}>
-                                <Link src={meta.bizNoLink || SUPPLIER_PROFILE.bizNoLink} style={styles.link}>📋 사업자등록증</Link>
-                                <Link src={meta.bankAccountLink || SUPPLIER_PROFILE.bankAccountLink} style={styles.link}>🏦 통장사본</Link>
+                        {/* PAYMENT INFO Section - Enterprise only */}
+                        {hasEnterprise && (
+                            <View style={styles.sectionDivider}>
+                                <Text style={styles.sectionTitle}>PAYMENT INFO</Text>
+                                <Text style={[styles.infoTextBold, { fontSize: 11 }]}>{SUPPLIER_PROFILE.bankName}</Text>
+                                <Text style={styles.infoText}>{SUPPLIER_PROFILE.accountNo}</Text>
+                                <Text style={styles.infoText}>예금주: {SUPPLIER_PROFILE.depositor}</Text>
+                                <View style={styles.linkRow}>
+                                    <Link src={meta.bizNoLink || SUPPLIER_PROFILE.bizNoLink} style={styles.link}>📋 사업자등록증</Link>
+                                    <Link src={meta.bankAccountLink || SUPPLIER_PROFILE.bankAccountLink} style={styles.link}>🏦 통장사본</Link>
+                                </View>
                             </View>
-                        </View>
+                        )}
 
                         {/* TOTAL DUE */}
                         <View>

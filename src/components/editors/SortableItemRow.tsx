@@ -125,7 +125,17 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             value={item.qty > 0 ? String(item.qty) : ''}
                             onChange={e => {
                                 const val = e.target.value.replace(/[^0-9]/g, '');
-                                onUpdate({ qty: val ? parseInt(val, 10) : 0 });
+                                let newQty = val ? parseInt(val, 10) : 0;
+                                const patch: Partial<QuoteItem> = { qty: newQty };
+                                // 충전형 문서: 수량별 자동 단가 조정 + 최대 3,000건 제한
+                                if (item.category === '문서 충전') {
+                                    if (newQty > 3000) {
+                                        newQty = 3000;
+                                        patch.qty = 3000;
+                                    }
+                                    patch.unitPrice = newQty <= 10 ? 1000 : 800;
+                                }
+                                onUpdate(patch);
                             }}
                             placeholder="0"
                         />

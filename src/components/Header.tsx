@@ -11,6 +11,8 @@ interface HeaderProps {
   onTogglePreview: () => void;
   onTempSave: () => void;
   onStartTour?: () => void;
+  savedQuotesCount?: number;
+  onOpenSavedQuotes?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePreview,
   onTempSave,
   onStartTour,
+  savedQuotesCount = 0,
+  onOpenSavedQuotes,
 }) => {
   const { user, signOut } = useAuth();
   const headerRef = React.useRef<HTMLElement>(null);
@@ -46,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   const showTempSaveText = headerWidth > 800; // Increased breakpoint
   const showResetText = headerWidth > 580; // Increased breakpoint
   const showPdfText = headerWidth > 500; // Increased breakpoint
+  const showMultiQuoteText = headerWidth > 720;
 
   return (
     <header
@@ -155,6 +160,29 @@ export const Header: React.FC<HeaderProps> = ({
               </svg>
               {showResetText && <span>초기화</span>}
             </button>
+
+            {/* Saved Quotes */}
+            {onOpenSavedQuotes && (
+              <button
+                onClick={onOpenSavedQuotes}
+                className="relative inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-indigo-50 px-2 sm:px-2.5 py-1.5 text-xs font-bold text-indigo-700 shadow-sm hover:bg-indigo-100 hover:border-indigo-400 transition-colors"
+                title="멀티 견적 — 여러 견적서 저장 및 병합 PDF"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                {showMultiQuoteText && <span>멀티 견적</span>}
+                {savedQuotesCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white">
+                    {savedQuotesCount > 9 ? '9+' : savedQuotesCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Export PDF */}
             <button

@@ -61,12 +61,13 @@ const steps: Step[] = [
             <div>
                 <h3 className="font-bold text-gray-900 mb-2">📦 항목 관리</h3>
                 <p className="text-gray-600 text-sm mb-2">
-                    이곳에서 다양한 <strong>프리셋</strong>을 통해 견적서를 쉽고 빠르게 구성할 수 있습니다.
+                    다양한 <strong>프리셋</strong>으로 견적서를 빠르게 구성하세요.
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• 프리셋 버튼을 클릭하여 항목 추가</li>
-                    <li>• 목적에 맞게 수량, 단가, 할인율 수정</li>
-                    <li>• 드래그하여 항목 순서 변경 가능</li>
+                    <li>• <strong>문서 유형</strong>: Enterprise, 충전형, 구독형(Business/Personal) 프리셋 제공</li>
+                    <li>• 충전형은 수량에 따라 단가가 자동 조정됩니다 (10건 이하 1,000원, 11건+ 800원)</li>
+                    <li>• 단가에 <strong>"별도", "무료"</strong> 등 텍스트도 입력 가능</li>
+                    <li>• 수량, 단가, 할인율 자유 수정 / 드래그로 순서 변경</li>
                 </ul>
             </div>
         ),
@@ -78,10 +79,13 @@ const steps: Step[] = [
         content: (
             <div>
                 <h3 className="font-bold text-gray-900 mb-2">👁️ 실시간 미리보기</h3>
-                <p className="text-gray-600 text-sm">
-                    입력한 내용이 실제 견적서에 어떻게 보이는지 실시간으로 확인할 수 있습니다.
-                    최종 출력물과 동일한 형태로 미리 확인하세요.
+                <p className="text-gray-600 text-sm mb-2">
+                    입력 내용이 실제 견적서에 어떻게 보이는지 실시간으로 확인하세요.
                 </p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• 할인 적용 시 <strong className="text-red-500">건당 할인가</strong>가 빨간색으로 표시됩니다</li>
+                    <li>• Enterprise 외 견적은 결제 정보가 자동으로 숨겨집니다</li>
+                </ul>
             </div>
         ),
         placement: 'left',
@@ -92,10 +96,11 @@ const steps: Step[] = [
         content: (
             <div>
                 <h3 className="font-bold text-gray-900 mb-2">📤 내보내기 & 저장</h3>
-                <p className="text-gray-600 text-sm">
-                    견적서 작성이 완료되면 여기서 PDF로 내보낼 수 있습니다.
-                    임시 저장도 가능합니다.
-                </p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• <strong>PDF</strong>: 현재 견적서를 PDF로 내보내기</li>
+                    <li>• <strong>임시저장</strong>: 작성 중인 내용 저장</li>
+                    <li>• <strong className="text-indigo-600">멀티 견적</strong>: 여러 견적서를 저장하고, 선택한 것들을 하나의 PDF로 병합 다운로드</li>
+                </ul>
             </div>
         ),
         placement: 'bottom',
