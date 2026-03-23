@@ -216,7 +216,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                 <h4 className="mb-3 text-xs font-bold text-blue-600 tracking-wider">항목: {getLabel('SaaS')}</h4>
                 <div className="flex flex-wrap gap-2">
                   {(activeSector === 'general'
-                    ? ['enterprise2000', 'welcome100Free']
+                    ? ['enterprise2000', 'creditDoc', 'subscriptionBiz', 'subscriptionPersonal', 'additionalDoc']
                     : ['public1k']
                   ).map(key => {
                     const item = QUICK_ADD_CATALOG[key];
