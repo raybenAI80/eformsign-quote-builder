@@ -91,3 +91,16 @@ export interface QuoteSnapshot {
     grand: number;
   };
 }
+
+export interface SavedQuote {
+  id: string;
+  name: string;
+  meta: QuoteMeta;
+  items: QuoteItem[];
+  savedAt: string;
+  summary?: {
+    msrpSum: number;
+    offerSum: number;
+    grand: number;
+  };
+}

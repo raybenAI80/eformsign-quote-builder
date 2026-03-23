@@ -52,6 +52,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
     );
   };
 
+  const hasEnterprise = calculation.rows.some(
+    r => r.section === 'SaaS' && String(r.item).includes('Enterprise')
+  );
+
   return (
     <div id="preview-panel" className='paper flex flex-row min-h-[297mm] bg-white text-[var(--forcs-text)] relative overflow-hidden font-sans'>
 
@@ -164,34 +168,36 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
           </div>
 
           <div className="space-y-4">
-            {/* Payment Info */}
-            <div className="pt-4">
-              <h3 className="text-xs font-bold tracking-wider opacity-80 mb-3">{LABELS.payment}</h3>
-              <div className="text-xs font-medium opacity-90 leading-relaxed space-y-1">
-                <p className="font-semibold text-base">{SUPPLIER_PROFILE.bankName}</p>
-                <p>{SUPPLIER_PROFILE.accountNo}</p>
-                <p>예금주: {SUPPLIER_PROFILE.depositor}</p>
-                <p className="pt-1">대금지불조건: 세금계산서 발행 후<br />30일이내 현금 또는 카드결제</p>
-                <div className="flex flex-wrap gap-2 pt-3 text-xs font-medium">
-                  <a
-                    href={meta.bizNoLink || SUPPLIER_PROFILE.bizNoLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:opacity-80 pdf-target-link"
-                  >
-                    📋 사업자등록증
-                  </a>
-                  <a
-                    href={meta.bankAccountLink || SUPPLIER_PROFILE.bankAccountLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:opacity-80 pdf-target-link"
-                  >
-                    🏦 통장사본
-                  </a>
+            {/* Payment Info - Enterprise only */}
+            {hasEnterprise && (
+              <div className="pt-4">
+                <h3 className="text-xs font-bold tracking-wider opacity-80 mb-3">{LABELS.payment}</h3>
+                <div className="text-xs font-medium opacity-90 leading-relaxed space-y-1">
+                  <p className="font-semibold text-base">{SUPPLIER_PROFILE.bankName}</p>
+                  <p>{SUPPLIER_PROFILE.accountNo}</p>
+                  <p>예금주: {SUPPLIER_PROFILE.depositor}</p>
+                  <p className="pt-1">대금지불조건: 세금계산서 발행 후<br />30일이내 현금 또는 카드결제</p>
+                  <div className="flex flex-wrap gap-2 pt-3 text-xs font-medium">
+                    <a
+                      href={meta.bizNoLink || SUPPLIER_PROFILE.bizNoLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:opacity-80 pdf-target-link"
+                    >
+                      📋 사업자등록증
+                    </a>
+                    <a
+                      href={meta.bankAccountLink || SUPPLIER_PROFILE.bankAccountLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:opacity-80 pdf-target-link"
+                    >
+                      🏦 통장사본
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Total Due */}
             <div>

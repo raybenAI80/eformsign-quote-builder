@@ -2,13 +2,15 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 
 import { useQuote, calculateQuote } from './hooks/useQuote';
-import { exportToImage, exportToPdf } from './utils/exportPdf';
+import { useSavedQuotes } from './hooks/useSavedQuotes';
+import { exportToImage, exportToPdf, exportMergedPdf } from './utils/exportPdf';
 
 // Layout & Editors
 import { MainLayout } from './components/layout/MainLayout';
 import { StepBar, TabId } from './components/layout/StepBar';
-import { QuoteSnapshot } from './types';
+import { QuoteSnapshot, QuoteMeta, QuoteItem, SavedQuote } from './types';
 import { Header } from './components/Header';
+import SavedQuotesPanel from './components/SavedQuotesPanel';
 import { PreviewPanel } from './components/PreviewPanel';
 import { BasicInfoEditor } from './components/editors/BasicInfoEditor';
 import { ItemEditor } from './components/editors/ItemEditor';
@@ -24,9 +26,13 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 function QuoteBuilder() {
   const { user } = useAuth();
   const { meta, items, calculation, presets, history, categoryLabels, actions } = useQuote();
+  const { savedQuotes, saveQuote, removeSavedQuote, getSavedQuote } = useSavedQuotes();
   const [activeTab, setActiveTab] = useState<TabId>('options');
   const [showPreview, setShowPreview] = useState(true);
   const [previewSnapshot, setPreviewSnapshot] = useState<QuoteSnapshot | null>(null);
+  const [showSavedPanel, setShowSavedPanel] = useState(false);
+  const [mergeRenderData, setMergeRenderData] = useState<{ meta: QuoteMeta; items: QuoteItem[] } | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
 
   // Onboarding Tour State
   const [runTour, setRunTour] = useState(false);
@@ -187,6 +193,49 @@ function QuoteBuilder() {
     await exportToPdf('pdf-preview-panel', filename);
   };
 
+  const handleSaveCurrentQuote = useCallback(
+    (name: string) => {
+      const summary = {
+        msrpSum: calculation.msrpSum,
+        offerSum: calculation.offerSum,
+        grand: calculation.grand,
+      };
+      saveQuote(name, meta, items, summary);
+      toast.success(`"${name}" 견적서가 저장되었습니다.`);
+    },
+    [meta, items, calculation, saveQuote]
+  );
+
+  const handleLoadSavedQuote = useCallback(
+    (quote: SavedQuote) => {
+      actions.setMeta(() => ({ ...quote.meta }));
+      actions.setItems(quote.items);
+      setShowSavedPanel(false);
+      toast.success(`"${quote.name}" 견적서를 불러왔습니다. 미리보기가 업데이트되었습니다.`);
+    },
+    [actions]
+  );
+
+  const handleMergeExport = useCallback(
+    async (selected: SavedQuote[]): Promise<boolean> => {
+      setIsMerging(true);
+      try {
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const filename = `이폼사인_병합견적서_${selected.length}건_${dateStr}`;
+        const ok = await exportMergedPdf(
+          selected.map(q => ({ name: q.name, meta: q.meta, items: q.items })),
+          filename,
+          setMergeRenderData
+        );
+        if (ok) setShowSavedPanel(false);
+        return ok;
+      } finally {
+        setIsMerging(false);
+      }
+    },
+    []
+  );
+
   const handleTempSave = () => {
     try {
       const dataToSave = {
@@ -275,6 +324,8 @@ function QuoteBuilder() {
             onTogglePreview={() => setShowPreview(!showPreview)}
             onTempSave={handleTempSave}
             onStartTour={handleStartTour}
+            savedQuotesCount={savedQuotes.length}
+            onOpenSavedQuotes={() => setShowSavedPanel(true)}
           />
         }
         workspace={
@@ -339,6 +390,43 @@ function QuoteBuilder() {
           />
         </div>
       </div>
+
+      {/* Saved Quotes Panel */}
+      {showSavedPanel && (
+        <SavedQuotesPanel
+          savedQuotes={savedQuotes}
+          onSaveCurrent={handleSaveCurrentQuote}
+          onLoad={handleLoadSavedQuote}
+          onDelete={removeSavedQuote}
+          onMergeExport={handleMergeExport}
+          onClose={() => setShowSavedPanel(false)}
+          isMerging={isMerging}
+        />
+      )}
+
+      {/* Hidden merge render panel */}
+      {mergeRenderData && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: 0,
+            width: '297mm',
+            height: 'auto',
+            pointerEvents: 'none',
+            overflow: 'visible',
+          }}
+        >
+          <div id="pdf-merge-panel" style={{ width: '297mm' }}>
+            <PreviewPanel
+              meta={mergeRenderData.meta}
+              calculation={calculateQuote(mergeRenderData.items, mergeRenderData.meta.vatRate)}
+              categoryLabels={categoryLabels}
+              showPolicies={true}
+            />
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}
