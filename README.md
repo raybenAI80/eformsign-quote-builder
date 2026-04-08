@@ -18,3 +18,10 @@ View your app in AI Studio: https://ai.studio/apps/drive/1KCM7SBU1KoOemd31LSJmpJ
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Agent Orchestrator
+
+This repo includes a tracked `agent-orchestrator.yaml` baseline and a Windows-to-WSL launcher at [`scripts/ao-wsl.ps1`](/c:/eformsign-견적서-빌더/scripts/ao-wsl.ps1).
+
+WSL setup and daily operation:
+- [`docs/agent-orchestrator-wsl.md`](/c:/eformsign-견적서-빌더/docs/agent-orchestrator-wsl.md)

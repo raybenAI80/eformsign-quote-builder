@@ -276,6 +276,9 @@ function QuoteBuilder() {
             actions={actions}
             openConfirm={openConfirm}
             isEditing={true}
+            showDiscount={meta.showDiscount}
+            sector={meta.sector}
+            onSectorChange={(s) => actions.setMeta(prev => ({ ...prev, sector: s }))}
           />
         );
       case 'options':

@@ -36,6 +36,9 @@ interface ItemEditorProps {
   };
   openConfirm: (title: string, message: string, onConfirm: () => void, isDestructive?: boolean) => void;
   isEditing: boolean;
+  showDiscount?: boolean;
+  sector?: 'general' | 'public' | 'subsidy';
+  onSectorChange?: (sector: 'general' | 'public' | 'subsidy') => void;
 }
 
 export const ItemEditor: React.FC<ItemEditorProps> = ({
@@ -45,10 +48,14 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
   actions,
   openConfirm,
   isEditing,
+  showDiscount,
+  sector,
+  onSectorChange,
 }) => {
   const [repeatCount, setRepeatCount] = useState(1);
   const [lastFocusedRow, setLastFocusedRow] = useState<string | null>(null);
-  const [activeSector, setActiveSector] = useState<'general' | 'public'>('general');
+  const activeSector = sector ?? 'general';
+  const setActiveSector = (s: 'general' | 'public' | 'subsidy') => onSectorChange?.(s);
   const [showCategoryEditor, setShowCategoryEditor] = useState(false);
 
   const sensors = useSensors(
@@ -75,7 +82,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
         toast.success('행이 복제되었습니다.');
       } else if (e.key === 'Delete') {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
         e.preventDefault();
         openConfirm('행 삭제', '선택한 행을 삭제하시겠습니까?', () => {
@@ -157,6 +164,15 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                 >
                   정부·공공기관용
                 </button>
+                <button
+                  onClick={() => setActiveSector('subsidy')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${activeSector === 'subsidy'
+                    ? 'bg-white text-[var(--forcs-blue)] shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  지원사업용
+                </button>
               </div>
             </div>
 
@@ -215,9 +231,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
               <div>
                 <h4 className="mb-3 text-xs font-bold text-blue-600 tracking-wider">항목: {getLabel('SaaS')}</h4>
                 <div className="flex flex-wrap gap-2">
-                  {(activeSector === 'general'
-                    ? ['enterprise2000', 'creditDoc', 'subscriptionBiz', 'subscriptionPersonal', 'additionalDoc']
-                    : ['public1k']
+                  {(activeSector === 'public'
+                    ? ['public1k']
+                    : ['enterprise2000', 'creditDoc', 'subscriptionBiz', 'subscriptionPersonal', 'additionalDoc']
                   ).map(key => {
                     const item = QUICK_ADD_CATALOG[key];
                     if (!item) return null;
@@ -264,9 +280,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
               <div>
                 <h4 className="mb-3 text-xs font-bold text-teal-600 tracking-wider">항목: {getLabel('Service')}</h4>
                 <div className="flex flex-wrap gap-2">
-                  {(activeSector === 'general'
-                    ? ['formSetup3Free', 'accountSetupFree', 'training1HFree']
-                    : ['setupGeneral', 'setupAccount', 'training1h', 'brandingKakao', 'brandingSms', 'brandingEmail']
+                  {(activeSector === 'public'
+                    ? ['setupGeneral', 'setupAccount', 'training1h', 'brandingKakao', 'brandingSms', 'brandingEmail']
+                    : ['formSetup3Free', 'accountSetupFree', 'training1HFree']
                   ).map(key => {
                     const item = QUICK_ADD_CATALOG[key];
                     if (!item) return null;
@@ -364,6 +380,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                         onRemove={() => actions.removeRow(item.id)}
                         onFocus={() => setLastFocusedRow(item.id)}
                         isFocused={lastFocusedRow === item.id}
+                        showDiscount={showDiscount}
                       />
                     ))}
                   </AnimatePresence>
@@ -397,7 +414,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
             <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">총 견적 금액</span>
             <div className="flex items-baseline gap-2">
               <span className="text-lg font-bold text-[var(--forcs-blue)]">{toKRW(calculation.grand)}</span>
-              {calculation.msrpSum > calculation.offerSum && (
+              {showDiscount !== false && calculation.msrpSum > calculation.offerSum && (
                 <span className="text-xs text-gray-400 line-through">
                   정가 {toKRW(calculation.msrpSum)}
                 </span>
@@ -407,9 +424,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end text-xs text-gray-500">
               <span>공급가 합계: {toKRW(calculation.supplyPriceSum)}</span>
-              {calculation.msrpSum > calculation.offerSum && (
-                <span className="text-red-500 font-medium">
-                  ★ 할인 금액 ({calculation.totalDiscountPct.toFixed(0)}%): -{toKRW(calculation.msrpSum - calculation.offerSum)}
+              {showDiscount !== false && calculation.msrpSum > calculation.offerSum && (
+                <span className={`${activeSector === 'subsidy' ? 'text-green-600' : 'text-red-500'} font-medium`}>
+                  ★ {activeSector === 'subsidy' ? '지원 금액' : '할인 금액'} ({calculation.totalDiscountPct.toFixed(0)}%): -{toKRW(calculation.msrpSum - calculation.offerSum)}
                 </span>
               )}
               <span>부가세({calculation.vatRate}%): {toKRW(calculation.vatSum)}</span>

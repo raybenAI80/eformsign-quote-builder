@@ -31,7 +31,7 @@ const steps: Step[] = [
                     견적서 작성은 4단계로 진행됩니다:
                 </p>
                 <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• <strong>옵션 설정</strong>: 견적서 모드 선택 및 템플릿 관리</li>
+                    <li>• <strong>옵션 설정</strong>: 견적서 모드, 할인율 표시 설정, 템플릿 관리</li>
                     <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보 입력</li>
                     <li>• <strong>항목</strong>: 서비스 및 옵션 항목 구성 (프리셋 활용)</li>
                     <li>• <strong>기록</strong>: 견적서 저장 내역 및 버전 관리</li>
@@ -64,10 +64,12 @@ const steps: Step[] = [
                     다양한 <strong>프리셋</strong>으로 견적서를 빠르게 구성하세요.
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• <strong>일반 기업용 / 공공기관용 / 지원사업용</strong> 탭으로 섹터 전환</li>
                     <li>• <strong>문서 유형</strong>: Enterprise, 충전형, 구독형(Business/Personal) 프리셋 제공</li>
                     <li>• 충전형은 수량에 따라 단가가 자동 조정됩니다 (10건 이하 1,000원, 11건+ 800원)</li>
                     <li>• 단가에 <strong>"별도", "무료"</strong> 등 텍스트도 입력 가능</li>
                     <li>• 수량, 단가, 할인율 자유 수정 / 드래그로 순서 변경</li>
+                    <li>• 지원사업 모드에서는 할인 → <strong>지원금액</strong>으로 표기</li>
                 </ul>
             </div>
         ),

@@ -14,6 +14,7 @@ export interface SortableItemRowProps {
     onRemove: () => void;
     onFocus: () => void;
     isFocused: boolean;
+    showDiscount?: boolean;
 }
 
 export const SortableItemRow: React.FC<SortableItemRowProps> = ({
@@ -24,6 +25,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
     onRemove,
     onFocus,
     isFocused,
+    showDiscount,
 }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
@@ -167,6 +169,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             </span>
                         )}
                     </label>
+                    {showDiscount !== false && (
                     <label className="block group/field sm:col-span-4">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             할인(%)
@@ -216,6 +219,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             </div>
                         </div>
                     </label>
+                    )}
                 </div>
 
                 {/* Row 3: Notes - Full Width */}
