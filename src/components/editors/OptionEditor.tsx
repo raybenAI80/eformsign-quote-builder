@@ -98,6 +98,31 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
         </div>
       </section>
 
+      {/* 표시 설정 */}
+      <section className={!isEditing ? 'opacity-60 pointer-events-none' : ''}>
+        <h2 className="section-heading mb-4">표시 설정</h2>
+        <div className="rounded-2xl border border-[var(--forcs-border)] bg-white p-5 shadow-sm">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div>
+              <span className="text-sm font-bold text-gray-800">할인율 컬럼 표시</span>
+              <p className="text-xs text-gray-500 mt-0.5">
+                견적서에서 할인율 열을 표시합니다. 숨겨도 할인 계산은 그대로 적용됩니다.
+              </p>
+            </div>
+            <div className="relative ml-4 shrink-0">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={meta.showDiscount !== false}
+                onChange={(e) => setMeta(prev => ({ ...prev, showDiscount: e.target.checked }))}
+              />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-[var(--forcs-blue)] transition-colors"></div>
+              <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+            </div>
+          </label>
+        </div>
+      </section>
+
       {/* Presets */}
       <section className={!isEditing ? 'opacity-60 pointer-events-none' : ''}>
         <div className="mb-4 flex items-center justify-between">

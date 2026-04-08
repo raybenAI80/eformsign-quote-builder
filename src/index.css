@@ -279,8 +279,8 @@ body {
 
 /* Rich Text Notes in Preview */
 .notes-html {
-  color: #9ca3af;
-  /* Default gray */
+  color: #4B5563;
+  /* gray-600 for better readability */
 }
 
 .notes-html font[color] {

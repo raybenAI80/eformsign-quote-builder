@@ -26,17 +26,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     rows = 4,
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
-    const isInternalUpdate = useRef(false);
+    const isFocused = useRef(false);
     const [showColorPicker, setShowColorPicker] = useState(false);
 
-    // value prop이 변경되면 에디터 내용 업데이트 (외부 변경만)
+    // value prop이 변경되면 에디터 내용 업데이트 (포커스 중에는 스킵하여 커서 보존)
     useEffect(() => {
-        if (editorRef.current && !isInternalUpdate.current) {
+        if (editorRef.current && !isFocused.current) {
             if (editorRef.current.innerHTML !== value) {
                 editorRef.current.innerHTML = value || '';
             }
         }
-        isInternalUpdate.current = false;
     }, [value]);
 
     // 외부 클릭 시 색상 팔레트 닫기
@@ -52,7 +51,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     const handleInput = useCallback(() => {
         if (editorRef.current) {
-            isInternalUpdate.current = true;
             onChange(editorRef.current.innerHTML);
         }
     }, [onChange]);
@@ -147,9 +145,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                         handleInput();
                     }
                 }}
+                onFocus={() => { isFocused.current = true; }}
                 onBlur={() => {
+                    isFocused.current = false;
                     handleInput();
-                    // blur 시 선택 해제
+                    // blur 시 외부 value와 동기화
+                    if (editorRef.current && editorRef.current.innerHTML !== value) {
+                        editorRef.current.innerHTML = value || '';
+                    }
                     window.getSelection()?.removeAllRanges();
                 }}
                 data-placeholder={placeholder}

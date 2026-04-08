@@ -40,6 +40,8 @@ export interface QuoteMeta {
   referenceNotes: string[];
   bizNoLink: string;
   bankAccountLink: string;
+  showDiscount?: boolean;
+  sector?: 'general' | 'public' | 'subsidy';
 }
 
 export interface CalculatedRow extends QuoteItem {

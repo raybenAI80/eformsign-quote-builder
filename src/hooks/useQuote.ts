@@ -101,6 +101,8 @@ export const createDefaultMeta = (): QuoteMeta => {
     ],
     bizNoLink: SUPPLIER_PROFILE.bizNoLink,
     bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
+    showDiscount: true,
+    sector: 'general',
   };
 };
 
@@ -134,6 +136,8 @@ export const createEmptyMeta = (): QuoteMeta => {
     referenceNotes: [...DEFAULT_REFERENCE_NOTES],
     bizNoLink: SUPPLIER_PROFILE.bizNoLink,
     bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
+    showDiscount: true,
+    sector: 'general',
   };
 };
 
@@ -160,6 +164,8 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
     brandingMode:
       (typeof legacyAi === 'boolean' ? (legacyAi ? 'ai' : 'default') : meta.brandingMode ?? 'ai'),
     referenceNotes: meta.referenceNotes?.length ? meta.referenceNotes : defaultNotes,
+    showDiscount: meta.showDiscount !== false,
+    sector: meta.sector ?? 'general',
   };
 };
 
