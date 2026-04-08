@@ -1,0 +1,15 @@
+#!/bin/sh
+# Vercel Hobby 플랜은 GitHub 계정 이메일과 커밋 이메일이 일치해야 배포됨
+EXPECTED_EMAIL="rayben.ai80@gmail.com"
+CURRENT_EMAIL=$(git config user.email)
+
+if [ "$CURRENT_EMAIL" != "$EXPECTED_EMAIL" ]; then
+  echo ""
+  echo "ERROR: git user.email이 GitHub 계정과 다릅니다."
+  echo "  현재: $CURRENT_EMAIL"
+  echo "  필요: $EXPECTED_EMAIL"
+  echo ""
+  echo "수정: git config user.email \"$EXPECTED_EMAIL\""
+  echo ""
+  exit 1
+fi
