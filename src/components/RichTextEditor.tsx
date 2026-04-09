@@ -27,7 +27,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const lastValueRef = useRef(value);
-    const savedSelection = useRef<Range | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
 
     // 초기 마운트 시 value 설정
@@ -48,25 +47,34 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
     }, [value]);
 
-    // 커서 위치 저장/복원 — 리렌더 시 커서 점프 방지
-    const saveCursor = useCallback(() => {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
-            savedSelection.current = sel.getRangeAt(0).cloneRange();
-        }
-    }, []);
+    // 클릭 좌표 기반 커서 복원 — focus 리렌더 시 커서 점프 방지
+    const clickPos = useRef<{ x: number; y: number } | null>(null);
 
-    const restoreCursor = useCallback(() => {
-        if (savedSelection.current && editorRef.current) {
-            try {
+    const restoreCursorFromPoint = useCallback(() => {
+        if (!clickPos.current || !editorRef.current) return;
+        const { x, y } = clickPos.current;
+        clickPos.current = null;
+        try {
+            // caretPositionFromPoint (표준) 또는 caretRangeFromPoint (Chrome)
+            let range: Range | null = null;
+            if (document.caretPositionFromPoint) {
+                const pos = document.caretPositionFromPoint(x, y);
+                if (pos) {
+                    range = document.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                }
+            } else if (document.caretRangeFromPoint) {
+                range = document.caretRangeFromPoint(x, y);
+            }
+            if (range) {
                 const sel = window.getSelection();
                 if (sel) {
                     sel.removeAllRanges();
-                    sel.addRange(savedSelection.current);
+                    sel.addRange(range);
                 }
-            } catch { /* range might be invalid after DOM change */ }
-            savedSelection.current = null;
-        }
+            }
+        } catch { /* fallback: browser default position */ }
     }, []);
 
     // 외부 클릭 시 색상 팔레트 닫기
@@ -174,13 +182,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 className="px-2 py-1.5 text-sm outline-none overflow-y-auto cursor-text"
                 style={{ minHeight }}
                 onInput={handleInput}
-                onMouseDown={() => {
-                    // 클릭 직후 브라우저가 배치한 커서 위치를 마이크로태스크로 저장
-                    requestAnimationFrame(saveCursor);
+                onMouseDown={(e) => {
+                    // 클릭 좌표 저장 — focus 후 해당 위치로 커서 복원
+                    clickPos.current = { x: e.clientX, y: e.clientY };
                 }}
                 onFocus={() => {
-                    // focus로 인한 부모 리렌더 후 커서 복원
-                    requestAnimationFrame(restoreCursor);
+                    // 부모 리렌더 후 클릭 좌표 기반으로 커서 복원
+                    requestAnimationFrame(restoreCursorFromPoint);
                 }}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
