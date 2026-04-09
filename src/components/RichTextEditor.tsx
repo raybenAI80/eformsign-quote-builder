@@ -27,6 +27,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const lastValueRef = useRef(value);
+    const savedSelection = useRef<Range | null>(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
 
     // 초기 마운트 시 value 설정
@@ -40,13 +41,33 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     // 외부에서 value가 변경된 경우에만 동기화 (자체 입력은 무시)
     useEffect(() => {
         if (value !== lastValueRef.current && editorRef.current) {
-            // 외부 변경 감지 — 에디터가 포커스 상태가 아닐 때만 반영
             if (document.activeElement !== editorRef.current) {
                 editorRef.current.innerHTML = value || '';
             }
             lastValueRef.current = value;
         }
     }, [value]);
+
+    // 커서 위치 저장/복원 — 리렌더 시 커서 점프 방지
+    const saveCursor = useCallback(() => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+            savedSelection.current = sel.getRangeAt(0).cloneRange();
+        }
+    }, []);
+
+    const restoreCursor = useCallback(() => {
+        if (savedSelection.current && editorRef.current) {
+            try {
+                const sel = window.getSelection();
+                if (sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedSelection.current);
+                }
+            } catch { /* range might be invalid after DOM change */ }
+            savedSelection.current = null;
+        }
+    }, []);
 
     // 외부 클릭 시 색상 팔레트 닫기
     useEffect(() => {
@@ -85,7 +106,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const minHeight = rows * 24;
 
     return (
-        <div className={`rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden transition-all focus-within:border-[var(--forcs-blue)] focus-within:ring-1 focus-within:ring-[var(--forcs-blue)] focus-within:bg-white ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
+        <div
+            className={`rounded-lg border border-gray-200 bg-gray-50/50 overflow-hidden transition-all focus-within:border-[var(--forcs-blue)] focus-within:ring-1 focus-within:ring-[var(--forcs-blue)] focus-within:bg-white ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
+            onFocus={(e) => e.stopPropagation()}
+        >
             {/* Compact Toolbar */}
             <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-gray-100 bg-gray-50">
                 <button
@@ -150,6 +174,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 className="px-2 py-1.5 text-sm outline-none overflow-y-auto cursor-text"
                 style={{ minHeight }}
                 onInput={handleInput}
+                onMouseDown={() => {
+                    // 클릭 직후 브라우저가 배치한 커서 위치를 마이크로태스크로 저장
+                    requestAnimationFrame(saveCursor);
+                }}
+                onFocus={() => {
+                    // focus로 인한 부모 리렌더 후 커서 복원
+                    requestAnimationFrame(restoreCursor);
+                }}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
