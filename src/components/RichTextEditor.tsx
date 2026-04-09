@@ -26,15 +26,25 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     rows = 4,
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
-    const isFocused = useRef(false);
+    const lastValueRef = useRef(value);
     const [showColorPicker, setShowColorPicker] = useState(false);
 
-    // value prop이 변경되면 에디터 내용 업데이트 (포커스 중에는 스킵하여 커서 보존)
+    // 초기 마운트 시 value 설정
     useEffect(() => {
-        if (editorRef.current && !isFocused.current) {
-            if (editorRef.current.innerHTML !== value) {
+        if (editorRef.current) {
+            editorRef.current.innerHTML = value || '';
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 외부에서 value가 변경된 경우에만 동기화 (자체 입력은 무시)
+    useEffect(() => {
+        if (value !== lastValueRef.current && editorRef.current) {
+            // 외부 변경 감지 — 에디터가 포커스 상태가 아닐 때만 반영
+            if (document.activeElement !== editorRef.current) {
                 editorRef.current.innerHTML = value || '';
             }
+            lastValueRef.current = value;
         }
     }, [value]);
 
@@ -51,7 +61,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     const handleInput = useCallback(() => {
         if (editorRef.current) {
-            onChange(editorRef.current.innerHTML);
+            const html = editorRef.current.innerHTML;
+            lastValueRef.current = html;
+            onChange(html);
         }
     }, [onChange]);
 
@@ -145,14 +157,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                         handleInput();
                     }
                 }}
-                onFocus={() => { isFocused.current = true; }}
                 onBlur={() => {
-                    isFocused.current = false;
                     handleInput();
-                    // blur 시 외부 value와 동기화
-                    if (editorRef.current && editorRef.current.innerHTML !== value) {
-                        editorRef.current.innerHTML = value || '';
-                    }
                     window.getSelection()?.removeAllRanges();
                 }}
                 data-placeholder={placeholder}
