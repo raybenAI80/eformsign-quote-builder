@@ -41,11 +41,6 @@ export const HistoryEditor: React.FC<HistoryEditorProps> = ({
                 },
                 true
             );
-        } else if (actions.clearHistory) {
-            if (confirm('모든 기록을 삭제하시겠습니까?')) {
-                actions.clearHistory();
-                toast.success('히스토리가 초기화되었습니다.');
-            }
         }
     };
 
@@ -63,12 +58,6 @@ export const HistoryEditor: React.FC<HistoryEditorProps> = ({
                 },
                 true
             );
-        } else if (confirm('선택한 버전을 삭제하시겠습니까?')) {
-            actions.deleteSnapshot(id);
-            toast.success('버전이 삭제되었습니다.');
-            if (previewId === id && onPreview) {
-                onPreview(null);
-            }
         }
     };
 
@@ -218,8 +207,6 @@ export const HistoryEditor: React.FC<HistoryEditorProps> = ({
                                                             restore,
                                                             true
                                                         );
-                                                    } else if (confirm('이 버전을 불러오시겠습니까?')) {
-                                                        restore();
                                                     }
                                                 }}
                                             >

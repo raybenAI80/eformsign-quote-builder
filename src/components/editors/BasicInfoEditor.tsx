@@ -79,11 +79,9 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
             const hasNumber = /[0-9]/.test(value);
             const hasOtherInvalid = /[^A-Za-z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/.test(value);
 
-            if (hasKorean) {
-                toast.warning('영문 대문자만 입력 가능합니다.', { id: 'initials-warning' });
-            } else if (hasNumber) {
+            if (hasNumber) {
                 toast.warning('숫자는 입력할 수 없습니다. 영문 대문자만 가능합니다.', { id: 'initials-warning' });
-            } else if (hasOtherInvalid) {
+            } else if (hasKorean || hasOtherInvalid) {
                 toast.warning('영문 대문자만 입력 가능합니다.', { id: 'initials-warning' });
             }
 
