@@ -117,6 +117,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const toggleBold = () => execCommand('bold');
     const toggleItalic = () => execCommand('italic');
     const setColor = (color: string) => {
+        // styleWithCSS=true 로 설정하면 execCommand('foreColor')가 <span style="color:..."> 를
+        // 생성해 부모 color 상속을 확실히 덮어쓴다. (기본 <font color>는 CSS 환경에 따라 무시됨)
+        try { document.execCommand('styleWithCSS', false, 'true' as unknown as string); } catch {}
         execCommand('foreColor', color);
         setShowColorPicker(false);
         // 색상 적용 후 선택 해제

@@ -11,6 +11,19 @@ interface PreviewPanelProps {
   showPolicies: boolean;
 }
 
+/**
+ * 레거시 <font color="..."> 태그를 <span style="color:..."> 로 변환.
+ * execCommand('foreColor')는 기본적으로 <font color> 를 생성하는데, 부모의
+ * color 상속 때문에 렌더링이 무시되는 경우가 있어 inline style로 정규화한다.
+ */
+const normalizeRichText = (html: string): string => {
+  if (!html) return html;
+  return html
+    .replace(/<font\b([^>]*?)\scolor=(["'])([^"']+)\2([^>]*)>/gi,
+      (_m, pre, _q, color, post) => `<span${pre} style="color:${color}"${post}>`)
+    .replace(/<\/font>/gi, '</span>');
+};
+
 const LABELS = {
   quoteNo: '견적번호',
   quoteDate: '견적일',
@@ -312,7 +325,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                             {(row.notes || row.note) && (
                               <div
                                 className="text-xs mt-1 whitespace-pre-wrap notes-html"
-                                dangerouslySetInnerHTML={{ __html: row.notes || row.note || '' }}
+                                dangerouslySetInnerHTML={{ __html: normalizeRichText(row.notes || row.note || '') }}
                               />
                             )}
                           </td>
