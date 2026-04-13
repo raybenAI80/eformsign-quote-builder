@@ -133,6 +133,64 @@ describe('calculateQuote', () => {
         expect(result.vat).toBe(0);
         expect(result.grand).toBe(100000);
     });
+
+    describe('지원사업용(subsidy) 모드', () => {
+        const subsidyItems: QuoteItem[] = [
+            {
+                id: '1',
+                section: 'SaaS',
+                category: '문서',
+                item: '테스트',
+                unitLabel: '건',
+                qty: 10,
+                unitPrice: 100000,
+                discountPct: 50, // 지원사업용에서는 무시되어야 함
+                notes: '',
+            },
+        ];
+
+        it('지원율 70% - 시나리오 B', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'subsidy', subsidyRate: 70 });
+            expect(result.msrpSum).toBe(1000000);
+            expect(result.offerSum).toBe(1000000); // 행별 할인 무시
+            expect(result.vat).toBe(100000); // 정가 × 10%
+            expect(result.subsidyAmount).toBe(700000); // 정가 × 70%
+            expect(result.grand).toBe(400000); // 1,000,000 + 100,000 - 700,000
+            expect(result.isSubsidy).toBe(true);
+            expect(result.subsidyRate).toBe(70);
+        });
+
+        it('지원율 0% - 엣지 케이스', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'subsidy', subsidyRate: 0 });
+            expect(result.subsidyAmount).toBe(0);
+            expect(result.grand).toBe(1100000); // 1,000,000 + 100,000
+        });
+
+        it('지원율 100% - 엣지 케이스', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'subsidy', subsidyRate: 100 });
+            expect(result.subsidyAmount).toBe(1000000);
+            expect(result.grand).toBe(100000); // VAT만 남음
+        });
+
+        it('지원율 clamp (음수 → 0)', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'subsidy', subsidyRate: -10 });
+            expect(result.subsidyRate).toBe(0);
+        });
+
+        it('지원율 clamp (100 초과 → 100)', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'subsidy', subsidyRate: 150 });
+            expect(result.subsidyRate).toBe(100);
+        });
+
+        it('일반 모드는 옵션 전달해도 기존 동작 유지 (회귀)', () => {
+            const result = calculateQuote(subsidyItems, 10, { sector: 'general', subsidyRate: 70 });
+            expect(result.isSubsidy).toBe(false);
+            expect(result.subsidyAmount).toBe(0);
+            expect(result.offerSum).toBe(500000); // 할인 50% 적용
+            expect(result.vat).toBe(50000); // 공급가액 × 10%
+            expect(result.grand).toBe(550000);
+        });
+    });
 });
 
 describe('createDefaultMeta', () => {

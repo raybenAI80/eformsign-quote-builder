@@ -103,6 +103,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
     showDiscount: true,
     sector: 'general',
+    subsidyRate: 0,
   };
 };
 
@@ -138,6 +139,7 @@ export const createEmptyMeta = (): QuoteMeta => {
     bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,
     showDiscount: true,
     sector: 'general',
+    subsidyRate: 0,
   };
 };
 
@@ -166,18 +168,34 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
     referenceNotes: meta.referenceNotes?.length ? meta.referenceNotes : defaultNotes,
     showDiscount: meta.showDiscount !== false,
     sector: meta.sector ?? 'general',
+    subsidyRate: typeof meta.subsidyRate === 'number' ? meta.subsidyRate : 0,
   };
 };
 
-export const calculateQuote = (items: QuoteItem[], vatRate: number): CalculationResult => {
+export interface CalculateQuoteOptions {
+  sector?: 'general' | 'public' | 'subsidy';
+  subsidyRate?: number;
+}
+
+export const calculateQuote = (
+  items: QuoteItem[],
+  vatRate: number,
+  options: CalculateQuoteOptions = {}
+): CalculationResult => {
   const rate = vatRate / 100;
+  const isSubsidy = options.sector === 'subsidy';
+  const subsidyRate = Math.max(0, Math.min(100, parseNum(options.subsidyRate ?? 0)));
+
   const rows: CalculatedRow[] = items.map(item => {
     const numericPrice = parseNum(item.unitPrice);
     const qty = parseNum(item.qty);
     const discountPct = parseNum(item.discountPct);
 
     const msrp = numericPrice * qty;
-    const offer = Math.round(msrp * (1 - discountPct / 100));
+    // 지원사업용 모드: 행별 할인 무시 → offer = msrp
+    const offer = isSubsidy
+      ? msrp
+      : Math.round(msrp * (1 - discountPct / 100));
 
     return {
       ...item,
@@ -195,9 +213,25 @@ export const calculateQuote = (items: QuoteItem[], vatRate: number): Calculation
 
   const msrpSum = rows.reduce((sum, row) => sum + row.msrp, 0);
   const offerSum = rows.reduce((sum, row) => sum + row.offer, 0);
-  const vat = Math.round(offerSum * rate);
-  const grand = offerSum + vat;
-  const totalDiscountPct = msrpSum > 0 ? (1 - offerSum / msrpSum) * 100 : 0;
+
+  // 부가세 기준: 지원사업용일 때는 정가합계(MSRP), 그 외는 공급가액
+  const vatBase = isSubsidy ? msrpSum : offerSum;
+  const vat = Math.round(vatBase * rate);
+
+  // 지원금: 지원사업용일 때만 정가합계 × 지원율(%)
+  const subsidyAmount = isSubsidy
+    ? Math.round(msrpSum * subsidyRate / 100)
+    : 0;
+
+  // 합계: 지원사업용은 정가합계 + 부가세 - 지원금, 그 외는 공급가액 + 부가세
+  const grand = isSubsidy
+    ? msrpSum + vat - subsidyAmount
+    : offerSum + vat;
+
+  // totalDiscountPct: 지원사업용일 때는 지원율, 그 외는 기존 계산
+  const totalDiscountPct = isSubsidy
+    ? subsidyRate
+    : (msrpSum > 0 ? (1 - offerSum / msrpSum) * 100 : 0);
 
   // Calculate docsPaidQty and perDocPaid for compatibility
   let docsPaidQty = 0;
@@ -223,6 +257,9 @@ export const calculateQuote = (items: QuoteItem[], vatRate: number): Calculation
     totalDiscountPct,
     docsPaidQty,
     perDocPaid,
+    subsidyAmount,
+    subsidyRate: isSubsidy ? subsidyRate : 0,
+    isSubsidy,
   };
 };
 
@@ -284,8 +321,11 @@ export const useQuote = () => {
   }, []);
 
   const calculation = useMemo<CalculationResult>(() => {
-    return calculateQuote(items, meta.vatRate);
-  }, [items, meta.vatRate]);
+    return calculateQuote(items, meta.vatRate, {
+      sector: meta.sector,
+      subsidyRate: meta.subsidyRate,
+    });
+  }, [items, meta.vatRate, meta.sector, meta.subsidyRate]);
 
   const savePreset = useCallback(
     (name: string) => {

@@ -39,6 +39,8 @@ interface ItemEditorProps {
   showDiscount?: boolean;
   sector?: 'general' | 'public' | 'subsidy';
   onSectorChange?: (sector: 'general' | 'public' | 'subsidy') => void;
+  subsidyRate?: number;
+  onSubsidyRateChange?: (rate: number) => void;
 }
 
 export const ItemEditor: React.FC<ItemEditorProps> = ({
@@ -51,6 +53,8 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
   showDiscount,
   sector,
   onSectorChange,
+  subsidyRate,
+  onSubsidyRateChange,
 }) => {
   const [repeatCount, setRepeatCount] = useState(1);
   const [lastFocusedRow, setLastFocusedRow] = useState<string | null>(null);
@@ -175,6 +179,31 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* 지원사업용 선택 시: 지원율 입력 */}
+            {activeSector === 'subsidy' && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                <label className="text-xs font-bold text-green-700">지원율 (%)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={subsidyRate ? String(subsidyRate) : ''}
+                  placeholder="0"
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    // 숫자와 소수점만 허용
+                    const raw = e.target.value.replace(/[^0-9.]/g, '');
+                    const n = raw === '' ? 0 : Number(raw);
+                    const clamped = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
+                    onSubsidyRateChange?.(clamped);
+                  }}
+                  className="w-24 rounded border border-green-300 bg-white px-2 py-1 text-sm text-right focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <span className="text-xs text-gray-600">
+                  지원금 = 정가합계 × 지원율 · 부가세 = 정가합계 × 10% · 합계 = 정가합계 + 부가세 − 지원금
+                </span>
+              </div>
+            )}
 
             {/* Category Editor Modal */}
             {showCategoryEditor && (
@@ -380,7 +409,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                         onRemove={() => actions.removeRow(item.id)}
                         onFocus={() => setLastFocusedRow(item.id)}
                         isFocused={lastFocusedRow === item.id}
-                        showDiscount={showDiscount}
+                        showDiscount={activeSector === 'subsidy' ? false : showDiscount}
                       />
                     ))}
                   </AnimatePresence>
