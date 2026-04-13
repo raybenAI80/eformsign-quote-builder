@@ -107,6 +107,15 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
         }
     }, [meta.issueSequence, applyMetaPatch]);
 
+    // 현재 sector 배지 정보
+    const sector = meta.sector ?? 'general';
+    const sectorBadge = {
+        general: { label: '일반 기업용', bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200', dot: 'bg-blue-500' },
+        public: { label: '정부·공공기관용', bg: 'bg-gray-100', text: 'text-gray-700', ring: 'ring-gray-300', dot: 'bg-gray-500' },
+        subsidy: { label: '지원사업용', bg: 'bg-green-50', text: 'text-green-700', ring: 'ring-green-200', dot: 'bg-green-500' },
+    }[sector];
+    const subsidyRatePct = Math.max(0, Math.min(100, Number(meta.subsidyRate ?? 0)));
+
     return (
         <div className="space-y-8">
             {/* Section 1: Quote Information */}
@@ -121,6 +130,18 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                         </svg>
                     </div>
                     <h2 className="text-lg font-bold text-gray-900 tracking-tight">견적 정보</h2>
+
+                    {/* 현재 sector 배지 (모드 변경은 '항목' 탭에서) */}
+                    <div
+                        className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${sectorBadge.bg} ${sectorBadge.text} ring-1 ${sectorBadge.ring}`}
+                        title="모드는 '항목' 탭의 상단에서 변경할 수 있습니다"
+                    >
+                        <span className={`h-1.5 w-1.5 rounded-full ${sectorBadge.dot}`}></span>
+                        <span>{sectorBadge.label}</span>
+                        {sector === 'subsidy' && subsidyRatePct > 0 && (
+                            <span className="font-black">· 지원율 {subsidyRatePct}%</span>
+                        )}
+                    </div>
                 </div>
 
                 <fieldset disabled={!isEditing} className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
