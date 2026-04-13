@@ -329,7 +329,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                           </td>
                           {showDiscount && <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${row.discountPct}%` : '-'}</td>}
                           <td className="py-2 text-right align-top">
-                            {typeof row.unitPrice !== 'number' && isNaN(Number(row.unitPrice)) ? (
+                            {typeof row.unitPrice !== 'number' && (row.unitPrice === '' || isNaN(Number(row.unitPrice))) ? (
                               <span className="text-sm text-gray-400">-</span>
                             ) : showDiscount && row.discountPct > 0 ? (
                               <div className="text-right">

@@ -28,6 +28,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const editorRef = useRef<HTMLDivElement>(null);
     const lastValueRef = useRef(value);
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [isBold, setIsBold] = useState(false);
+    const [isItalic, setIsItalic] = useState(false);
 
     // 초기 마운트 시 value 설정
     useEffect(() => {
@@ -77,12 +79,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         } catch { /* fallback: browser default position */ }
     }, []);
 
-    // 외부 클릭 시 색상 팔레트 닫기
+    // 커서/선택 변경 시 Bold·Italic 상태 동기화
     useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (showColorPicker) {
-                setShowColorPicker(false);
-            }
+        const updateFormatState = () => {
+            if (document.activeElement !== editorRef.current) return;
+            setIsBold(document.queryCommandState('bold'));
+            setIsItalic(document.queryCommandState('italic'));
+        };
+        document.addEventListener('selectionchange', updateFormatState);
+        return () => document.removeEventListener('selectionchange', updateFormatState);
+    }, []);
+
+    // 외부 클릭 시 색상 팔레트 닫기 (showColorPicker=true일 때만 리스너 등록)
+    useEffect(() => {
+        if (!showColorPicker) return;
+        const handleClickOutside = () => {
+            setShowColorPicker(false);
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
@@ -124,19 +136,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={toggleBold}
-                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    className={`p-1 rounded transition-colors ${isBold ? 'bg-gray-200 text-gray-900' : 'hover:bg-gray-200 text-gray-600'}`}
                     title="굵게"
                 >
-                    <span className="font-bold text-xs text-gray-600">B</span>
+                    <span className="font-bold text-xs">B</span>
                 </button>
                 <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={toggleItalic}
-                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    className={`p-1 rounded transition-colors ${isItalic ? 'bg-gray-200 text-gray-900' : 'hover:bg-gray-200 text-gray-600'}`}
                     title="기울임"
                 >
-                    <span className="italic text-xs text-gray-600">I</span>
+                    <span className="italic text-xs">I</span>
                 </button>
 
                 {/* Color picker - click based */}
@@ -199,19 +211,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 }}
                 onBlur={() => {
                     handleInput();
-                    window.getSelection()?.removeAllRanges();
+                    // 에디터 내부 selection만 해제 (전역 selection에 영향 안 줌)
+                    const sel = window.getSelection();
+                    if (sel && editorRef.current?.contains(sel.anchorNode)) {
+                        sel.removeAllRanges();
+                    }
                 }}
                 data-placeholder={placeholder}
                 suppressContentEditableWarning
             />
-
-            <style>{`
-        [data-placeholder]:empty:before {
-          content: attr(data-placeholder);
-          color: #9ca3af;
-          pointer-events: none;
-        }
-      `}</style>
         </div>
     );
 };
