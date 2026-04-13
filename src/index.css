@@ -283,9 +283,8 @@ body {
   /* gray-600 for better readability */
 }
 
-.notes-html font[color] {
-  color: attr(color) !important;
-}
+/* <font color="..."> → 런타임에 <span style="color:..."> 로 변환하므로
+   별도 CSS 규칙 불필요. 남아있는 레거시 <font color> 대비 기본 규칙만 유지. */
 
 .notes-html b,
 .notes-html strong {
