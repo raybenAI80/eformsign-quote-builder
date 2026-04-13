@@ -37,6 +37,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
   const isSubsidy = meta.sector === 'subsidy';
   const discountLabel = isSubsidy ? '지원율' : '할인율';
   const discountAmountLabel = isSubsidy ? '지원 금액' : '할인 금액';
+  // 지원사업용 모드에서는 행별 할인(지원율) 컬럼과 할인가 표시를 모두 숨김
+  const showRowDiscount = showDiscount && !isSubsidy;
 
   // Calculate Due Date
   const quoteDateObj = new Date(meta.quoteDate || new Date());
@@ -254,11 +256,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider ${showDiscount ? 'w-[42%]' : 'w-[50%]'}`}>{LABELS.itemDesc}</th>
+                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider ${showRowDiscount ? 'w-[42%]' : 'w-[50%]'}`}>{LABELS.itemDesc}</th>
                 <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[10%]">{LABELS.qty}</th>
-                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider text-right ${showDiscount ? 'w-[16%]' : 'w-[18%]'}`}>{LABELS.price}</th>
-                {showDiscount && <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[12%]">{discountLabel}</th>}
-                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider text-right ${showDiscount ? 'w-[20%]' : 'w-[22%]'}`}>{LABELS.amount}</th>
+                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider text-right ${showRowDiscount ? 'w-[16%]' : 'w-[18%]'}`}>{LABELS.price}</th>
+                {showRowDiscount && <th className="py-2 text-xs font-bold text-gray-400 tracking-wider text-right w-[12%]">{discountLabel}</th>}
+                <th className={`py-2 text-xs font-bold text-gray-400 tracking-wider text-right ${showRowDiscount ? 'w-[20%]' : 'w-[22%]'}`}>{LABELS.amount}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -296,7 +298,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                     <React.Fragment key={section}>
                       {/* Category Header */}
                       <tr className={`bg-gradient-to-r ${colors.bg}`}>
-                        <td colSpan={showDiscount ? 5 : 4} className={`py-2.5 pl-4 border-l-4 ${colors.border}`}>
+                        <td colSpan={showRowDiscount ? 5 : 4} className={`py-2.5 pl-4 border-l-4 ${colors.border}`}>
                           <div className="flex items-center h-full">
                             <span className={`text-sm font-bold ${colors.text}`}>{categoryLabels?.find(c => c.section === section)?.label || getCategoryLabel(section)}</span>
                           </div>
@@ -319,22 +321,22 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                             {typeof row.unitPrice === 'number' ? (
                               <>
                                 <span className="text-sm font-medium text-gray-600">{nf.format(row.unitPrice)}</span>
-                                {showDiscount && row.discountPct > 0 && (
-                                  <div className={`text-[10px] ${isSubsidy ? 'text-green-600' : 'text-red-500'}`}>→ {nf.format(Math.round(row.unitPrice * (1 - row.discountPct / 100)))}</div>
+                                {showRowDiscount && row.discountPct > 0 && (
+                                  <div className="text-[10px] text-red-500">→ {nf.format(Math.round(row.unitPrice * (1 - row.discountPct / 100)))}</div>
                                 )}
                               </>
                             ) : (
                               <span className="text-sm font-medium text-gray-600">{row.unitPrice}</span>
                             )}
                           </td>
-                          {showDiscount && <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${row.discountPct}%` : '-'}</td>}
+                          {showRowDiscount && <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${row.discountPct}%` : '-'}</td>}
                           <td className="py-2 text-right align-top">
                             {typeof row.unitPrice !== 'number' && (row.unitPrice === '' || isNaN(Number(row.unitPrice))) ? (
                               <span className="text-sm text-gray-400">-</span>
-                            ) : showDiscount && row.discountPct > 0 ? (
+                            ) : showRowDiscount && row.discountPct > 0 ? (
                               <div className="text-right">
                                 <div className="text-xs text-gray-400">(정가 {nf.format(row.price)})</div>
-                                <div className={`text-sm font-bold ${isSubsidy ? 'text-green-600' : 'text-blue-600'}`}>{nf.format(row.offerPrice)}</div>
+                                <div className="text-sm font-bold text-blue-600">{nf.format(row.offerPrice)}</div>
                               </div>
                             ) : (
                               <span className="text-sm font-bold text-gray-800">{nf.format(row.offerPrice)}</span>
@@ -359,42 +361,75 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
           <div className="w-[65%] bg-gray-50/70 overflow-hidden">
             {/* 상세 내역 */}
             <div className="p-5 space-y-2.5">
-              {showDiscount && calculation.msrpSum > calculation.offerSum && (
+              {isSubsidy ? (
                 <>
                   {/* 정가 합계 */}
                   <div className="flex justify-between items-center text-sm">
-                    <span className="flex items-center gap-2 font-medium text-gray-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                    <span className="flex items-center gap-2 font-medium text-gray-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
                       정가 합계
                     </span>
-                    <span className="text-gray-400">{toKRW(calculation.msrpSum)}</span>
+                    <span className="font-bold text-gray-800">{toKRW(calculation.msrpSum)}</span>
                   </div>
-                  {/* 할인/지원 금액 */}
-                  <div className={`flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 ${isSubsidy ? 'bg-green-50/80 border-green-400' : 'bg-red-50/80 border-red-400'}`}>
-                    <span className={`flex items-center gap-2 font-semibold ${isSubsidy ? 'text-green-600' : 'text-red-500'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isSubsidy ? 'bg-green-400' : 'bg-red-400'}`}></span>
-                      {discountAmountLabel} ({Math.round(calculation.totalDiscountPct)}%)
+                  {/* 부가세: 정가 기준 10% */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2 font-medium text-gray-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                      {LABELS.tax} ({calculation.vatRate}%)
                     </span>
-                    <span className={`font-bold ${isSubsidy ? 'text-green-600' : 'text-red-500'}`}>-{toKRW(calculation.msrpSum - calculation.offerSum)}</span>
+                    <span className="font-bold text-gray-800">{toKRW(calculation.vat)}</span>
+                  </div>
+                  {/* 지원 금액: 녹색 하이라이트 */}
+                  {calculation.subsidyAmount > 0 && (
+                    <div className="flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 bg-green-50/80 border-green-400">
+                      <span className="flex items-center gap-2 font-semibold text-green-600">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        {discountAmountLabel} ({Math.round(calculation.subsidyRate)}%)
+                      </span>
+                      <span className="font-bold text-green-600">-{toKRW(calculation.subsidyAmount)}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {showDiscount && calculation.msrpSum > calculation.offerSum && (
+                    <>
+                      {/* 정가 합계 */}
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="flex items-center gap-2 font-medium text-gray-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                          정가 합계
+                        </span>
+                        <span className="text-gray-400">{toKRW(calculation.msrpSum)}</span>
+                      </div>
+                      {/* 할인 금액 */}
+                      <div className="flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 bg-red-50/80 border-red-400">
+                        <span className="flex items-center gap-2 font-semibold text-red-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                          {discountAmountLabel} ({Math.round(calculation.totalDiscountPct)}%)
+                        </span>
+                        <span className="font-bold text-red-500">-{toKRW(calculation.msrpSum - calculation.offerSum)}</span>
+                      </div>
+                    </>
+                  )}
+                  {/* 공급가액 */}
+                  <div className="flex justify-between items-center text-sm pt-1">
+                    <span className="flex items-center gap-2 font-medium text-gray-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                      {LABELS.subtotal}
+                    </span>
+                    <span className="font-bold text-gray-800">{toKRW(calculation.offerSum)}</span>
+                  </div>
+                  {/* 부가세 */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2 font-medium text-gray-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                      {LABELS.tax} ({calculation.vatRate}%)
+                    </span>
+                    <span className="font-bold text-gray-800">{toKRW(calculation.vat)}</span>
                   </div>
                 </>
               )}
-              {/* 공급가액 */}
-              <div className="flex justify-between items-center text-sm pt-1">
-                <span className="flex items-center gap-2 font-medium text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                  {LABELS.subtotal}
-                </span>
-                <span className="font-bold text-gray-800">{toKRW(calculation.offerSum)}</span>
-              </div>
-              {/* 부가세 */}
-              <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-2 font-medium text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                  {LABELS.tax} ({calculation.vatRate}%)
-                </span>
-                <span className="font-bold text-gray-800">{toKRW(calculation.vat)}</span>
-              </div>
             </div>
             {/* 합계 - 브랜드 블루 배경 */}
             <div

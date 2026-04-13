@@ -42,6 +42,8 @@ export interface QuoteMeta {
   bankAccountLink: string;
   showDiscount?: boolean;
   sector?: 'general' | 'public' | 'subsidy';
+  /** 지원사업용(subsidy) 모드에서 정가합계에 적용하는 지원율 (%) */
+  subsidyRate?: number;
 }
 
 export interface CalculatedRow extends QuoteItem {
@@ -66,6 +68,12 @@ export interface CalculationResult {
   totalDiscountPct: number;
   docsPaidQty: number;
   perDocPaid: number;
+  /** 지원사업용일 때 정가합계 × 지원율로 계산된 금액 (그 외 0) */
+  subsidyAmount: number;
+  /** 지원율 (%) - subsidy 모드에서만 의미 */
+  subsidyRate: number;
+  /** 계산이 지원사업용 모드였는지 플래그 */
+  isSubsidy: boolean;
 }
 
 export interface QuotePreset {
