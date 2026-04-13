@@ -324,7 +324,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                             <p className="font-bold text-gray-800 text-sm">{row.item}</p>
                             {(row.notes || row.note) && (
                               <div
-                                className="text-xs mt-1 whitespace-pre-wrap notes-html"
+                                className="text-[13px] leading-6 mt-1 whitespace-pre-wrap notes-html"
                                 dangerouslySetInnerHTML={{ __html: normalizeRichText(row.notes || row.note || '') }}
                               />
                             )}
@@ -468,7 +468,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <h3 className="text-xs font-bold text-gray-400 tracking-wider mb-3">
               {LABELS.notes}
             </h3>
-            <div className="space-y-2 text-[12px] text-gray-600 leading-relaxed">
+            <div className="space-y-2 text-[13px] text-gray-600 leading-relaxed">
               {meta.referenceNotes.map((note, i) => {
                 const displayNote = note
                   .replace('{customerName}', meta.customerName || '고객사')
