@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
@@ -28,6 +28,34 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
     showDiscount,
 }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+
+    // 할인단가 로컬 편집 상태 — 타이핑 중에는 로컬 값, blur 시 computed로 복귀
+    const [isEditingOfferPrice, setIsEditingOfferPrice] = useState(false);
+    const [localOfferPrice, setLocalOfferPrice] = useState('');
+
+    const computedOfferPrice = typeof item.unitPrice === 'number' && item.unitPrice > 0
+        ? Math.round(item.unitPrice * (1 - (item.discountPct ?? 0) / 100))
+        : 0;
+
+    const handleOfferPriceFocus = useCallback(() => {
+        setIsEditingOfferPrice(true);
+        setLocalOfferPrice(computedOfferPrice > 0 ? String(computedOfferPrice) : '');
+    }, [computedOfferPrice]);
+
+    const handleOfferPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.replace(/[^0-9]/g, '');
+        setLocalOfferPrice(raw);
+        const offerPrice = raw ? parseInt(raw, 10) : 0;
+        const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
+        if (basePrice > 0) {
+            const pct = Math.round((1 - offerPrice / basePrice) * 100);
+            onUpdate({ discountPct: clamp(pct, 0, 100) });
+        }
+    }, [item.unitPrice, onUpdate]);
+
+    const handleOfferPriceBlur = useCallback(() => {
+        setIsEditingOfferPrice(false);
+    }, []);
 
     // 섹션별 배경색 정의
     const sectionBgColors: Record<string, string> = {
@@ -173,18 +201,12 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             type="text"
                             inputMode="numeric"
                             className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
-                            value={typeof item.unitPrice === 'number' && item.unitPrice > 0 && item.discountPct > 0
-                                ? Math.round(item.unitPrice * (1 - item.discountPct / 100)).toLocaleString()
-                                : typeof item.unitPrice === 'number' && item.unitPrice > 0 ? item.unitPrice.toLocaleString() : ''}
-                            onChange={e => {
-                                const numOnly = e.target.value.replace(/[^0-9]/g, '');
-                                const offerPrice = numOnly ? parseInt(numOnly, 10) : 0;
-                                const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
-                                if (basePrice > 0) {
-                                    const pct = Math.round((1 - offerPrice / basePrice) * 100);
-                                    onUpdate({ discountPct: clamp(pct, 0, 100) });
-                                }
-                            }}
+                            value={isEditingOfferPrice
+                                ? localOfferPrice
+                                : (computedOfferPrice > 0 ? computedOfferPrice.toLocaleString() : '')}
+                            onFocus={handleOfferPriceFocus}
+                            onChange={handleOfferPriceChange}
+                            onBlur={handleOfferPriceBlur}
                             placeholder="0"
                             disabled={typeof item.unitPrice !== 'number' || item.unitPrice <= 0}
                         />
