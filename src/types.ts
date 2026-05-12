@@ -35,7 +35,7 @@ export interface QuoteMeta {
   vatRate: number;
   title: string;
   subtitle: string;
-  sealMode: 'stamped' | 'omitted';
+  sealMode: 'stamped' | 'omitted' | 'hidden';
   brandingMode: 'ai' | 'default' | 'public';
   referenceNotes: string[];
   bizNoLink: string;
