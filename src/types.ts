@@ -36,6 +36,8 @@ export interface QuoteMeta {
   title: string;
   subtitle: string;
   sealMode: 'stamped' | 'omitted' | 'hidden';
+  /** 직인 이미지 (base64 data URL). sealMode='stamped'일 때 사용 */
+  sealImage?: string;
   brandingMode: 'ai' | 'default' | 'public';
   referenceNotes: string[];
   bizNoLink: string;

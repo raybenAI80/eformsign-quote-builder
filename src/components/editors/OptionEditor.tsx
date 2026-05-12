@@ -150,6 +150,61 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* 직인 이미지 업로드 (직인 표시 모드일 때만) */}
+            {meta.sealMode === 'stamped' && (
+              <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
+                {meta.sealImage ? (
+                  <div className="flex items-center gap-3">
+                    <img src={meta.sealImage} alt="직인 미리보기" className="h-14 w-14 object-contain rounded border border-gray-200 bg-white p-1" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-700">직인 이미지 등록됨</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">PNG/JPG 투명 배경 권장</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMeta(prev => ({ ...prev, sealImage: undefined }))}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center gap-2 cursor-pointer py-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-bold text-gray-600">직인 이미지 업로드</span>
+                    <span className="text-[10px] text-gray-400">PNG/JPG · 투명 배경 권장 · 최대 500KB</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 500 * 1024) {
+                          toast.error('직인 이미지는 500KB 이하만 가능합니다.');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const result = reader.result as string;
+                          setMeta(prev => ({ ...prev, sealImage: result }));
+                          toast.success('직인 이미지가 등록되었습니다.');
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = ''; // reset for re-upload
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
