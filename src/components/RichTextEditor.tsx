@@ -116,14 +116,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     const toggleBold = () => execCommand('bold');
     const toggleItalic = () => execCommand('italic');
+    const clearFormat = () => {
+        editorRef.current?.focus();
+        document.execCommand('removeFormat', false);
+        handleInput();
+    };
     const setColor = (color: string) => {
-        // styleWithCSS=true 로 설정하면 execCommand('foreColor')가 <span style="color:..."> 를
-        // 생성해 부모 color 상속을 확실히 덮어쓴다. (기본 <font color>는 CSS 환경에 따라 무시됨)
+        // styleWithCSS=true → <span style="color:..."> 생성 (부모 color 상속 방지)
         try { document.execCommand('styleWithCSS', false, 'true' as unknown as string); } catch {}
         execCommand('foreColor', color);
         setShowColorPicker(false);
-        // 색상 적용 후 선택 해제
-        window.getSelection()?.removeAllRanges();
     };
 
     const minHeight = rows * 24;
@@ -153,6 +155,19 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 >
                     <span className="italic text-xs">I</span>
                 </button>
+
+                {/* Clear formatting */}
+                <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={clearFormat}
+                    className="p-1 rounded hover:bg-gray-200 transition-colors text-gray-600"
+                    title="서식 초기화"
+                >
+                    <span className="text-xs font-medium" style={{ textDecoration: 'line-through' }}>A</span>
+                </button>
+
+                <div className="w-px h-4 bg-gray-200 mx-0.5" />
 
                 {/* Color picker - click based */}
                 <div className="relative">
@@ -202,6 +217,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     clickPos.current = { x: e.clientX, y: e.clientY };
                 }}
                 onFocus={() => {
+                    // 다른 에디터에서 유입된 서식(bold, color 등) 전역 상태를 중립화.
+                    // 빈 selection에서 removeFormat는 "다음 입력에 적용될 서식"을 클리어해준다.
+                    try { document.execCommand('removeFormat', false); } catch {}
                     // 부모 리렌더 후 클릭 좌표 기반으로 커서 복원
                     requestAnimationFrame(restoreCursorFromPoint);
                 }}

@@ -144,7 +144,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                     </label>
                     <label className="block group/field">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
-                            단가
+                            단가 (정가)
                         </span>
                         <input
                             type="text"
@@ -153,44 +153,53 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             onChange={e => {
                                 const raw = e.target.value;
                                 const numOnly = raw.replace(/[^0-9]/g, '');
-                                // If the input is purely numeric (or empty), store as number
                                 if (raw === '' || raw === numOnly || raw === Number(numOnly).toLocaleString()) {
                                     onUpdate({ unitPrice: numOnly ? parseInt(numOnly, 10) : 0 });
                                 } else {
-                                    // Text/symbol input — store as string
                                     onUpdate({ unitPrice: raw });
                                 }
                             }}
                             placeholder="0"
                         />
-                        {item.discountPct > 0 && typeof item.unitPrice === 'number' && item.unitPrice > 0 && (
-                            <span className="mt-0.5 block text-[10px] text-red-500 text-right">
-                                ↳ 할인가 {Math.round(item.unitPrice * (1 - item.discountPct / 100)).toLocaleString()}원
-                            </span>
-                        )}
                     </label>
                     {showDiscount !== false && (
-                    <label className="block group/field sm:col-span-4">
+                    <>
+                    {/* 할인단가 입력 → 할인율 자동 역산 */}
+                    <label className="block group/field">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
-                            할인(%)
+                            할인단가
                         </span>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={1}
-                                className="flex-1 min-w-[80px] accent-[var(--forcs-blue)]"
-                                value={item.discountPct ?? 0}
-                                onChange={e => onUpdate({ discountPct: parseNum(e.target.value) })}
-                            />
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
+                            value={typeof item.unitPrice === 'number' && item.unitPrice > 0 && item.discountPct > 0
+                                ? Math.round(item.unitPrice * (1 - item.discountPct / 100)).toLocaleString()
+                                : typeof item.unitPrice === 'number' && item.unitPrice > 0 ? item.unitPrice.toLocaleString() : ''}
+                            onChange={e => {
+                                const numOnly = e.target.value.replace(/[^0-9]/g, '');
+                                const offerPrice = numOnly ? parseInt(numOnly, 10) : 0;
+                                const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
+                                if (basePrice > 0) {
+                                    const pct = Math.round((1 - offerPrice / basePrice) * 100);
+                                    onUpdate({ discountPct: clamp(pct, 0, 100) });
+                                }
+                            }}
+                            placeholder="0"
+                            disabled={typeof item.unitPrice !== 'number' || item.unitPrice <= 0}
+                        />
+                    </label>
+                    {/* 할인율 입력 → 할인단가 자동 계산 */}
+                    <label className="block group/field sm:col-span-2">
+                        <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
+                            할인율
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
                             <div className="flex items-center gap-1">
                                 <input
                                     type="text"
                                     inputMode="numeric"
                                     pattern="[0-9]*"
-                                    min={0}
-                                    max={100}
                                     className="w-10 rounded border border-gray-200 px-1 py-1 text-right text-sm font-semibold outline-none focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)]"
                                     value={item.discountPct != null && item.discountPct > 0 ? String(item.discountPct) : ''}
                                     onChange={e => {
@@ -201,24 +210,25 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                                     placeholder="0"
                                 />
                                 <span className="text-xs font-semibold text-gray-500">%</span>
-                                <div className="flex gap-0.5 ml-1">
-                                    {[30, 60, 100].map(v => (
-                                        <button
-                                            key={v}
-                                            type="button"
-                                            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold transition shrink-0 ${item.discountPct === v
-                                                ? 'bg-blue-600 text-white border-blue-600'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-blue-500 hover:text-blue-500'
-                                                }`}
-                                            onClick={() => onUpdate({ discountPct: v })}
-                                        >
-                                            {v}%
-                                        </button>
-                                    ))}
-                                </div>
+                            </div>
+                            <div className="flex gap-0.5">
+                                {[30, 60, 100].map(v => (
+                                    <button
+                                        key={v}
+                                        type="button"
+                                        className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold transition shrink-0 ${item.discountPct === v
+                                            ? 'bg-blue-600 text-white border-blue-600'
+                                            : 'bg-white text-gray-500 border-gray-200 hover:border-blue-500 hover:text-blue-500'
+                                            }`}
+                                        onClick={() => onUpdate({ discountPct: v })}
+                                    >
+                                        {v}%
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </label>
+                    </>
                     )}
                 </div>
 
