@@ -31,9 +31,9 @@ const steps: Step[] = [
                     견적서 작성은 4단계로 진행됩니다:
                 </p>
                 <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                    <li>• <strong>옵션 설정</strong>: 견적서 모드, 할인율 표시 설정, 템플릿 관리</li>
-                    <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보 입력</li>
-                    <li>• <strong>항목</strong>: 서비스 및 옵션 항목 구성 (프리셋 활용)</li>
+                    <li>• <strong>옵션 설정</strong>: 견적서 모드, 할인율/직인 표시 설정, 템플릿 관리</li>
+                    <li>• <strong>기본 정보</strong>: 견적 일자, 고객사, 담당자 정보 입력 (현재 모드 배지 표시)</li>
+                    <li>• <strong>항목</strong>: 서비스 및 옵션 항목 구성 (프리셋 활용, 지원사업 모드)</li>
                     <li>• <strong>기록</strong>: 견적서 저장 내역 및 버전 관리</li>
                 </ul>
             </div>
@@ -68,8 +68,9 @@ const steps: Step[] = [
                     <li>• <strong>문서 유형</strong>: Enterprise, 충전형, 구독형(Business/Personal) 프리셋 제공</li>
                     <li>• 충전형은 수량에 따라 단가가 자동 조정됩니다 (10건 이하 1,000원, 11건+ 800원)</li>
                     <li>• 단가에 <strong>"별도", "무료"</strong> 등 텍스트도 입력 가능</li>
-                    <li>• 수량, 단가, 할인율 자유 수정 / 드래그로 순서 변경</li>
-                    <li>• 지원사업 모드에서는 할인 → <strong>지원금액</strong>으로 표기</li>
+                    <li>• <strong>할인단가</strong>를 직접 입력하면 <strong>할인율이 자동 계산</strong>되고, 할인율을 입력하면 할인단가가 자동 반영됩니다</li>
+                    <li>• 비고란의 <strong>B / I / A(색상) / <span style={{textDecoration:'line-through'}}>A</span>(서식 초기화)</strong> 툴바로 서식 적용</li>
+                    <li>• <strong>지원사업용</strong> 모드: 지원율(%) 입력 → 부가세는 정가 기준, 합계 = 정가 + 부가세 − 지원금</li>
                 </ul>
             </div>
         ),
@@ -85,7 +86,8 @@ const steps: Step[] = [
                     입력 내용이 실제 견적서에 어떻게 보이는지 실시간으로 확인하세요.
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• 할인 적용 시 <strong className="text-red-500">건당 할인가</strong>가 빨간색으로 표시됩니다</li>
+                    <li>• 할인 적용 시 할인율과 할인 후 금액이 표시됩니다</li>
+                    <li>• <strong className="text-green-600">지원사업용</strong>: 정가 합계 → 부가세(정가×10%) → 지원 금액(녹색) → 합계</li>
                     <li>• Enterprise 외 견적은 결제 정보가 자동으로 숨겨집니다</li>
                 </ul>
             </div>
@@ -103,6 +105,11 @@ const steps: Step[] = [
                     <li>• <strong>임시저장</strong>: 작성 중인 내용 저장</li>
                     <li>• <strong className="text-indigo-600">멀티 견적</strong>: 여러 견적서를 저장하고, 선택한 것들을 하나의 PDF로 병합 다운로드</li>
                 </ul>
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">
+                        💡 <strong>옵션 설정</strong>에서 직인 표시(직인 이미지 업로드 / 직인 생략 / 숨김)도 설정할 수 있습니다.
+                    </p>
+                </div>
             </div>
         ),
         placement: 'bottom',
