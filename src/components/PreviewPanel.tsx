@@ -146,9 +146,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                     >
                       <span className="text-center leading-tight">주식회사<br />포시에스<br />인</span>
                     </div>
-                  ) : (
+                  ) : meta.sealMode === 'omitted' ? (
                     <span className="text-xs opacity-60">(직인 생략)</span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

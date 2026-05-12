@@ -120,6 +120,37 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
               <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
             </div>
           </label>
+
+          {/* 직인 표시 설정 */}
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <div className="mb-2">
+              <span className="text-sm font-bold text-gray-800">직인 표시</span>
+              <p className="text-xs text-gray-500 mt-0.5">
+                대표이사명 옆 직인 영역의 표시 방식을 선택합니다.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {([
+                { id: 'stamped' as const, label: '직인 표시', icon: '🔴' },
+                { id: 'omitted' as const, label: '직인 생략', icon: '📝' },
+                { id: 'hidden' as const, label: '숨김', icon: '👁️‍🗨️' },
+              ]).map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setMeta(prev => ({ ...prev, sealMode: opt.id }))}
+                  className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-center transition-all ${
+                    meta.sealMode === opt.id
+                      ? 'border-[var(--forcs-blue)] bg-blue-50 text-[var(--forcs-blue)] shadow-sm'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-lg mb-0.5">{opt.icon}</div>
+                  <div className="text-xs font-bold">{opt.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
