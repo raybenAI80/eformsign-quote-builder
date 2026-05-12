@@ -48,7 +48,8 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
         const offerPrice = raw ? parseInt(raw, 10) : 0;
         const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
         if (basePrice > 0) {
-            const pct = Math.round((1 - offerPrice / basePrice) * 100);
+            // 소수점 유지하여 반올림 오차 방지 (예: 650/800 = 18.75% → 19% → 648 문제)
+            const pct = parseFloat(((1 - offerPrice / basePrice) * 100).toFixed(4));
             onUpdate({ discountPct: clamp(pct, 0, 100) });
         }
     }, [item.unitPrice, onUpdate]);
