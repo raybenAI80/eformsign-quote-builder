@@ -140,12 +140,21 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                 <div className="flex items-center gap-3 pt-1 pb-2 mt-2">
                   <span className="text-sm opacity-90" style={{ lineHeight: 1 }}>대표이사 {SUPPLIER_PROFILE.ceoName}</span>
                   {isStamped ? (
-                    <div
-                      className="w-10 h-10 border-2 border-red-400 rounded-full flex items-center justify-center text-[8px] text-red-400 font-bold"
-                      style={{ transform: 'rotate(-5deg)' }}
-                    >
-                      <span className="text-center leading-tight">주식회사<br />포시에스<br />인</span>
-                    </div>
+                    meta.sealImage ? (
+                      <img
+                        src={meta.sealImage}
+                        alt="직인"
+                        className="h-12 w-12 object-contain"
+                        style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 border-2 border-red-400 rounded-full flex items-center justify-center text-[8px] text-red-400 font-bold"
+                        style={{ transform: 'rotate(-5deg)' }}
+                      >
+                        <span className="text-center leading-tight">주식회사<br />포시에스<br />인</span>
+                      </div>
+                    )
                   ) : meta.sealMode === 'omitted' ? (
                     <span className="text-xs opacity-60">(직인 생략)</span>
                   ) : null}
