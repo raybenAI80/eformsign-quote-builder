@@ -155,19 +155,42 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
             {meta.sealMode === 'stamped' && (
               <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
                 {meta.sealImage ? (
-                  <div className="flex items-center gap-3">
-                    <img src={meta.sealImage} alt="직인 미리보기" className="h-14 w-14 object-contain rounded border border-gray-200 bg-white p-1" />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-gray-700">직인 이미지 등록됨</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">PNG/JPG 투명 배경 권장</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img src={meta.sealImage} alt="직인 미리보기" className="object-contain rounded border border-gray-200 bg-white p-1" style={{ width: `${meta.sealSize ?? 48}px`, height: `${meta.sealSize ?? 48}px` }} />
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-gray-700">직인 이미지 등록됨</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">PNG/JPG 투명 배경 권장</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMeta(prev => ({ ...prev, sealImage: undefined, sealSize: undefined, sealOffsetX: undefined, sealOffsetY: undefined }))}
+                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors"
+                      >
+                        삭제
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setMeta(prev => ({ ...prev, sealImage: undefined }))}
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-colors"
-                    >
-                      삭제
-                    </button>
+                    {/* 크기/위치 조절 */}
+                    <div className="grid grid-cols-3 gap-3 pt-2 border-t border-gray-200">
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-gray-500 block mb-1">크기 ({meta.sealSize ?? 48}px)</span>
+                        <input type="range" min={20} max={120} step={2} value={meta.sealSize ?? 48}
+                          onChange={(e) => setMeta(prev => ({ ...prev, sealSize: Number(e.target.value) }))}
+                          className="w-full accent-[var(--forcs-blue)]" />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-gray-500 block mb-1">가로 ({meta.sealOffsetX ?? 0}px)</span>
+                        <input type="range" min={-40} max={40} step={1} value={meta.sealOffsetX ?? 0}
+                          onChange={(e) => setMeta(prev => ({ ...prev, sealOffsetX: Number(e.target.value) }))}
+                          className="w-full accent-[var(--forcs-blue)]" />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-gray-500 block mb-1">세로 ({meta.sealOffsetY ?? 0}px)</span>
+                        <input type="range" min={-40} max={40} step={1} value={meta.sealOffsetY ?? 0}
+                          onChange={(e) => setMeta(prev => ({ ...prev, sealOffsetY: Number(e.target.value) }))}
+                          className="w-full accent-[var(--forcs-blue)]" />
+                      </label>
+                    </div>
                   </div>
                 ) : (
                   <label className="flex flex-col items-center gap-2 cursor-pointer py-2">
