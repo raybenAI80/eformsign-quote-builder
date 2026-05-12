@@ -38,6 +38,12 @@ export interface QuoteMeta {
   sealMode: 'stamped' | 'omitted' | 'hidden';
   /** 직인 이미지 (base64 data URL). sealMode='stamped'일 때 사용 */
   sealImage?: string;
+  /** 직인 크기 (px). 기본 48 */
+  sealSize?: number;
+  /** 직인 수평 오프셋 (px). 0=대표이사명 바로 옆 */
+  sealOffsetX?: number;
+  /** 직인 수직 오프셋 (px). 0=기본 위치 */
+  sealOffsetY?: number;
   brandingMode: 'ai' | 'default' | 'public';
   referenceNotes: string[];
   bizNoLink: string;

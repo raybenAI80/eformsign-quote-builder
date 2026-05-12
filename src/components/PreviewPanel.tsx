@@ -144,8 +144,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                       <img
                         src={meta.sealImage}
                         alt="직인"
-                        className="h-12 w-12 object-contain"
-                        style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}
+                        className="object-contain"
+                        style={{
+                          width: `${meta.sealSize ?? 48}px`,
+                          height: `${meta.sealSize ?? 48}px`,
+                          marginLeft: `${meta.sealOffsetX ?? 0}px`,
+                          marginTop: `${meta.sealOffsetY ?? 0}px`,
+                          printColorAdjust: 'exact',
+                          WebkitPrintColorAdjust: 'exact',
+                        }}
                       />
                     ) : (
                       <div
@@ -351,7 +358,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                               <span className="text-sm font-medium text-gray-600">{row.unitPrice}</span>
                             )}
                           </td>
-                          {showRowDiscount && <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${row.discountPct}%` : '-'}</td>}
+                          {showRowDiscount && <td className="py-2 text-right align-top text-sm font-medium text-gray-600">{row.discountPct > 0 ? `${Math.round(row.discountPct)}%` : '-'}</td>}
                           <td className="py-2 text-right align-top">
                             {typeof row.unitPrice !== 'number' && (row.unitPrice === '' || isNaN(Number(row.unitPrice))) ? (
                               <span className="text-sm text-gray-400">-</span>
