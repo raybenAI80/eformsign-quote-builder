@@ -224,7 +224,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     className="w-10 rounded border border-gray-200 px-1 py-1 text-right text-sm font-semibold outline-none focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)]"
-                                    value={item.discountPct != null && item.discountPct > 0 ? String(item.discountPct) : ''}
+                                    value={item.discountPct != null && item.discountPct > 0 ? String(Math.round(item.discountPct)) : ''}
                                     onChange={e => {
                                         const val = e.target.value.replace(/[^0-9]/g, '');
                                         const num = val ? parseInt(val, 10) : 0;
