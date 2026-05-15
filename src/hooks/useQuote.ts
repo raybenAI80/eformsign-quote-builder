@@ -193,9 +193,15 @@ export const calculateQuote = (
 
     const msrp = numericPrice * qty;
     // 지원사업용 모드: 행별 할인 무시 → offer = msrp
-    const offer = isSubsidy
-      ? msrp
-      : Math.round(msrp * (1 - discountPct / 100));
+    // 할인단가 직접 입력(offerUnitPrice)이 있으면 % 역산 없이 직접 계산 (반올림 오차 방지)
+    let offer: number;
+    if (isSubsidy) {
+      offer = msrp;
+    } else if (typeof item.offerUnitPrice === 'number' && item.offerUnitPrice >= 0 && numericPrice > 0) {
+      offer = item.offerUnitPrice * qty;
+    } else {
+      offer = Math.round(msrp * (1 - discountPct / 100));
+    }
 
     return {
       ...item,

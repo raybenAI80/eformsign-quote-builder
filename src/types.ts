@@ -8,6 +8,8 @@ export interface QuoteItem {
   qty: number;
   unitPrice: number | string;
   discountPct: number;
+  /** 할인단가 직접 입력 시 저장. 있으면 discountPct 역산 대신 이 값 × qty로 계산 */
+  offerUnitPrice?: number;
   notes: string;
   /** @deprecated Use `notes` instead. Legacy compatibility field. */
   note?: string;

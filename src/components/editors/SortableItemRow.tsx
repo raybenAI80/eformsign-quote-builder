@@ -33,9 +33,12 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
     const [isEditingOfferPrice, setIsEditingOfferPrice] = useState(false);
     const [localOfferPrice, setLocalOfferPrice] = useState('');
 
-    const computedOfferPrice = typeof item.unitPrice === 'number' && item.unitPrice > 0
-        ? Math.round(item.unitPrice * (1 - (item.discountPct ?? 0) / 100))
-        : 0;
+    // offerUnitPrice가 있으면 직접 사용 (반올림 오차 없음), 없으면 % 역산
+    const computedOfferPrice = typeof item.offerUnitPrice === 'number' && item.offerUnitPrice >= 0
+        ? item.offerUnitPrice
+        : (typeof item.unitPrice === 'number' && item.unitPrice > 0
+            ? Math.round(item.unitPrice * (1 - (item.discountPct ?? 0) / 100))
+            : 0);
 
     const handleOfferPriceFocus = useCallback(() => {
         setIsEditingOfferPrice(true);
@@ -48,9 +51,9 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
         const offerPrice = raw ? parseInt(raw, 10) : 0;
         const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
         if (basePrice > 0) {
-            // 소수점 유지하여 반올림 오차 방지 (예: 650/800 = 18.75% → 19% → 648 문제)
             const pct = parseFloat(((1 - offerPrice / basePrice) * 100).toFixed(4));
-            onUpdate({ discountPct: clamp(pct, 0, 100) });
+            // offerUnitPrice를 함께 저장 → 계산 시 % 역산 없이 직접 사용 (반올림 오차 방지)
+            onUpdate({ discountPct: clamp(pct, 0, 100), offerUnitPrice: offerPrice });
         }
     }, [item.unitPrice, onUpdate]);
 
@@ -228,7 +231,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                                     onChange={e => {
                                         const val = e.target.value.replace(/[^0-9]/g, '');
                                         const num = val ? parseInt(val, 10) : 0;
-                                        onUpdate({ discountPct: clamp(num, 0, 100) });
+                                        onUpdate({ discountPct: clamp(num, 0, 100), offerUnitPrice: undefined });
                                     }}
                                     placeholder="0"
                                 />
@@ -243,7 +246,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                                             ? 'bg-blue-600 text-white border-blue-600'
                                             : 'bg-white text-gray-500 border-gray-200 hover:border-blue-500 hover:text-blue-500'
                                             }`}
-                                        onClick={() => onUpdate({ discountPct: v })}
+                                        onClick={() => onUpdate({ discountPct: v, offerUnitPrice: undefined })}
                                     >
                                         {v}%
                                     </button>
