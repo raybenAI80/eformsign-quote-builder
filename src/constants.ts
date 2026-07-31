@@ -73,7 +73,7 @@ export const QUICK_ADD_CATALOG: Record<
       item: '이폼사인 Public 1K',
       unitLabel: '건',
       qty: 1000,
-      unitPrice: 1000,
+      unitPrice: 1200,
       discountPct: 0,
       notes: '템플릿 등록 갯수 무제한 제공\n멤버 계정 초대 무제한\n카카오톡 알림톡/SMS 알림포함\nOpen API 무료 제공',
     }),
