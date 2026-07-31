@@ -1,6 +1,6 @@
 #!/bin/sh
 # Vercel Hobby 플랜은 GitHub 계정 이메일과 커밋 이메일이 일치해야 배포됨
-EXPECTED_EMAIL="rayben.ai80@gmail.com"
+EXPECTED_EMAIL="rayben@forcs.com"
 CURRENT_EMAIL=$(git config user.email)
 
 if [ "$CURRENT_EMAIL" != "$EXPECTED_EMAIL" ]; then
