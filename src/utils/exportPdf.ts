@@ -6,6 +6,205 @@ import { loadNanumSquareFonts, registerNanumSquareFont } from './fontLoader';
 import { extractTextElements, TextElement, MM_PER_PT } from './textExtractor';
 import { QuoteMeta, QuoteItem } from '../types';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 공용 PDF 레이아웃 / 텍스트 레이어 헬퍼
+//
+// 단일 견적(exportToPdf)과 병합 견적(capturePageIntoPdf)이 "반드시" 아래 함수들만
+// 사용한다. 예전에 baseline 계산이 두 곳으로 복사되면서 어긋난 적이 있고,
+// 병합 PDF가 이미지-only(검색 불가)로 나가던 결함이 그 대가였다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const PAGE_MARGIN_X_MM = 2; // Reduced from 5mm to prevent grid collapse
+const PAGE_MARGIN_Y_MM = 2; // Reduced from 5mm
+
+/** DEBUG MODE - Set to true to see text placement (red text visible) */
+const DEBUG_OCR = false;
+
+interface PageImageLayout {
+    imgWidth: number;
+    imgHeight: number;
+    offsetX: number;
+    offsetY: number;
+}
+
+/**
+ * A4 세로 페이지 안에 원본 요소를 "비율 유지 + 상단 정렬"로 배치했을 때의
+ * 이미지 크기(mm)와 오프셋(mm)을 구한다.
+ */
+function computePageImageLayout(elementWidth: number, elementHeight: number): PageImageLayout {
+    const availableWidth = A4_WIDTH_MM - PAGE_MARGIN_X_MM * 2;
+    const availableHeight = A4_HEIGHT_MM - PAGE_MARGIN_Y_MM * 2;
+
+    const originalAspect = elementWidth / elementHeight;
+    const targetAspect = availableWidth / availableHeight;
+
+    if (originalAspect > targetAspect) {
+        const imgWidth = availableWidth;
+        return {
+            imgWidth,
+            imgHeight: imgWidth / originalAspect,
+            offsetX: PAGE_MARGIN_X_MM,
+            // Top alignment instead of center - removes extra top/bottom margins
+            offsetY: PAGE_MARGIN_Y_MM,
+        };
+    }
+
+    const imgHeight = availableHeight;
+    const imgWidth = imgHeight * originalAspect;
+    return {
+        imgWidth,
+        imgHeight,
+        offsetX: PAGE_MARGIN_X_MM + (availableWidth - imgWidth) / 2,
+        offsetY: PAGE_MARGIN_Y_MM,
+    };
+}
+
+/** jsPDF GState(불투명도) 설정. 타입 정의에 없어서 안전하게 감싼다. */
+function setPdfOpacity(pdf: jsPDF, opacity: number): void {
+    try {
+        // @ts-expect-error - jsPDF GState is not in type definitions
+        const gState = new pdf.GState({ opacity });
+        pdf.setGState(gState);
+    } catch {
+        // GState not supported in this version
+    }
+}
+
+/**
+ * 이미지 위에 투명 텍스트 레이어를 그린다 (검색/복사 가능하게).
+ *
+ * @param pageNumber 텍스트를 올릴 페이지 번호 (1-base). 명시적으로 지정해서
+ *                   "현재 페이지"에 대한 암묵적 가정을 없앤다.
+ * @returns 실제로 그려진 텍스트 조각 수
+ */
+function drawInvisibleTextLayer(
+    pdf: jsPDF,
+    textElements: TextElement[],
+    offsetX: number,
+    offsetY: number,
+    a4Width: number,
+    a4Height: number,
+    pageNumber: number
+): number {
+    let drawn = 0;
+
+    try {
+        if (textElements.length === 0) {
+            console.warn('No text elements extracted');
+        }
+
+        pdf.setPage(pageNumber);
+        pdf.setFont('NanumSquare', 'normal');
+
+        if (DEBUG_OCR) {
+            pdf.setTextColor(255, 0, 0); // Red for debugging
+        } else {
+            pdf.setTextColor(255, 255, 255);
+            setPdfOpacity(pdf, 0.01);
+        }
+
+        try {
+            for (const textEl of textElements) {
+                const finalX = textEl.x + offsetX;
+                // textEl.y는 line box 상단이고 jsPDF는 baseline 기준으로 그린다.
+                // line-height가 큰 요소는 글리프가 line box 안에서 수직 중앙에 놓이므로,
+                // (line box 높이 - 글리프 박스 높이)/2 만큼 내려간 지점을 글리프 상단으로 보고
+                // 거기서 다시 baseline까지(글리프 높이의 80%) 내린다.
+                const fontHeightMm = textEl.fontSize * MM_PER_PT;
+                const lineBoxMm = textEl.lineHeight > 0 ? textEl.lineHeight : fontHeightMm;
+                const glyphTopMm = Math.max(0, (lineBoxMm - fontHeightMm) / 2);
+                const finalY = textEl.y + offsetY + glyphTopMm + fontHeightMm * 0.80;
+
+                if (finalY > a4Height || finalY < 0) continue;
+                if (finalX < 0 || finalX > a4Width) continue;
+
+                pdf.setFontSize(textEl.fontSize);
+                pdf.setFont('NanumSquare', textEl.isBold ? 'bold' : 'normal');
+
+                pdf.text(textEl.text, finalX, finalY);
+                drawn++;
+            }
+        } finally {
+            // Reset GState — 페이지마다 반드시 되돌려서 다음 페이지로 opacity가 새지 않게 한다
+            if (!DEBUG_OCR) {
+                setPdfOpacity(pdf, 1);
+            }
+        }
+
+        console.log(`OCR text layer added successfully (page ${pageNumber}: ${drawn}/${textElements.length})`);
+    } catch (textError) {
+        console.warn('Failed to add OCR text layer:', textError);
+    }
+
+    return drawn;
+}
+
+interface PdfLinkBox {
+    url: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+/**
+ * `a.pdf-target-link`(사업자등록증/통장사본 등)의 위치를 PDF 좌표(mm)로 변환한다.
+ *
+ * ★ DOM 측정 함수이므로 반드시 "scale 리셋 구간" 안에서, 그리고 캡처와 같은
+ *   레이아웃 상태에서 호출해야 한다. containerRect와 링크 rect가 동일한 스케일로
+ *   측정되므로 (rect - containerRect) / containerRect.width 비율은 스케일 불변이다.
+ */
+function extractLinkBoxes(
+    element: HTMLElement,
+    imgWidth: number,
+    offsetX: number,
+    offsetY: number
+): PdfLinkBox[] {
+    const boxes: PdfLinkBox[] = [];
+    const links = element.querySelectorAll('a.pdf-target-link');
+    const containerRect = element.getBoundingClientRect();
+    const actualPxToMm = imgWidth / containerRect.width;
+
+    links.forEach((link) => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        const rect = link.getBoundingClientRect();
+        // Calculate position and add offset
+        boxes.push({
+            url: href,
+            x: (rect.left - containerRect.left) * actualPxToMm + offsetX,
+            y: (rect.top - containerRect.top) * actualPxToMm + offsetY,
+            w: rect.width * actualPxToMm,
+            h: rect.height * actualPxToMm,
+        });
+    });
+
+    return boxes;
+}
+
+/** 추출된 링크 박스를 지정 페이지에 클릭 가능한 annotation으로 올린다. */
+function drawLinkAnnotations(
+    pdf: jsPDF,
+    linkBoxes: PdfLinkBox[],
+    a4Height: number,
+    pageNumber: number
+): number {
+    let drawn = 0;
+
+    for (const box of linkBoxes) {
+        if (box.y < a4Height && box.y > 0) {
+            pdf.setPage(pageNumber);
+            pdf.link(box.x, box.y, box.w, box.h, { url: box.url });
+            drawn++;
+        }
+    }
+
+    return drawn;
+}
+
 export const exportToImage = async (elementId: string, fileName: string) => {
     const element = document.getElementById(elementId);
     if (!element) {
@@ -96,31 +295,15 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
         // Pre-calculate PDF dimensions before html2canvas
         // This allows us to pass the correct pxToMm to extractTextElements
-        const a4Width = 210;
-        const a4Height = 297;
-        const marginX = 2; // Reduced from 5mm to prevent grid collapse
-        const marginY = 2; // Reduced from 5mm
-        const availableWidth = a4Width - (marginX * 2);
-        const availableHeight = a4Height - (marginY * 2);
+        const a4Width = A4_WIDTH_MM;
+        const a4Height = A4_HEIGHT_MM;
 
-        const originalAspect = elementWidth / elementHeight;
-        const targetAspect = availableWidth / availableHeight;
-
-        let preImgWidth: number;
-        let preImgHeight: number;
-        let preOffsetX = marginX;
-        let preOffsetY = marginY;
-
-        if (originalAspect > targetAspect) {
-            preImgWidth = availableWidth;
-            preImgHeight = preImgWidth / originalAspect;
-            // Top alignment instead of center - removes extra top/bottom margins
-            preOffsetY = marginY;
-        } else {
-            preImgHeight = availableHeight;
-            preImgWidth = preImgHeight * originalAspect;
-            preOffsetX = marginX + (availableWidth - preImgWidth) / 2;
-        }
+        const {
+            imgWidth: preImgWidth,
+            imgHeight: preImgHeight,
+            offsetX: preOffsetX,
+            offsetY: preOffsetY,
+        } = computePageImageLayout(elementWidth, elementHeight);
 
         // pxToMm for text extraction (based on original element dimensions)
         const prePxToMm = preImgWidth / elementWidth;
@@ -204,90 +387,14 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         console.log('Generated single page A4 Portrait PDF');
 
         // 3. Link Overlay
-        const links = element.querySelectorAll('a.pdf-target-link');
-        const containerRect = element.getBoundingClientRect();
-        const actualPxToMm = imgWidth / containerRect.width;
-
-        links.forEach((link) => {
-            const href = link.getAttribute('href');
-            if (!href) return;
-
-            const rect = link.getBoundingClientRect();
-            // Calculate position and add offset
-            const x = (rect.left - containerRect.left) * actualPxToMm + offsetX;
-            const y = (rect.top - containerRect.top) * actualPxToMm + offsetY;
-            const w = rect.width * actualPxToMm;
-            const h = rect.height * actualPxToMm;
-
-            if (y < a4Height && y > 0) {
-                pdf.setPage(1);
-                pdf.link(x, y, w, h, { url: href });
-            }
-        });
+        const linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
+        drawLinkAnnotations(pdf, linkBoxes, a4Height, 1);
 
         // 4. OCR Text Layer - Using positions extracted from ORIGINAL DOM
         // ★ FIX: Now using original element coordinates which match pxToMm calculation
         toast.loading('PDF 생성 중... (텍스트 레이어)', { id: 'pdf-export' });
 
-        try {
-            if (textElements.length === 0) {
-                console.warn('No text elements extracted');
-            }
-
-            // DEBUG MODE - Set to true to see text placement (red text visible)
-            const DEBUG_OCR = false;
-
-            pdf.setPage(1);
-            pdf.setFont('NanumSquare', 'normal');
-
-            if (DEBUG_OCR) {
-                pdf.setTextColor(255, 0, 0); // Red for debugging
-            } else {
-                pdf.setTextColor(255, 255, 255);
-                try {
-                    // @ts-expect-error - jsPDF GState is not in type definitions
-                    const gState = new pdf.GState({ opacity: 0.01 });
-                    pdf.setGState(gState);
-                } catch {
-                    // GState not supported in this version
-                }
-            }
-
-            for (const textEl of textElements) {
-                const finalX = textEl.x + offsetX;
-                // textEl.y는 line box 상단이고 jsPDF는 baseline 기준으로 그린다.
-                // line-height가 큰 요소는 글리프가 line box 안에서 수직 중앙에 놓이므로,
-                // (line box 높이 - 글리프 박스 높이)/2 만큼 내려간 지점을 글리프 상단으로 보고
-                // 거기서 다시 baseline까지(글리프 높이의 80%) 내린다.
-                const fontHeightMm = textEl.fontSize * MM_PER_PT;
-                const lineBoxMm = textEl.lineHeight > 0 ? textEl.lineHeight : fontHeightMm;
-                const glyphTopMm = Math.max(0, (lineBoxMm - fontHeightMm) / 2);
-                const finalY = textEl.y + offsetY + glyphTopMm + fontHeightMm * 0.80;
-
-                if (finalY > a4Height || finalY < 0) continue;
-                if (finalX < 0 || finalX > a4Width) continue;
-
-                pdf.setFontSize(textEl.fontSize);
-                pdf.setFont('NanumSquare', textEl.isBold ? 'bold' : 'normal');
-
-                pdf.text(textEl.text, finalX, finalY);
-            }
-
-            // Reset GState
-            if (!DEBUG_OCR) {
-                try {
-                    // @ts-expect-error - jsPDF GState is not in type definitions
-                    const normalState = new pdf.GState({ opacity: 1 });
-                    pdf.setGState(normalState);
-                } catch {
-                    // GState not supported in this version
-                }
-            }
-
-            console.log('OCR text layer added successfully');
-        } catch (textError) {
-            console.warn('Failed to add OCR text layer:', textError);
-        }
+        drawInvisibleTextLayer(pdf, textElements, offsetX, offsetY, a4Width, a4Height, 1);
 
         // 5. Save PDF using the fileHandle obtained earlier (or fallback to download)
         const blob = pdf.output('blob');
@@ -312,6 +419,9 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
 /**
  * Capture one page from the hidden merge panel into the jsPDF document.
+ *
+ * 단일 견적(exportToPdf)과 동일하게 이미지 + 투명 텍스트 레이어 + 링크 annotation을
+ * 모두 올린다. 그래야 병합 PDF도 검색/복사가 된다.
  */
 async function capturePageIntoPdf(
     pdf: jsPDF,
@@ -331,30 +441,33 @@ async function capturePageIntoPdf(
         scaleWrapper = scaleWrapper.parentElement;
     }
 
+    // offsetWidth/Height는 CSS transform의 영향을 받지 않는다 (getBoundingClientRect와 다름)
     const elementWidth = element.offsetWidth;
     const elementHeight = element.offsetHeight;
 
-    const a4Width = 210;
-    const a4Height = 297;
-    const marginX = 2;
-    const marginY = 2;
-    const availableWidth = a4Width - marginX * 2;
-    const availableHeight = a4Height - marginY * 2;
-    const originalAspect = elementWidth / elementHeight;
-    const targetAspect = availableWidth / availableHeight;
-
-    let imgWidth: number, imgHeight: number, offsetX: number, offsetY: number;
-    if (originalAspect > targetAspect) {
-        imgWidth = availableWidth;
-        imgHeight = imgWidth / originalAspect;
-        offsetX = marginX;
-        offsetY = marginY;
-    } else {
-        imgHeight = availableHeight;
-        imgWidth = imgHeight * originalAspect;
-        offsetX = marginX + (availableWidth - imgWidth) / 2;
-        offsetY = marginY;
+    if (elementWidth === 0 || elementHeight === 0) {
+        if (scaleWrapper && originalTransform) {
+            scaleWrapper.style.transform = originalTransform;
+        }
+        throw new Error('병합 렌더링 패널이 화면에 표시되지 않습니다. (width 또는 height가 0)');
     }
+
+    const a4Width = A4_WIDTH_MM;
+    const a4Height = A4_HEIGHT_MM;
+    const { imgWidth, imgHeight, offsetX, offsetY } = computePageImageLayout(elementWidth, elementHeight);
+
+    // ★ 텍스트/링크 추출은 반드시 "scale 리셋 구간" 안에서 한다.
+    //   getBoundingClientRect는 CSS transform의 영향을 받으므로 복원 후에 재면 어긋난다.
+    //   pxToMm도 단일 견적 경로와 동일하게 imgWidth / element.offsetWidth 로 구한다.
+    //   (하드코딩 96dpi 환산을 쓰면 프리뷰 297mm → 이미지 ~206mm 축소분만큼 글자가 커진다)
+    const pxToMmForText = imgWidth / elementWidth;
+    const textElements: TextElement[] = extractTextElements(
+        element,
+        element.getBoundingClientRect(),
+        pxToMmForText,
+        0
+    );
+    const linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
 
     const canvas = await html2canvas(element, {
         scale: 2,
@@ -381,8 +494,20 @@ async function capturePageIntoPdf(
         pdf.addPage();
     }
 
+    // addPage() 직후의 "현재 페이지"에 의존하지 않고 대상 페이지를 명시한다.
+    const pageNumber = pdf.getNumberOfPages();
+    pdf.setPage(pageNumber);
+
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
+
+    const linksDrawn = drawLinkAnnotations(pdf, linkBoxes, a4Height, pageNumber);
+    const textDrawn = drawInvisibleTextLayer(pdf, textElements, offsetX, offsetY, a4Width, a4Height, pageNumber);
+
+    console.log(
+        `Merged page ${pageNumber}: element ${elementWidth}x${elementHeight}px → ${imgWidth.toFixed(2)}x${imgHeight.toFixed(2)}mm, ` +
+        `pxToMm=${pxToMmForText}, text ${textDrawn}/${textElements.length}, links ${linksDrawn}/${linkBoxes.length}`
+    );
 }
 
 /**
