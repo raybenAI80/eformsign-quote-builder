@@ -55,8 +55,14 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
 
   // Calculate Due Date
   const quoteDateObj = new Date(meta.quoteDate || new Date());
+  // 견적 기한: 견적일로부터 N개월 (기본 1개월). 월말 초과 시 해당 월 말일로 클램프
+  const validityMonths = meta.validityMonths && meta.validityMonths > 0 ? meta.validityMonths : 1;
   const dueDateObj = new Date(quoteDateObj);
-  dueDateObj.setDate(quoteDateObj.getDate() + 30); // 견적 기한: 견적일로부터 30일
+  const targetDay = dueDateObj.getDate();
+  dueDateObj.setMonth(dueDateObj.getMonth() + validityMonths);
+  if (dueDateObj.getDate() !== targetDay) {
+    dueDateObj.setDate(0); // 예: 1/31 + 1개월 → 2월 말일
+  }
   const dueDateStr = dueDateObj.toISOString().split('T')[0];
 
   // 한글 요일 포맷터 (요일은 날짜보다 작게)
@@ -275,7 +281,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             <p className="text-lg font-bold text-gray-800">{meta.quoteDate ? formatDateWithDay(meta.quoteDate) : '-'}</p>
           </div>
           <div>
-            <h3 className="text-xs font-bold text-gray-400 tracking-wider mb-1">{LABELS.validity} <span className="font-normal text-gray-500">(견적일로부터 30일)</span></h3>
+            <h3 className="text-xs font-bold text-gray-400 tracking-wider mb-1">{LABELS.validity} <span className="font-normal text-gray-500">(견적일로부터 {validityMonths}개월)</span></h3>
             <p className="text-lg font-bold text-gray-800">{formatDateWithDay(dueDateStr)}</p>
           </div>
         </div>

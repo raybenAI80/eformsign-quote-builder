@@ -19,6 +19,8 @@ export interface QuoteMeta {
   quoteNo: string;
   quoteDate: string;
   validityDays: number;
+  /** 견적 기한 (개월 단위). 기본 1개월. validityDays보다 우선 적용 */
+  validityMonths?: number;
   customerName: string;
   customerManager: string;
   customerEmail: string;

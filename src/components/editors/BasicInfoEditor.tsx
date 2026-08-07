@@ -157,19 +157,37 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                         />
                     </div>
                     <div className="col-span-2 sm:col-span-1">
-                        {meta.quoteDate && meta.validityDays > 0 && (
-                            <div className="bg-teal-50/50 border border-teal-200 rounded-lg px-4 py-3">
-                                <p className="text-xs text-gray-600 mb-1 font-medium">유효 기간</p>
-                                <p className="text-sm text-[#00a99d] font-bold flex items-center gap-2">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                        <line x1="16" y1="2" x2="16" y2="6" />
-                                        <line x1="8" y1="2" x2="8" y2="6" />
-                                        <line x1="3" y1="10" x2="21" y2="10" />
-                                    </svg>
-                                    30일 (만료: {new Date(new Date(meta.quoteDate).setDate(new Date(meta.quoteDate).getDate() + meta.validityDays)).toLocaleDateString()})
-                                </p>
+                        <label className="mb-1.5 block text-xs font-bold text-gray-700">
+                            견적 기한
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                                {[1, 2, 3, 6].map(m => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => applyMetaPatch({ validityMonths: m })}
+                                        className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                                            (meta.validityMonths ?? 1) === m
+                                                ? 'bg-[var(--forcs-blue)] text-white border-[var(--forcs-blue)]'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-[var(--forcs-blue)] hover:text-[var(--forcs-blue)]'
+                                        }`}
+                                    >
+                                        {m}개월
+                                    </button>
+                                ))}
                             </div>
+                        </div>
+                        {meta.quoteDate && (
+                            <p className="mt-1.5 text-[11px] text-[#00a99d] font-medium">
+                                만료: {(() => {
+                                    const d = new Date(meta.quoteDate);
+                                    const day = d.getDate();
+                                    d.setMonth(d.getMonth() + (meta.validityMonths ?? 1));
+                                    if (d.getDate() !== day) d.setDate(0);
+                                    return d.toLocaleDateString();
+                                })()}
+                            </p>
                         )}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
