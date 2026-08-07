@@ -260,7 +260,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
               ))}
             </div>
             <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-              깎인 금액은 견적서에 &lsquo;단수 절사&rsquo; 항목으로 표시되며, 공급가액과 부가세는 절사된 합계 기준으로 다시 계산됩니다.
+              깎인 금액은 견적서에 &lsquo;단수 절사&rsquo; 항목으로 부가세 아래에 표시되며, 공급가액과 부가세는 절사 전 금액이 그대로 유지됩니다.
               지원사업용 모드에서는 적용되지 않습니다.
             </p>
           </div>

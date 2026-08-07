@@ -447,16 +447,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                       </div>
                     </>
                   )}
-                  {/* 단수 절사 (끝전 절사 적용 시) */}
-                  {calculation.roundingCut > 0 && (
-                    <div className="flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 bg-slate-100/70 border-slate-400">
-                      <span className="flex items-center gap-2 font-semibold text-slate-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                        단수 절사
-                      </span>
-                      <span className="font-bold text-slate-500">-{toKRW(calculation.roundingCut)}</span>
-                    </div>
-                  )}
                   {/* 공급가액 */}
                   <div className="flex justify-between items-center text-sm pt-1">
                     <span className="flex items-center gap-2 font-medium text-gray-500">
@@ -473,6 +463,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                     </span>
                     <span className="font-bold text-gray-800">{toKRW(calculation.vat)}</span>
                   </div>
+                  {/* 단수 절사 (끝전 절사 적용 시) — 합계 바로 위: 공급가액 + 부가세 - 절사액 = 합계 */}
+                  {calculation.roundingCut > 0 && (
+                    <div className="flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 bg-slate-100/70 border-slate-400">
+                      <span className="flex items-center gap-2 font-semibold text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        단수 절사
+                      </span>
+                      <span className="font-bold text-slate-500">-{toKRW(calculation.roundingCut)}</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>

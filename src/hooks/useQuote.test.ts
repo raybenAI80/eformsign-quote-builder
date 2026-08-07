@@ -234,10 +234,10 @@ describe('calculateQuote', () => {
             expect(result.grand).toBe(82000000);
             expect(result.roundingCut).toBe(500300); // 82,500,300 - 82,000,000
             expect(result.roundingUnit).toBe(1000000);
-            // 공급가액·부가세 역산 결과가 합계와 일치해야 함
-            expect(result.offerSum).toBe(74545455); // round(82,000,000 / 1.1)
-            expect(result.vat).toBe(7454545); // 잔차 흡수
-            expect(result.offerSum + result.vat).toBe(result.grand);
+            // 공급가액·부가세는 절사 전 금액 그대로 (역산하지 않음)
+            expect(result.offerSum).toBe(75000273);
+            expect(result.vat).toBe(7500027);
+            expect(result.offerSum + result.vat - result.roundingCut).toBe(result.grand);
             expect(result.supplyPriceSum).toBe(result.offerSum);
             expect(result.vatSum).toBe(result.vat);
             // 정가합계는 절사 전 기준 유지
@@ -250,9 +250,9 @@ describe('calculateQuote', () => {
 
             expect(result.grand).toBe(1350000);
             expect(result.roundingCut).toBe(8024);
-            expect(result.offerSum).toBe(1227273); // round(1,350,000 / 1.1)
-            expect(result.vat).toBe(122727);
-            expect(result.offerSum + result.vat).toBe(result.grand);
+            expect(result.offerSum).toBe(1234567); // 절사 전 그대로
+            expect(result.vat).toBe(123457);
+            expect(result.offerSum + result.vat - result.roundingCut).toBe(result.grand);
         });
 
         it('십만원 단위 - 1,358,024 → 1,300,000', () => {
@@ -260,9 +260,9 @@ describe('calculateQuote', () => {
 
             expect(result.grand).toBe(1300000);
             expect(result.roundingCut).toBe(58024);
-            expect(result.offerSum).toBe(1181818); // round(1,300,000 / 1.1)
-            expect(result.vat).toBe(118182);
-            expect(result.offerSum + result.vat).toBe(result.grand);
+            expect(result.offerSum).toBe(1234567); // 절사 전 그대로
+            expect(result.vat).toBe(123457);
+            expect(result.offerSum + result.vat - result.roundingCut).toBe(result.grand);
         });
 
         it('합계 < 절사 단위 - 미적용 (견적이 0원이 되는 것 방지)', () => {
@@ -284,7 +284,7 @@ describe('calculateQuote', () => {
             expect(result.roundingCut).toBe(0);
             expect(result.offerSum).toBe(1000000);
             expect(result.vat).toBe(100000);
-            expect(result.offerSum + result.vat).toBe(result.grand);
+            expect(result.offerSum + result.vat - result.roundingCut).toBe(result.grand);
         });
 
         it('지원사업용 모드 - 절사 단위를 설정해도 미적용', () => {
@@ -349,7 +349,23 @@ describe('calculateQuote', () => {
 
             expect(result.grand).toBe(82000000);
             expect(result.roundingCut).toBe(500300);
-            expect(result.offerSum + result.vat).toBe(result.grand);
+            expect(result.offerSum + result.vat - result.roundingCut).toBe(result.grand);
+        });
+
+        it('세로 합산 항등식 - 공급가액 + 부가세 - 절사액 = 합계 (모든 단위)', () => {
+            // 견적서 요약란이 위에서 아래로 그대로 더해져야 한다.
+            for (const unit of [0, 10000, 100000, 1000000]) {
+                for (const price of [75000273, 1234567, 2000000, 100000]) {
+                    const r = calculateQuote(itemsWithUnitPrice(price), 10, { roundingUnit: unit });
+
+                    // 세로 합산
+                    expect(r.offerSum + r.vat - r.roundingCut).toBe(r.grand);
+                    // 부가세는 표시되는 공급가액 기준으로 그대로 성립
+                    expect(r.vat).toBe(Math.round(r.offerSum * 0.1));
+                    // 정가합계 - 할인 금액 = 공급가액
+                    expect(r.msrpSum - r.discountAmount).toBe(r.offerSum);
+                }
+            }
         });
     });
 });

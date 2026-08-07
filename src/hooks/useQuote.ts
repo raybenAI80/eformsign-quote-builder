@@ -258,9 +258,10 @@ export const calculateQuote = (
   });
   const perDocPaid = docsPaidQty > 0 ? docsPaidOffer / docsPaidQty : 0;
 
-  // 끝전 절사: 합계를 단위(만원/십만원/백만원)로 내림한 뒤 공급가액·부가세를 역산한다.
-  // 역산으로 "공급가액 + 부가세 = 합계"를 유지해 세금계산서 구조와 어긋나지 않게 한다.
-  // 지원사업용(subsidy)은 합계 산식이 "정가합계 + 부가세 - 지원금"이라 역산이 성립하지 않으므로 미적용.
+  // 끝전 절사: 공급가액·부가세는 절사 전 금액을 그대로 두고, 합계에서만 절사액을 차감한다.
+  // 역산하지 않기 때문에 "정가합계 - 할인 = 공급가액", "부가세 = 공급가액 × 세율"이 그대로 성립하고,
+  // 견적서 요약란이 위에서 아래로 세로 합산된다 (공급가액 + 부가세 - 단수 절사 = 합계).
+  // 지원사업용(subsidy)은 합계 산식이 "정가합계 + 부가세 - 지원금"이라 별도 할인 구조이므로 미적용.
   // 합계가 단위보다 작으면 견적이 0원이 되므로 미적용.
   const requestedRoundingUnit = Math.max(0, Math.floor(parseNum(options.roundingUnit ?? 0)));
   const applyRounding = !isSubsidy && requestedRoundingUnit > 0 && grand >= requestedRoundingUnit;
@@ -268,22 +269,19 @@ export const calculateQuote = (
   const roundedGrand = applyRounding
     ? Math.floor(grand / requestedRoundingUnit) * requestedRoundingUnit
     : grand;
-  const roundedOfferSum = applyRounding ? Math.round(roundedGrand / (1 + rate)) : offerSum;
-  // 1원 단위 반올림 잔차는 부가세가 흡수 (공급가액 + 부가세 = 합계 보장)
-  const roundedVat = applyRounding ? roundedGrand - roundedOfferSum : vat;
   const roundingCut = applyRounding ? grand - roundedGrand : 0;
 
   return {
     rows,
     msrpSum,
-    offerSum: roundedOfferSum,
-    vat: roundedVat,
+    offerSum,
+    vat,
     vatRate,
     grand: roundedGrand,
-    supplyPriceSum: roundedOfferSum,
-    vatSum: roundedVat,
+    supplyPriceSum: offerSum,
+    vatSum: vat,
     totalDiscountPct,
-    // 할인 금액은 절사 전 공급가액 기준 — 절사분이 할인으로 중복 표기되는 것을 방지
+    // 할인 금액 = 정가합계 - 공급가액 (절사와 무관하게 항상 성립)
     discountAmount: msrpSum - offerSum,
     docsPaidQty,
     perDocPaid,

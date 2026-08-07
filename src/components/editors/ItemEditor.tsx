@@ -459,6 +459,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                 </span>
               )}
               <span>부가세({calculation.vatRate}%): {toKRW(calculation.vatSum)}</span>
+              {calculation.roundingCut > 0 && (
+                <span className="text-slate-500 font-medium">단수 절사: -{toKRW(calculation.roundingCut)}</span>
+              )}
             </div>
             <button
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-md transition-transform active:scale-95 hover:bg-slate-800"
