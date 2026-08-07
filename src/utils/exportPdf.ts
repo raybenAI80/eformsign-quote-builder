@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import download from 'downloadjs';
 import { loadNanumSquareFonts, registerNanumSquareFont } from './fontLoader';
-import { extractTextElements, TextElement } from './textExtractor';
+import { extractTextElements, TextElement, MM_PER_PT } from './textExtractor';
 import { QuoteMeta, QuoteItem } from '../types';
 
 export const exportToImage = async (elementId: string, fileName: string) => {
@@ -255,11 +255,14 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
             for (const textEl of textElements) {
                 const finalX = textEl.x + offsetX;
-                // Add baseline offset: getBoundingClientRect gives top of text box
-                // jsPDF positions text at baseline. Increased to 80% to move text down more.
-                const fontHeightMm = textEl.fontSize * 0.353; // pt to mm
-                const baselineOffset = fontHeightMm * 0.80;
-                const finalY = textEl.y + offsetY + baselineOffset;
+                // textEl.y는 line box 상단이고 jsPDF는 baseline 기준으로 그린다.
+                // line-height가 큰 요소는 글리프가 line box 안에서 수직 중앙에 놓이므로,
+                // (line box 높이 - 글리프 박스 높이)/2 만큼 내려간 지점을 글리프 상단으로 보고
+                // 거기서 다시 baseline까지(글리프 높이의 80%) 내린다.
+                const fontHeightMm = textEl.fontSize * MM_PER_PT;
+                const lineBoxMm = textEl.lineHeight > 0 ? textEl.lineHeight : fontHeightMm;
+                const glyphTopMm = Math.max(0, (lineBoxMm - fontHeightMm) / 2);
+                const finalY = textEl.y + offsetY + glyphTopMm + fontHeightMm * 0.80;
 
                 if (finalY > a4Height || finalY < 0) continue;
                 if (finalX < 0 || finalX > a4Width) continue;
