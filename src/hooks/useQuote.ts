@@ -105,6 +105,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     showDiscount: true,
     sector: 'general',
     subsidyRate: 0,
+    roundingUnit: 0,
   };
 };
 
@@ -141,6 +142,7 @@ export const createEmptyMeta = (): QuoteMeta => {
     showDiscount: true,
     sector: 'general',
     subsidyRate: 0,
+    roundingUnit: 0,
   };
 };
 
@@ -170,6 +172,7 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
     showDiscount: meta.showDiscount !== false,
     sector: meta.sector ?? 'general',
     subsidyRate: typeof meta.subsidyRate === 'number' ? meta.subsidyRate : 0,
+    roundingUnit: typeof meta.roundingUnit === 'number' ? meta.roundingUnit : 0,
     validityMonths: typeof meta.validityMonths === 'number' && meta.validityMonths > 0 ? meta.validityMonths : 1,
   };
 };
@@ -177,6 +180,8 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
 export interface CalculateQuoteOptions {
   sector?: 'general' | 'public' | 'subsidy';
   subsidyRate?: number;
+  /** 끝전 절사 단위 (10000 | 100000 | 1000000). 0/미설정 = 사용 안 함 */
+  roundingUnit?: number;
 }
 
 export const calculateQuote = (
@@ -253,21 +258,40 @@ export const calculateQuote = (
   });
   const perDocPaid = docsPaidQty > 0 ? docsPaidOffer / docsPaidQty : 0;
 
+  // 끝전 절사: 합계를 단위(만원/십만원/백만원)로 내림한 뒤 공급가액·부가세를 역산한다.
+  // 역산으로 "공급가액 + 부가세 = 합계"를 유지해 세금계산서 구조와 어긋나지 않게 한다.
+  // 지원사업용(subsidy)은 합계 산식이 "정가합계 + 부가세 - 지원금"이라 역산이 성립하지 않으므로 미적용.
+  // 합계가 단위보다 작으면 견적이 0원이 되므로 미적용.
+  const requestedRoundingUnit = Math.max(0, Math.floor(parseNum(options.roundingUnit ?? 0)));
+  const applyRounding = !isSubsidy && requestedRoundingUnit > 0 && grand >= requestedRoundingUnit;
+
+  const roundedGrand = applyRounding
+    ? Math.floor(grand / requestedRoundingUnit) * requestedRoundingUnit
+    : grand;
+  const roundedOfferSum = applyRounding ? Math.round(roundedGrand / (1 + rate)) : offerSum;
+  // 1원 단위 반올림 잔차는 부가세가 흡수 (공급가액 + 부가세 = 합계 보장)
+  const roundedVat = applyRounding ? roundedGrand - roundedOfferSum : vat;
+  const roundingCut = applyRounding ? grand - roundedGrand : 0;
+
   return {
     rows,
     msrpSum,
-    offerSum,
-    vat,
+    offerSum: roundedOfferSum,
+    vat: roundedVat,
     vatRate,
-    grand,
-    supplyPriceSum: offerSum,
-    vatSum: vat,
+    grand: roundedGrand,
+    supplyPriceSum: roundedOfferSum,
+    vatSum: roundedVat,
     totalDiscountPct,
+    // 할인 금액은 절사 전 공급가액 기준 — 절사분이 할인으로 중복 표기되는 것을 방지
+    discountAmount: msrpSum - offerSum,
     docsPaidQty,
     perDocPaid,
     subsidyAmount,
     subsidyRate: isSubsidy ? subsidyRate : 0,
     isSubsidy,
+    roundingCut,
+    roundingUnit: applyRounding ? requestedRoundingUnit : 0,
   };
 };
 
@@ -332,8 +356,9 @@ export const useQuote = () => {
     return calculateQuote(items, meta.vatRate, {
       sector: meta.sector,
       subsidyRate: meta.subsidyRate,
+      roundingUnit: meta.roundingUnit,
     });
-  }, [items, meta.vatRate, meta.sector, meta.subsidyRate]);
+  }, [items, meta.vatRate, meta.sector, meta.subsidyRate, meta.roundingUnit]);
 
   const savePreset = useCallback(
     (name: string) => {

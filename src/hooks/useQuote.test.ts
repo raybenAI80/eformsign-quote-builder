@@ -191,6 +191,167 @@ describe('calculateQuote', () => {
             expect(result.grand).toBe(550000);
         });
     });
+
+    describe('끝전 절사', () => {
+        // 단일 항목으로 합계를 정확히 만들기 위한 헬퍼
+        const itemsWithUnitPrice = (unitPrice: number): QuoteItem[] => [
+            {
+                id: '1',
+                section: 'SaaS',
+                category: '문서',
+                item: '테스트',
+                unitLabel: '건',
+                qty: 1,
+                unitPrice,
+                discountPct: 0,
+                notes: '',
+            },
+        ];
+
+        // 공급가액 75,000,273 → 부가세 7,500,027 → 합계 82,500,300 (지저분한 끝전)
+        const messyItems = itemsWithUnitPrice(75000273);
+
+        it('단위 0(기본) - 기존 계산과 완전히 동일 (회귀)', () => {
+            const base = calculateQuote(messyItems, 10);
+            const withOption = calculateQuote(messyItems, 10, { roundingUnit: 0 });
+
+            expect(base.offerSum).toBe(75000273);
+            expect(base.vat).toBe(7500027);
+            expect(base.grand).toBe(82500300);
+            expect(base.roundingCut).toBe(0);
+            expect(base.roundingUnit).toBe(0);
+
+            expect(withOption.offerSum).toBe(base.offerSum);
+            expect(withOption.vat).toBe(base.vat);
+            expect(withOption.grand).toBe(base.grand);
+            expect(withOption.roundingCut).toBe(0);
+            expect(withOption.roundingUnit).toBe(0);
+        });
+
+        it('백만원 단위 - 82,500,300 → 82,000,000 (실제 영업 시나리오)', () => {
+            const result = calculateQuote(messyItems, 10, { roundingUnit: 1000000 });
+
+            expect(result.grand).toBe(82000000);
+            expect(result.roundingCut).toBe(500300); // 82,500,300 - 82,000,000
+            expect(result.roundingUnit).toBe(1000000);
+            // 공급가액·부가세 역산 결과가 합계와 일치해야 함
+            expect(result.offerSum).toBe(74545455); // round(82,000,000 / 1.1)
+            expect(result.vat).toBe(7454545); // 잔차 흡수
+            expect(result.offerSum + result.vat).toBe(result.grand);
+            expect(result.supplyPriceSum).toBe(result.offerSum);
+            expect(result.vatSum).toBe(result.vat);
+            // 정가합계는 절사 전 기준 유지
+            expect(result.msrpSum).toBe(75000273);
+        });
+
+        it('만원 단위 - 1,358,024 → 1,350,000', () => {
+            // 공급가액 1,234,567 → 부가세 123,457 → 합계 1,358,024
+            const result = calculateQuote(itemsWithUnitPrice(1234567), 10, { roundingUnit: 10000 });
+
+            expect(result.grand).toBe(1350000);
+            expect(result.roundingCut).toBe(8024);
+            expect(result.offerSum).toBe(1227273); // round(1,350,000 / 1.1)
+            expect(result.vat).toBe(122727);
+            expect(result.offerSum + result.vat).toBe(result.grand);
+        });
+
+        it('십만원 단위 - 1,358,024 → 1,300,000', () => {
+            const result = calculateQuote(itemsWithUnitPrice(1234567), 10, { roundingUnit: 100000 });
+
+            expect(result.grand).toBe(1300000);
+            expect(result.roundingCut).toBe(58024);
+            expect(result.offerSum).toBe(1181818); // round(1,300,000 / 1.1)
+            expect(result.vat).toBe(118182);
+            expect(result.offerSum + result.vat).toBe(result.grand);
+        });
+
+        it('합계 < 절사 단위 - 미적용 (견적이 0원이 되는 것 방지)', () => {
+            // 공급가액 100,000 → 부가세 10,000 → 합계 110,000
+            const result = calculateQuote(itemsWithUnitPrice(100000), 10, { roundingUnit: 1000000 });
+
+            expect(result.grand).toBe(110000);
+            expect(result.offerSum).toBe(100000);
+            expect(result.vat).toBe(10000);
+            expect(result.roundingCut).toBe(0);
+            expect(result.roundingUnit).toBe(0);
+        });
+
+        it('이미 딱 떨어지는 합계 - 절사액 0, 합계 그대로', () => {
+            // 공급가액 1,000,000 → 부가세 100,000 → 합계 1,100,000
+            const result = calculateQuote(itemsWithUnitPrice(1000000), 10, { roundingUnit: 100000 });
+
+            expect(result.grand).toBe(1100000);
+            expect(result.roundingCut).toBe(0);
+            expect(result.offerSum).toBe(1000000);
+            expect(result.vat).toBe(100000);
+            expect(result.offerSum + result.vat).toBe(result.grand);
+        });
+
+        it('지원사업용 모드 - 절사 단위를 설정해도 미적용', () => {
+            const subsidyItems: QuoteItem[] = [
+                {
+                    id: '1',
+                    section: 'SaaS',
+                    category: '문서',
+                    item: '테스트',
+                    unitLabel: '건',
+                    qty: 10,
+                    unitPrice: 100000,
+                    discountPct: 0,
+                    notes: '',
+                },
+            ];
+
+            const result = calculateQuote(subsidyItems, 10, {
+                sector: 'subsidy',
+                subsidyRate: 65,
+                roundingUnit: 100000,
+            });
+
+            // 정가 1,000,000 + 부가세 100,000 - 지원금 650,000 = 450,000
+            // 절사가 적용됐다면 400,000이 되었을 것
+            expect(result.grand).toBe(450000);
+            expect(result.roundingCut).toBe(0);
+            expect(result.roundingUnit).toBe(0);
+            expect(result.isSubsidy).toBe(true);
+        });
+
+        it('할인 금액은 절사 전 기준 유지 - 절사분이 할인으로 중복 표기되지 않음', () => {
+            // 할인이 전혀 없는 견적: 절사를 켜도 할인 금액은 0이어야 한다
+            const noDiscount = calculateQuote(messyItems, 10, { roundingUnit: 1000000 });
+            expect(noDiscount.discountAmount).toBe(0);
+            expect(noDiscount.totalDiscountPct).toBe(0);
+            expect(noDiscount.roundingCut).toBe(500300);
+
+            // 할인이 있는 견적: 할인 금액은 절사와 무관하게 동일해야 한다
+            const discounted: QuoteItem[] = [
+                {
+                    id: '1',
+                    section: 'SaaS',
+                    category: '문서',
+                    item: '테스트',
+                    unitLabel: '건',
+                    qty: 1,
+                    unitPrice: 2000000,
+                    discountPct: 30,
+                    notes: '',
+                },
+            ];
+            const off = calculateQuote(discounted, 10, { roundingUnit: 0 });
+            const on = calculateQuote(discounted, 10, { roundingUnit: 1000000 });
+            expect(off.discountAmount).toBe(600000); // 2,000,000 × 30%
+            expect(on.discountAmount).toBe(600000); // 절사를 켜도 동일
+            expect(on.roundingCut).toBeGreaterThan(0);
+        });
+
+        it('정부·공공(public) 모드에서도 적용', () => {
+            const result = calculateQuote(messyItems, 10, { sector: 'public', roundingUnit: 1000000 });
+
+            expect(result.grand).toBe(82000000);
+            expect(result.roundingCut).toBe(500300);
+            expect(result.offerSum + result.vat).toBe(result.grand);
+        });
+    });
 });
 
 describe('createDefaultMeta', () => {

@@ -56,6 +56,8 @@ export interface QuoteMeta {
   sector?: 'general' | 'public' | 'subsidy';
   /** 지원사업용(subsidy) 모드에서 정가합계에 적용하는 지원율 (%) */
   subsidyRate?: number;
+  /** 끝전 절사 단위 (10000 | 100000 | 1000000). 0 또는 미설정 = 사용 안 함 */
+  roundingUnit?: number;
 }
 
 export interface CalculatedRow extends QuoteItem {
@@ -86,6 +88,12 @@ export interface CalculationResult {
   subsidyRate: number;
   /** 계산이 지원사업용 모드였는지 플래그 */
   isSubsidy: boolean;
+  /** 행별 할인 금액 (정가합계 - 절사 전 공급가액). 끝전 절사와 중복 표기되지 않도록 절사 전 기준 */
+  discountAmount: number;
+  /** 끝전 절사로 깎인 금액 (미적용 시 0) */
+  roundingCut: number;
+  /** 적용된 절사 단위 (미적용 시 0) */
+  roundingUnit: number;
 }
 
 export interface QuotePreset {

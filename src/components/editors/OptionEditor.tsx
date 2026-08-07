@@ -229,6 +229,41 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
               </div>
             )}
           </div>
+
+          {/* 끝전 절사 설정 */}
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <div className="mb-2">
+              <span className="text-sm font-bold text-gray-800">끝전 절사</span>
+              <p className="text-xs text-gray-500 mt-0.5">
+                합계 금액을 선택한 단위로 내림합니다.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {([
+                { id: 0, label: '사용 안 함' },
+                { id: 10000, label: '만원' },
+                { id: 100000, label: '십만원' },
+                { id: 1000000, label: '백만원' },
+              ]).map(opt => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setMeta(prev => ({ ...prev, roundingUnit: opt.id }))}
+                  className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-center transition-all ${
+                    (meta.roundingUnit ?? 0) === opt.id
+                      ? 'border-[var(--forcs-blue)] bg-blue-50 text-[var(--forcs-blue)] shadow-sm'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold">{opt.label}</div>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+              깎인 금액은 견적서에 &lsquo;단수 절사&rsquo; 항목으로 표시되며, 공급가액과 부가세는 절사된 합계 기준으로 다시 계산됩니다.
+              지원사업용 모드에서는 적용되지 않습니다.
+            </p>
+          </div>
         </div>
       </section>
 

@@ -352,7 +352,7 @@ function QuoteBuilder() {
               meta={previewSnapshot ? previewSnapshot.meta : meta}
               calculation={
                 previewSnapshot
-                  ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate, { sector: previewSnapshot.meta.sector, subsidyRate: previewSnapshot.meta.subsidyRate })
+                  ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate, { sector: previewSnapshot.meta.sector, subsidyRate: previewSnapshot.meta.subsidyRate, roundingUnit: previewSnapshot.meta.roundingUnit })
                   : calculation
               }
               categoryLabels={categoryLabels}
@@ -387,7 +387,7 @@ function QuoteBuilder() {
             meta={previewSnapshot ? previewSnapshot.meta : meta}
             calculation={
               previewSnapshot
-                ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate, { sector: previewSnapshot.meta.sector, subsidyRate: previewSnapshot.meta.subsidyRate })
+                ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate, { sector: previewSnapshot.meta.sector, subsidyRate: previewSnapshot.meta.subsidyRate, roundingUnit: previewSnapshot.meta.roundingUnit })
                 : calculation
             }
             categoryLabels={categoryLabels}
@@ -425,7 +425,7 @@ function QuoteBuilder() {
           <div id="pdf-merge-panel" style={{ width: '297mm' }}>
             <PreviewPanel
               meta={mergeRenderData.meta}
-              calculation={calculateQuote(mergeRenderData.items, mergeRenderData.meta.vatRate, { sector: mergeRenderData.meta.sector, subsidyRate: mergeRenderData.meta.subsidyRate })}
+              calculation={calculateQuote(mergeRenderData.items, mergeRenderData.meta.vatRate, { sector: mergeRenderData.meta.sector, subsidyRate: mergeRenderData.meta.subsidyRate, roundingUnit: mergeRenderData.meta.roundingUnit })}
               categoryLabels={categoryLabels}
               showPolicies={true}
             />
