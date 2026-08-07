@@ -443,7 +443,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
             <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">총 견적 금액</span>
             <div className="flex items-baseline gap-2">
               <span className="text-lg font-bold text-[var(--forcs-blue)]">{toKRW(calculation.grand)}</span>
-              {showDiscount !== false && calculation.msrpSum > calculation.offerSum && (
+              {showDiscount !== false && calculation.discountAmount > 0 && (
                 <span className="text-xs text-gray-400 line-through">
                   정가 {toKRW(calculation.msrpSum)}
                 </span>
@@ -453,9 +453,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex flex-col items-end text-xs text-gray-500">
               <span>공급가 합계: {toKRW(calculation.supplyPriceSum)}</span>
-              {showDiscount !== false && calculation.msrpSum > calculation.offerSum && (
+              {showDiscount !== false && calculation.discountAmount > 0 && (
                 <span className={`${activeSector === 'subsidy' ? 'text-green-600' : 'text-red-500'} font-medium`}>
-                  ★ {activeSector === 'subsidy' ? '지원 금액' : '할인 금액'} ({calculation.totalDiscountPct.toFixed(0)}%): -{toKRW(calculation.msrpSum - calculation.offerSum)}
+                  ★ {activeSector === 'subsidy' ? '지원 금액' : '할인 금액'} ({calculation.totalDiscountPct.toFixed(0)}%): -{toKRW(calculation.discountAmount)}
                 </span>
               )}
               <span>부가세({calculation.vatRate}%): {toKRW(calculation.vatSum)}</span>

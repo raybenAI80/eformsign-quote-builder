@@ -427,7 +427,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                 </>
               ) : (
                 <>
-                  {showDiscount && calculation.msrpSum > calculation.offerSum && (
+                  {showDiscount && calculation.discountAmount > 0 && (
                     <>
                       {/* 정가 합계 */}
                       <div className="flex justify-between items-center text-sm">
@@ -443,9 +443,19 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
                           <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                           {discountAmountLabel} ({Math.round(calculation.totalDiscountPct)}%)
                         </span>
-                        <span className="font-bold text-red-500">-{toKRW(calculation.msrpSum - calculation.offerSum)}</span>
+                        <span className="font-bold text-red-500">-{toKRW(calculation.discountAmount)}</span>
                       </div>
                     </>
+                  )}
+                  {/* 단수 절사 (끝전 절사 적용 시) */}
+                  {calculation.roundingCut > 0 && (
+                    <div className="flex justify-between items-center text-sm -mx-5 px-5 py-2.5 border-l-2 bg-slate-100/70 border-slate-400">
+                      <span className="flex items-center gap-2 font-semibold text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        단수 절사
+                      </span>
+                      <span className="font-bold text-slate-500">-{toKRW(calculation.roundingCut)}</span>
+                    </div>
                   )}
                   {/* 공급가액 */}
                   <div className="flex justify-between items-center text-sm pt-1">
