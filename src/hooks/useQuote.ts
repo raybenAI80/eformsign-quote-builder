@@ -69,6 +69,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     quoteNo: '',
     quoteDate: today,
     validityDays: 30,
+    validityMonths: 1,
     customerName: '',
     customerManager: '',
     customerEmail: '',
@@ -169,6 +170,7 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
     showDiscount: meta.showDiscount !== false,
     sector: meta.sector ?? 'general',
     subsidyRate: typeof meta.subsidyRate === 'number' ? meta.subsidyRate : 0,
+    validityMonths: typeof meta.validityMonths === 'number' && meta.validityMonths > 0 ? meta.validityMonths : 1,
   };
 };
 
