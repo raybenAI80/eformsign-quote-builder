@@ -1,24 +1,41 @@
 /**
  * DOM에서 텍스트 요소를 추출하여 PDF 좌표로 변환
- * 
- * 간소화된 접근법: 각 텍스트 노드의 부모 요소 바운딩 박스 사용
+ *
+ * PDF는 DOM 렌더 결과를 그대로 축소한 이미지 위에 투명 텍스트 레이어를 올린다.
+ * 따라서 좌표뿐 아니라 글자 크기(fontSize)와 줄 높이(lineHeight)도
+ * 동일한 축척(pxToMm)으로 변환해야 드래그 선택 하이라이트가 이미지와 일치한다.
  */
+
+/** 1pt = 0.3527...mm */
+export const MM_PER_PT = 0.3527777778;
+
+/** 문자 단위 분할을 시도할 최대 길이 (레이아웃 질의 비용 가드) */
+const MAX_CHARS_FOR_SPLIT = 600;
+
+/** 같은 줄로 간주할 top 좌표 허용 오차 (px) */
+const LINE_TOLERANCE_PX = 1;
 
 export interface TextElement {
     text: string;
-    x: number;        // PDF mm 단위
-    y: number;        // PDF mm 단위
-    fontSize: number; // pt
+    x: number;          // PDF mm — line box 좌측
+    y: number;          // PDF mm — line box 상단
+    fontSize: number;   // pt — 반올림하지 않은 실제 렌더 크기
     isBold: boolean;
+    lineHeight: number; // PDF mm — line box 높이 (baseline 보정용)
 }
 
 /**
- * 폰트 크기 추출 (px → pt 변환)
+ * 폰트 크기 추출 (px → pt)
+ *
+ * ★ pxToMm(실제 PDF 축척)을 거쳐 변환한다.
+ *   px * 0.75 는 96dpi(1px = 0.2646mm) 가정이라, 프리뷰가 축소되어
+ *   PDF에 들어갈 때 글자만 원본 크기로 커지는 문제가 있었다.
+ *   반올림도 하지 않는다 (13px → 9.75pt를 10pt로 올리면 렌더와 어긋남).
  */
-function getFontSize(element: Element): number {
+function getFontSizePt(element: Element, pxToMm: number): number {
     const computed = window.getComputedStyle(element);
     const pxSize = parseFloat(computed.fontSize) || 12;
-    return Math.round(pxSize * 0.75);
+    return (pxSize * pxToMm) / MM_PER_PT;
 }
 
 /**
@@ -43,20 +60,87 @@ function isVisible(element: Element): boolean {
 }
 
 /**
- * 라인 높이 추정
+ * jsPDF는 '\n'을 줄바꿈으로 처리하므로, 실제로는 한 줄로 렌더되는
+ * 소스상의 줄바꿈은 공백으로 접어준다.
  */
-function getLineHeight(element: Element): number {
-    const computed = window.getComputedStyle(element);
-    const lineHeight = parseFloat(computed.lineHeight);
-    if (isNaN(lineHeight)) {
-        return parseFloat(computed.fontSize) * 1.2;
+function normalizeText(raw: string): string {
+    return raw.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+}
+
+interface LineSegment {
+    text: string;
+    left: number;   // px (viewport)
+    top: number;    // px (viewport)
+    height: number; // px — line box 높이
+}
+
+/**
+ * 텍스트 노드를 "실제로 렌더된 줄" 단위로 분할한다.
+ *
+ * Range API로 문자 하나씩 위치를 구해 top 좌표로 그룹핑하므로
+ * CSS 래핑(word-wrap)과 white-space:pre-wrap의 명시적 줄바꿈을 모두 처리하고,
+ * 각 줄의 실제 left(가운데/우측 정렬 포함)를 그대로 얻는다.
+ */
+function splitIntoRenderedLines(textNode: Text): LineSegment[] {
+    const raw = textNode.textContent ?? '';
+    const segments: LineSegment[] = [];
+    const range = document.createRange();
+
+    let chars: string[] = [];
+    let left = 0;
+    let top = 0;
+    let bottom = 0;
+    let leftLocked = false;
+    let open = false;
+
+    const flush = () => {
+        if (!open) return;
+        const text = normalizeText(chars.join(''));
+        if (text) {
+            segments.push({ text, left, top, height: bottom - top });
+        }
+        chars = [];
+        open = false;
+        leftLocked = false;
+    };
+
+    for (let i = 0; i < raw.length; i++) {
+        range.setStart(textNode, i);
+        range.setEnd(textNode, i + 1);
+        const rect = range.getBoundingClientRect();
+        const ch = raw[i];
+
+        // 렌더되지 않는 문자(줄바꿈 문자, 접힌 공백 등)는 현재 줄에 붙여두고 trim으로 정리
+        if (rect.width === 0 && rect.height === 0) {
+            if (open) chars.push(ch);
+            continue;
+        }
+
+        if (open && Math.abs(rect.top - top) <= LINE_TOLERANCE_PX) {
+            chars.push(ch);
+            // 줄 시작의 공백은 trim되므로, 첫 '보이는' 문자의 left를 줄의 x로 삼는다
+            if (!leftLocked && ch.trim()) {
+                left = rect.left;
+                leftLocked = true;
+            }
+            if (rect.bottom > bottom) bottom = rect.bottom;
+        } else {
+            flush();
+            open = true;
+            chars = [ch];
+            left = rect.left;
+            leftLocked = ch.trim().length > 0;
+            top = rect.top;
+            bottom = rect.bottom;
+        }
     }
-    return lineHeight;
+    flush();
+
+    return segments;
 }
 
 /**
  * DOM 컨테이너에서 텍스트 요소들을 추출
- * 간소화된 방식: Range API로 각 줄의 첫 문자 위치만 사용
  */
 export function extractTextElements(
     container: HTMLElement,
@@ -89,79 +173,47 @@ export function extractTextElements(
         const parent = textNode.parentElement;
         if (!parent) continue;
 
-        const fullText = textNode.textContent?.trim();
-        if (!fullText) continue;
+        const raw = textNode.textContent ?? '';
+        if (!raw.trim()) continue;
 
-        const fontSize = getFontSize(parent);
+        const fontSize = getFontSizePt(parent, pxToMm);
         const isBold = isBoldFont(parent);
-        const lineHeightPx = getLineHeight(parent);
 
-        // Range를 사용하여 텍스트 노드의 실제 위치 가져오기
         const range = document.createRange();
         range.selectNodeContents(textNode);
         const rects = range.getClientRects();
-
         if (rects.length === 0) continue;
 
-        // 명시적 줄바꿈(\n)이 있는 경우 분리
-        const lines = fullText.split('\n').filter(l => l.trim());
+        // 여러 줄로 렌더된 경우에만 문자 단위 분할 (단일 줄은 rect 하나로 충분)
+        let segments: LineSegment[] = [];
+        if (rects.length > 1 && raw.length <= MAX_CHARS_FOR_SPLIT) {
+            segments = splitIntoRenderedLines(textNode);
+        }
 
-        if (lines.length > 1) {
-            // 멀티라인: 각 줄마다 별도 요소로 추가
-            let currentY = rects[0].top;
-            const baseX = rects[0].left;
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (!trimmedLine) continue;
+        if (segments.length === 0) {
+            const rect = rects[0];
+            if (rect.width === 0 || rect.height === 0) continue;
+            const text = normalizeText(raw);
+            if (!text) continue;
+            segments = [{ text, left: rect.left, top: rect.top, height: rect.height }];
+        }
 
-                const uniqueKey = `${trimmedLine}-${Math.round(baseX)}-${Math.round(currentY)}`;
-                if (processedTexts.has(uniqueKey)) continue;
-                processedTexts.add(uniqueKey);
+        for (const seg of segments) {
+            if (seg.height <= 0) continue;
 
-                const x = (baseX - containerRect.left) * pxToMm;
-                const y = (currentY - containerRect.top) * pxToMm + yOffset;
+            // 중복 방지: 같은 텍스트가 같은 위치에 이미 있으면 스킵
+            const uniqueKey = `${seg.text.substring(0, 30)}-${Math.round(seg.left)}-${Math.round(seg.top)}`;
+            if (processedTexts.has(uniqueKey)) continue;
+            processedTexts.add(uniqueKey);
 
-                elements.push({
-                    text: trimmedLine,
-                    x,
-                    y,
-                    fontSize,
-                    isBold,
-                });
-
-                currentY += lineHeightPx;
-            }
-        } else {
-            // 단일 라인 또는 CSS 래핑된 텍스트
-            // 각 clientRect가 별도의 줄일 수 있음
-            for (let i = 0; i < rects.length; i++) {
-                const rect = rects[i];
-                if (rect.width === 0 || rect.height === 0) continue;
-
-                // 중복 방지: 같은 X,Y 위치에 같은 텍스트가 이미 있으면 스킵
-                const roundedY = Math.round(rect.top);
-                const roundedX = Math.round(rect.left);
-
-                // 첫 번째 rect만 사용하고 전체 텍스트 할당
-                if (i === 0) {
-                    // X좌표도 포함하여 같은 행의 다른 컬럼 텍스트도 추출
-                    const uniqueKey = `${fullText.substring(0, 30)}-${roundedX}-${roundedY}`;
-                    if (processedTexts.has(uniqueKey)) continue;
-                    processedTexts.add(uniqueKey);
-
-                    const x = (rect.left - containerRect.left) * pxToMm;
-                    const y = (rect.top - containerRect.top) * pxToMm + yOffset;
-
-                    elements.push({
-                        text: fullText,
-                        x,
-                        y,
-                        fontSize,
-                        isBold,
-                    });
-                    break; // 첫 번째 rect만 사용
-                }
-            }
+            elements.push({
+                text: seg.text,
+                x: (seg.left - containerRect.left) * pxToMm,
+                y: (seg.top - containerRect.top) * pxToMm + yOffset,
+                fontSize,
+                isBold,
+                lineHeight: seg.height * pxToMm,
+            });
         }
     }
 
