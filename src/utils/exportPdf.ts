@@ -3,7 +3,8 @@ import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import download from 'downloadjs';
 import { loadNanumSquareFonts, registerNanumSquareFont } from './fontLoader';
-import { extractTextElements, TextElement, MM_PER_PT } from './textExtractor';
+import { extractTextElements, TextElement } from './textExtractor';
+import { installFontMetricsFix } from './html2canvasMetrics';
 import { QuoteMeta, QuoteItem } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +22,20 @@ const PAGE_MARGIN_Y_MM = 2; // Reduced from 5mm
 
 /** DEBUG MODE - Set to true to see text placement (red text visible) */
 const DEBUG_OCR = false;
+
+/**
+ * 텍스트 레이어를 빨간 글씨로 보이게 할지 여부.
+ *
+ * 상수 DEBUG_OCR 외에 런타임 플래그(window.__PDF_DEBUG_OCR__)도 본다.
+ * 텍스트 레이어 정렬을 "실제 래스터 픽셀"로 검증하는 오라클이 같은 빌드에서
+ * 정상본/디버그본 두 PDF를 뽑아 비교할 수 있어야 하기 때문이다.
+ * (프로덕션 경로는 플래그를 세팅하지 않으므로 항상 false)
+ */
+function isDebugOcr(): boolean {
+    if (DEBUG_OCR) return true;
+    return typeof window !== 'undefined' &&
+        (window as unknown as { __PDF_DEBUG_OCR__?: boolean }).__PDF_DEBUG_OCR__ === true;
+}
 
 interface PageImageLayout {
     imgWidth: number;
@@ -98,7 +113,8 @@ function drawInvisibleTextLayer(
         pdf.setPage(pageNumber);
         pdf.setFont('NanumSquare', 'normal');
 
-        if (DEBUG_OCR) {
+        const debugOcr = isDebugOcr();
+        if (debugOcr) {
             pdf.setTextColor(255, 0, 0); // Red for debugging
         } else {
             pdf.setTextColor(255, 255, 255);
@@ -108,14 +124,15 @@ function drawInvisibleTextLayer(
         try {
             for (const textEl of textElements) {
                 const finalX = textEl.x + offsetX;
-                // textEl.y는 line box 상단이고 jsPDF는 baseline 기준으로 그린다.
-                // line-height가 큰 요소는 글리프가 line box 안에서 수직 중앙에 놓이므로,
-                // (line box 높이 - 글리프 박스 높이)/2 만큼 내려간 지점을 글리프 상단으로 보고
-                // 거기서 다시 baseline까지(글리프 높이의 80%) 내린다.
-                const fontHeightMm = textEl.fontSize * MM_PER_PT;
-                const lineBoxMm = textEl.lineHeight > 0 ? textEl.lineHeight : fontHeightMm;
-                const glyphTopMm = Math.max(0, (lineBoxMm - fontHeightMm) / 2);
-                const finalY = textEl.y + offsetY + glyphTopMm + fontHeightMm * 0.80;
+                // textEl.y는 글리프 박스(ascent+descent) 상단이고 jsPDF는 baseline 기준으로
+                // 그린다. baselineMm은 html2canvas가 이미지를 그릴 때 쓰는 것과 동일한
+                // 탐침으로 측정한 값이므로, 그대로 더하면 이미지 글리프와 겹친다.
+                //
+                // ★ 예전 코드는 line-height 기반 half-leading 보정 + "글리프 높이의 80%"
+                //   추정치를 썼다. getClientRects()의 rect는 line box가 아니라 글리프 박스라
+                //   half-leading 보정 자체가 성립하지 않았고, 무엇보다 html2canvas가 실제로
+                //   글자를 찍는 위치와는 무관한 모델이었다.
+                const finalY = textEl.y + offsetY + textEl.baselineMm;
 
                 if (finalY > a4Height || finalY < 0) continue;
                 if (finalX < 0 || finalX > a4Width) continue;
@@ -128,7 +145,7 @@ function drawInvisibleTextLayer(
             }
         } finally {
             // Reset GState — 페이지마다 반드시 되돌려서 다음 페이지로 opacity가 새지 않게 한다
-            if (!DEBUG_OCR) {
+            if (!debugOcr) {
                 setPdfOpacity(pdf, 1);
             }
         }
@@ -312,28 +329,39 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
             preImgWidth, preImgHeight, preOffsetX, preOffsetY, prePxToMm
         });
 
-        // Create a rect-like object for extractTextElements
-        const elementBounds = element.getBoundingClientRect();
-        const textElements: TextElement[] = extractTextElements(
-            element,
-            elementBounds,
-            prePxToMm,
-            0
-        );
-        console.log(`Extracted ${textElements.length} text elements from ORIGINAL DOM`);
+        // ★ 텍스트 추출과 이미지 캡처는 반드시 같은 CSS 상태에서 일어나야 한다.
+        //   installFontMetricsFix()는 html2canvas의 baseline 탐침이 Tailwind preflight
+        //   (img{display:block})에 오염되는 것을 캡처 구간 동안만 막는다.
+        //   자세한 근거는 html2canvasMetrics.ts 주석 참고.
+        const uninstallMetricsFix = installFontMetricsFix();
+        let textElements: TextElement[];
+        let canvas: HTMLCanvasElement;
+        try {
+            // Create a rect-like object for extractTextElements
+            const elementBounds = element.getBoundingClientRect();
+            textElements = extractTextElements(
+                element,
+                elementBounds,
+                prePxToMm,
+                0
+            );
+            console.log(`Extracted ${textElements.length} text elements from ORIGINAL DOM`);
 
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            x: 0,
-            y: 0,
-            scrollX: 0,
-            scrollY: 0,
-        });
+            canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+            });
+        } finally {
+            uninstallMetricsFix();
+        }
 
         // Validate canvas
         console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
@@ -461,26 +489,36 @@ async function capturePageIntoPdf(
     //   pxToMm도 단일 견적 경로와 동일하게 imgWidth / element.offsetWidth 로 구한다.
     //   (하드코딩 96dpi 환산을 쓰면 프리뷰 297mm → 이미지 ~206mm 축소분만큼 글자가 커진다)
     const pxToMmForText = imgWidth / elementWidth;
-    const textElements: TextElement[] = extractTextElements(
-        element,
-        element.getBoundingClientRect(),
-        pxToMmForText,
-        0
-    );
-    const linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
 
-    const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
-    });
+    // ★ 단일 견적 경로와 동일하게, 추출과 캡처를 같은 CSS 상태(폰트 지표 보정 적용)에서 한다.
+    const uninstallMetricsFix = installFontMetricsFix();
+    let textElements: TextElement[];
+    let linkBoxes: PdfLinkBox[];
+    let canvas: HTMLCanvasElement;
+    try {
+        textElements = extractTextElements(
+            element,
+            element.getBoundingClientRect(),
+            pxToMmForText,
+            0
+        );
+        linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
+
+        canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight,
+            x: 0,
+            y: 0,
+            scrollX: 0,
+            scrollY: 0,
+        });
+    } finally {
+        uninstallMetricsFix();
+    }
 
     if (scaleWrapper && originalTransform) {
         scaleWrapper.style.transform = originalTransform;

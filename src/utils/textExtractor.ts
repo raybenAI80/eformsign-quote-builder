@@ -6,6 +6,8 @@
  * 동일한 축척(pxToMm)으로 변환해야 드래그 선택 하이라이트가 이미지와 일치한다.
  */
 
+import { measureBaselinePx } from './html2canvasMetrics';
+
 /** 1pt = 0.3527...mm */
 export const MM_PER_PT = 0.3527777778;
 
@@ -17,11 +19,26 @@ const LINE_TOLERANCE_PX = 1;
 
 export interface TextElement {
     text: string;
-    x: number;          // PDF mm — line box 좌측
-    y: number;          // PDF mm — line box 상단
+    x: number;          // PDF mm — 줄 좌측
+    /**
+     * PDF mm — Range.getClientRects()가 돌려주는 rect의 상단.
+     *
+     * ★ 이건 line box 상단이 아니라 "글리프 박스(ascent+descent)" 상단이다.
+     *   (실측: 14px NanumSquare → rect.height 16px = ascent 12 + descent 4,
+     *    line-height 20px/24px 어느 쪽이든 rect.height는 16px로 동일)
+     *   html2canvas도 정확히 같은 rect를 기준으로 글자를 그리므로, 이 값 위에
+     *   baselineMm만 더하면 이미지 글리프와 정확히 겹친다.
+     */
+    y: number;
     fontSize: number;   // pt — 반올림하지 않은 실제 렌더 크기
     isBold: boolean;
-    lineHeight: number; // PDF mm — line box 높이 (baseline 보정용)
+    /**
+     * PDF mm — y(글리프 박스 상단)에서 baseline까지의 거리.
+     * html2canvas가 쓰는 것과 동일한 탐침으로 측정한다. 추정 공식이 아니다.
+     */
+    baselineMm: number;
+    /** PDF mm — rect 높이(ascent+descent). 진단/로깅용. */
+    glyphBoxHeight: number;
 }
 
 /**
@@ -36,6 +53,18 @@ function getFontSizePt(element: Element, pxToMm: number): number {
     const computed = window.getComputedStyle(element);
     const pxSize = parseFloat(computed.fontSize) || 12;
     return (pxSize * pxToMm) / MM_PER_PT;
+}
+
+/**
+ * 글리프 박스 상단 → baseline 거리를 mm로 구한다.
+ *
+ * ★ 폰트 지표를 추정하지 않고, html2canvas가 이미지를 그릴 때 쓰는 것과
+ *   동일한 탐침으로 측정한다. 그래야 이미지 글리프와 텍스트 레이어가
+ *   같은 좌표계를 공유한다.
+ */
+function getBaselineMm(element: Element, pxToMm: number): number {
+    const computed = window.getComputedStyle(element);
+    return measureBaselinePx(computed.fontFamily, computed.fontSize) * pxToMm;
 }
 
 /**
@@ -178,6 +207,7 @@ export function extractTextElements(
 
         const fontSize = getFontSizePt(parent, pxToMm);
         const isBold = isBoldFont(parent);
+        const baselineMm = getBaselineMm(parent, pxToMm);
 
         const range = document.createRange();
         range.selectNodeContents(textNode);
@@ -212,7 +242,8 @@ export function extractTextElements(
                 y: (seg.top - containerRect.top) * pxToMm + yOffset,
                 fontSize,
                 isBold,
-                lineHeight: seg.height * pxToMm,
+                baselineMm,
+                glyphBoxHeight: seg.height * pxToMm,
             });
         }
     }
