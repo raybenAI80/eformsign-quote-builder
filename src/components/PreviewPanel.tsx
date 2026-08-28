@@ -522,7 +522,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
           <div className="bg-gray-50 p-3 border-t border-b border-gray-100">
             <img
               src="/forcs-strengths.png"
-              alt="FORCS 강점 - 30년 업력, 100% 자체 기술력, 시장 점유율 1위, 글로벌 진출, IPO 상장, 50여 개 수상"
+              alt="FORCS 강점 - 31년 업력, 100% 자체 기술력, 시장 점유율 1위, 글로벌 진출, IPO 상장, 50여 개 수상"
               className="w-full h-auto"
             />
           </div>
