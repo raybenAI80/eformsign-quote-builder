@@ -58,13 +58,21 @@ export const buildQuoteNo = (initials: string | null | undefined, quoteDate: str
   const cleanedInitials = (initials || '').trim().toUpperCase() || 'AA';
   const datePart = quoteDate
     ? quoteDate.replace(/-/g, '')
-    : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    : getLocalToday().replace(/-/g, '');
   const seqPart = formatSequence(sequence);
   return `FORCS-EFS-${cleanedInitials}-${datePart}${seqPart}`;
 };
 
+// Local-date YYYY-MM-DD (toISOString is UTC, which is off by one day around KST midnight)
+export const getLocalToday = (date: Date = new Date()): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export const createDefaultMeta = (): QuoteMeta => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalToday();
   return {
     quoteNo: '',
     quoteDate: today,
@@ -111,7 +119,7 @@ export const createDefaultMeta = (): QuoteMeta => {
 
 // 빈 상태로 새 견적을 시작할 때 사용할 메타 (오늘 날짜만 채우고 나머지는 비움)
 export const createEmptyMeta = (): QuoteMeta => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalToday();
   return {
     quoteNo: '',
     quoteDate: today,
@@ -145,6 +153,35 @@ export const createEmptyMeta = (): QuoteMeta => {
     roundingUnit: 0,
   };
 };
+
+// Sales-side (our company) fields kept across "새 견적서" reset; customer info and everything else is cleared
+export const RESET_PRESERVED_META_KEYS = [
+  'contactInitials',
+  'contactName',
+  'contactTitle',
+  'contactDirect',
+  'contactMobile',
+  'contactEmail',
+  'salesManager',
+  'salesEmail',
+  'salesContact',
+] as const satisfies readonly (keyof QuoteMeta)[];
+
+// Meta for a new quote: empty meta (quoteDate = local today) keeping sales-contact fields from prev
+export const buildResetMeta = (prev: QuoteMeta): QuoteMeta => {
+  const next = createEmptyMeta();
+  for (const key of RESET_PRESERVED_META_KEYS) {
+    next[key] = prev[key] ?? '';
+  }
+  return next;
+};
+
+// Meta restored from local storage on app load: quoteDate always becomes today (local).
+// quoteNo is re-derived by the initials/date/sequence effect in useQuote. Presets/history are not routed here.
+export const normalizeRestoredMeta = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMeta => ({
+  ...ensureMetaDefaults(meta),
+  quoteDate: getLocalToday(),
+});
 
 const cloneMeta = (meta: QuoteMeta): QuoteMeta => ({ ...meta });
 const cloneItems = (items: QuoteItem[]): QuoteItem[] => items.map(item => ({ ...item }));
@@ -309,7 +346,7 @@ export const useQuote = () => {
 
     const parsed = safeParse<StoredQuoteData | null>(raw, null);
     if (parsed?.meta && parsed?.items) {
-      setMeta(ensureMetaDefaults(parsed.meta));
+      setMeta(normalizeRestoredMeta(parsed.meta));
       setItems(parsed.items);
       if (parsed.presets) setPresets(parsed.presets);
       if (parsed.history) setHistory(parsed.history);
@@ -409,7 +446,7 @@ export const useQuote = () => {
   }, []);
 
   const resetQuote = useCallback(() => {
-    setMeta(createEmptyMeta());
+    setMeta(prev => buildResetMeta(prev));
     setItems([]);
     setHistory([]);
     localStorage.removeItem(DATA_KEY);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta } from './useQuote';
+import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta } from './useQuote';
 import { QuoteItem } from '../types';
 
 describe('formatSequence', () => {
@@ -387,5 +387,71 @@ describe('createDefaultMeta', () => {
 
         expect(meta.referenceNotes.length).toBeGreaterThan(0);
         expect(meta.referenceNotes[0]).toContain('eformsign');
+    });
+});
+
+describe('getLocalToday', () => {
+    it('로컬 날짜 기준 YYYY-MM-DD (UTC 변환 없음)', () => {
+        expect(getLocalToday(new Date(2026, 0, 5, 0, 30))).toBe('2026-01-05');
+        expect(getLocalToday(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
+    });
+});
+
+describe('buildResetMeta (새 견적서 초기화)', () => {
+    const prev = {
+        ...createDefaultMeta(),
+        quoteDate: '2020-01-01',
+        quoteNo: 'FORCS-EFS-KJH-20200101-03',
+        issueSequence: '03',
+        customerName: '고객사A',
+        customerManager: '홍길동',
+        customerEmail: 'a@customer.com',
+        customerContact: '010-1111-2222',
+        contactInitials: 'KJH',
+        contactName: '김영업',
+        contactTitle: '매니저',
+        contactDirect: '02-6188-1234',
+        contactMobile: '010-1234-5678',
+        contactEmail: 'sales@forcs.com',
+        salesManager: '레거시담당',
+        salesEmail: 'legacy@forcs.com',
+        salesContact: '02-000-0000',
+    };
+
+    it('견적일자는 오늘(로컬)로 바뀐다', () => {
+        expect(buildResetMeta(prev).quoteDate).toBe(getLocalToday());
+    });
+
+    it('담당자 이니셜과 영업 담당자 정보는 유지된다', () => {
+        const next = buildResetMeta(prev);
+        expect(next.contactInitials).toBe('KJH');
+        expect(next.contactName).toBe('김영업');
+        expect(next.contactTitle).toBe('매니저');
+        expect(next.contactDirect).toBe('02-6188-1234');
+        expect(next.contactMobile).toBe('010-1234-5678');
+        expect(next.contactEmail).toBe('sales@forcs.com');
+        expect(next.salesManager).toBe('레거시담당');
+        expect(next.salesEmail).toBe('legacy@forcs.com');
+        expect(next.salesContact).toBe('02-000-0000');
+    });
+
+    it('고객사 정보와 견적번호 순번은 초기화된다', () => {
+        const next = buildResetMeta(prev);
+        expect(next.customerName).toBe('');
+        expect(next.customerManager).toBe('');
+        expect(next.customerEmail).toBe('');
+        expect(next.customerContact).toBe('');
+        expect(next.quoteNo).toBe('');
+        expect(next.issueSequence).toBe('');
+    });
+});
+
+describe('normalizeRestoredMeta (앱 로드 시 복원)', () => {
+    it('복원 시 quoteDate 는 오늘이고 다른 필드는 유지된다', () => {
+        const stored = { ...createDefaultMeta(), quoteDate: '2020-01-01', customerName: '고객사A', contactInitials: 'KJH' };
+        const restored = normalizeRestoredMeta(stored);
+        expect(restored.quoteDate).toBe(getLocalToday());
+        expect(restored.customerName).toBe('고객사A');
+        expect(restored.contactInitials).toBe('KJH');
     });
 });
