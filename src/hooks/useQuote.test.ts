@@ -447,11 +447,27 @@ describe('buildResetMeta (새 견적서 초기화)', () => {
 });
 
 describe('normalizeRestoredMeta (앱 로드 시 복원)', () => {
-    it('복원 시 quoteDate 는 오늘이고 다른 필드는 유지된다', () => {
-        const stored = { ...createDefaultMeta(), quoteDate: '2020-01-01', customerName: '고객사A', contactInitials: 'KJH' };
+    it('복원 시 quoteDate 는 오늘, 고객사 정보는 비우고 담당자 정보는 유지한다', () => {
+        const stored = {
+            ...createDefaultMeta(),
+            quoteDate: '2020-01-01',
+            customerName: '고객사A',
+            customerManager: '홍길동',
+            customerEmail: 'a@customer.com',
+            customerContact: '010-1111-2222',
+            contactInitials: 'KJH',
+            contactName: '김영업',
+            contactEmail: 'sales@forcs.com',
+        };
         const restored = normalizeRestoredMeta(stored);
         expect(restored.quoteDate).toBe(getLocalToday());
-        expect(restored.customerName).toBe('고객사A');
+        expect(restored.customerName).toBe('');
+        expect(restored.customerManager).toBe('');
+        expect(restored.customerEmail).toBe('');
+        expect(restored.customerContact).toBe('');
         expect(restored.contactInitials).toBe('KJH');
+        expect(restored.contactName).toBe('김영업');
+        expect(restored.contactEmail).toBe('sales@forcs.com');
+        expect(restored.supplier).toBe('㈜포시에스');
     });
 });
