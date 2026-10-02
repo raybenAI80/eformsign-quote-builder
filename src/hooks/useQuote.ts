@@ -167,6 +167,14 @@ export const RESET_PRESERVED_META_KEYS = [
   'salesContact',
 ] as const satisfies readonly (keyof QuoteMeta)[];
 
+// Customer-side fields cleared whenever a new quote starts (reset button or app load restore)
+export const RESET_CUSTOMER_META_KEYS = [
+  'customerName',
+  'customerManager',
+  'customerEmail',
+  'customerContact',
+] as const satisfies readonly (keyof QuoteMeta)[];
+
 // Meta for a new quote: empty meta (quoteDate = local today) keeping sales-contact fields from prev
 export const buildResetMeta = (prev: QuoteMeta): QuoteMeta => {
   const next = createEmptyMeta();
@@ -176,12 +184,16 @@ export const buildResetMeta = (prev: QuoteMeta): QuoteMeta => {
   return next;
 };
 
-// Meta restored from local storage on app load: quoteDate always becomes today (local).
+// Meta restored from local storage on app load = a new quote: quoteDate becomes today (local),
+// customer fields are cleared, sales-contact and other fields are kept.
 // quoteNo is re-derived by the initials/date/sequence effect in useQuote. Presets/history are not routed here.
-export const normalizeRestoredMeta = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMeta => ({
-  ...ensureMetaDefaults(meta),
-  quoteDate: getLocalToday(),
-});
+export const normalizeRestoredMeta = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMeta => {
+  const next: QuoteMeta = { ...ensureMetaDefaults(meta), quoteDate: getLocalToday() };
+  for (const key of RESET_CUSTOMER_META_KEYS) {
+    next[key] = '';
+  }
+  return next;
+};
 
 const cloneMeta = (meta: QuoteMeta): QuoteMeta => ({ ...meta });
 const cloneItems = (items: QuoteItem[]): QuoteItem[] => items.map(item => ({ ...item }));
