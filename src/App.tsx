@@ -254,7 +254,7 @@ function QuoteBuilder() {
   const handleReset = () => {
     openConfirm(
       '견적 초기화',
-      '작성 중인 모든 값과 로컬 저장 데이터가 삭제됩니다. 계속할까요?',
+      '고객사 정보와 견적 항목이 초기화되고 견적일자는 오늘 날짜로 바뀝니다. 담당자 이니셜과 영업 담당자 정보는 유지됩니다. 계속할까요?',
       () => {
         actions.resetQuote();
         toast.success('견적이 초기화되었습니다.');
