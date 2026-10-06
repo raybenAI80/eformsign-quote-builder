@@ -10,6 +10,7 @@ import {
 } from '@react-pdf/renderer';
 import { QuoteMeta, CalculationResult } from '../types';
 import { SUPPLIER_PROFILE } from '../constants';
+import { addDaysLocal } from '../hooks/useQuote';
 
 // Note: Using default Helvetica font for now
 // For Korean text support, a local font file would need to be bundled
@@ -310,10 +311,7 @@ export const QuotePDFDocument: React.FC<QuotePDFDocumentProps> = ({ meta, calcul
     const isStamped = meta.sealMode === 'stamped';
 
     // Calculate Due Date
-    const quoteDateObj = new Date(meta.quoteDate || new Date());
-    const dueDateObj = new Date(quoteDateObj);
-    dueDateObj.setDate(quoteDateObj.getDate() + (meta.validityDays || 14));
-    const dueDateStr = dueDateObj.toISOString().split('T')[0];
+    const dueDateStr = addDaysLocal(meta.quoteDate, meta.validityDays || 14);
 
     const quoteTitle = meta.brandingMode === 'ai' ? 'AI 견적서' :
         meta.brandingMode === 'public' ? '공공 견적서' : '견적서';

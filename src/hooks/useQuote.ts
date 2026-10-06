@@ -71,6 +71,33 @@ export const getLocalToday = (date: Date = new Date()): string => {
   return `${y}-${m}-${d}`;
 };
 
+// Parse 'YYYY-MM-DD' as LOCAL midnight (new Date('YYYY-MM-DD') is UTC midnight).
+// Falls back to today when the string is empty or malformed.
+export const parseLocalDate = (dateStr?: string): Date => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr ?? '');
+  if (!m) {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+};
+
+// dateStr + n days, computed in local time, returned as local YYYY-MM-DD
+export const addDaysLocal = (dateStr: string | undefined, days: number): string => {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return getLocalToday(d);
+};
+
+// dateStr + n months in local time; clamps to month end (e.g. 01-31 + 1 → 02-28/29)
+export const addMonthsLocal = (dateStr: string | undefined, months: number): string => {
+  const d = parseLocalDate(dateStr);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() !== day) d.setDate(0);
+  return getLocalToday(d);
+};
+
 export const createDefaultMeta = (): QuoteMeta => {
   const today = getLocalToday();
   return {

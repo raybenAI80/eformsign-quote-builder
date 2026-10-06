@@ -3,6 +3,7 @@ import { QuoteMeta, CalculationResult, CalculatedRow } from '../types';
 import { toKRW, nf } from '../utils/formatters';
 import { SUPPLIER_PROFILE, getCategoryLabel, CategorySection } from '../constants';
 import { EformsignLogo } from './EformsignLogo';
+import { addMonthsLocal, parseLocalDate } from '../hooks/useQuote';
 
 interface PreviewPanelProps {
   meta: QuoteMeta;
@@ -54,20 +55,13 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
   const showRowDiscount = showDiscount && !isSubsidy;
 
   // Calculate Due Date
-  const quoteDateObj = new Date(meta.quoteDate || new Date());
-  // 견적 기한: 견적일로부터 N개월 (기본 1개월). 월말 초과 시 해당 월 말일로 클램프
+  // 견적 기한: 견적일로부터 N개월 (기본 1개월). 월말 초과 시 해당 월 말일로 클램프 (로컬 날짜 기준)
   const validityMonths = meta.validityMonths && meta.validityMonths > 0 ? meta.validityMonths : 1;
-  const dueDateObj = new Date(quoteDateObj);
-  const targetDay = dueDateObj.getDate();
-  dueDateObj.setMonth(dueDateObj.getMonth() + validityMonths);
-  if (dueDateObj.getDate() !== targetDay) {
-    dueDateObj.setDate(0); // 예: 1/31 + 1개월 → 2월 말일
-  }
-  const dueDateStr = dueDateObj.toISOString().split('T')[0];
+  const dueDateStr = addMonthsLocal(meta.quoteDate, validityMonths);
 
   // 한글 요일 포맷터 (요일은 날짜보다 작게)
   const formatDateWithDay = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr);
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     const dayName = days[date.getDay()];
     return (

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 
-import { useQuote, calculateQuote } from './hooks/useQuote';
+import { useQuote, calculateQuote, getLocalToday } from './hooks/useQuote';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
 import { exportToImage, exportToPdf, exportMergedPdf } from './utils/exportPdf';
 
@@ -175,7 +175,7 @@ function QuoteBuilder() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `견적서_${meta.customerName || 'draft'}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `견적서_${meta.customerName || 'draft'}_${getLocalToday()}.csv`;
     link.click();
     toast.success('CSV 파일로 내보냈습니다.');
   };
@@ -220,7 +220,7 @@ function QuoteBuilder() {
     async (selected: SavedQuote[]): Promise<boolean> => {
       setIsMerging(true);
       try {
-        const dateStr = new Date().toISOString().slice(0, 10);
+        const dateStr = getLocalToday();
         const filename = `이폼사인_병합견적서_${selected.length}건_${dateStr}`;
         const ok = await exportMergedPdf(
           selected.map(q => ({ name: q.name, meta: q.meta, items: q.items })),
