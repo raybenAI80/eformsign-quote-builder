@@ -29,3 +29,7 @@ dist-ssr
 .env.*.local
 
 .vercel
+
+# Local work files (progress/inbox) and gate receipts
+.work/
+**/.gates/
