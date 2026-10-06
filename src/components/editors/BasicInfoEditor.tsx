@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { QuoteMeta } from '../../types';
-import { buildQuoteNo, formatSequence } from '../../hooks/useQuote';
+import { buildQuoteNo, formatSequence, addMonthsLocal, parseLocalDate } from '../../hooks/useQuote';
 import { parseNum } from '../../utils/helpers';
 import { DEFAULT_REFERENCE_NOTES } from '../../constants';
 
@@ -180,13 +180,7 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                         </div>
                         {meta.quoteDate && (
                             <p className="mt-1.5 text-[11px] text-[#00a99d] font-medium">
-                                만료: {(() => {
-                                    const d = new Date(meta.quoteDate);
-                                    const day = d.getDate();
-                                    d.setMonth(d.getMonth() + (meta.validityMonths ?? 1));
-                                    if (d.getDate() !== day) d.setDate(0);
-                                    return d.toLocaleDateString();
-                                })()}
+                                만료: {parseLocalDate(addMonthsLocal(meta.quoteDate, meta.validityMonths ?? 1)).toLocaleDateString()}
                             </p>
                         )}
                     </div>

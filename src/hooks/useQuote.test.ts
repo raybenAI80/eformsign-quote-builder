@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta } from './useQuote';
+import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal } from './useQuote';
 import { QuoteItem } from '../types';
 
 describe('formatSequence', () => {
@@ -469,5 +469,34 @@ describe('normalizeRestoredMeta (앱 로드 시 복원)', () => {
         expect(restored.contactName).toBe('김영업');
         expect(restored.contactEmail).toBe('sales@forcs.com');
         expect(restored.supplier).toBe('㈜포시에스');
+    });
+});
+
+describe('local date helpers', () => {
+    it('parseLocalDate parses YYYY-MM-DD as local midnight', () => {
+        const d = parseLocalDate('2026-01-31');
+        expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2026, 0, 31, 0]);
+    });
+
+    it('addDaysLocal crosses month boundary in local time', () => {
+        expect(addDaysLocal('2026-01-31', 1)).toBe('2026-02-01');
+        expect(addDaysLocal('2026-01-31', 14)).toBe('2026-02-14');
+        expect(addDaysLocal('2026-12-31', 1)).toBe('2027-01-01');
+    });
+
+    it('addMonthsLocal clamps to month end', () => {
+        expect(addMonthsLocal('2026-01-31', 1)).toBe('2026-02-28');
+        expect(addMonthsLocal('2028-01-31', 1)).toBe('2028-02-29');
+        expect(addMonthsLocal('2026-03-15', 2)).toBe('2026-05-15');
+    });
+
+    it('getLocalToday uses local date just after local midnight (not UTC)', () => {
+        // 00:30 local on 2026-02-01 — in KST this is still 2026-01-31 in UTC
+        const justAfterMidnight = new Date(2026, 1, 1, 0, 30);
+        expect(getLocalToday(justAfterMidnight)).toBe('2026-02-01');
+    });
+
+    it('falls back to today for empty input', () => {
+        expect(addDaysLocal('', 0)).toBe(getLocalToday());
     });
 });
