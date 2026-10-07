@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { restoreCustomerPlaceholders } from '../utils/referenceNotes';
 import {
   QuoteItem,
   QuoteMeta,
@@ -244,7 +245,11 @@ const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMe
     customerManager: meta.customerManager ?? '',
     brandingMode:
       (typeof legacyAi === 'boolean' ? (legacyAi ? 'ai' : 'default') : meta.brandingMode ?? 'ai'),
-    referenceNotes: meta.referenceNotes?.length ? meta.referenceNotes : defaultNotes,
+    // Notes saved by the old editor may have the customer name baked in; restore the placeholder
+    // (uses this meta's own customerName, so it runs before normalizeRestoredMeta clears it).
+    referenceNotes: meta.referenceNotes?.length
+      ? restoreCustomerPlaceholders(meta.referenceNotes, meta.customerName) ?? meta.referenceNotes
+      : defaultNotes,
     showDiscount: meta.showDiscount !== false,
     sector: meta.sector ?? 'general',
     subsidyRate: typeof meta.subsidyRate === 'number' ? meta.subsidyRate : 0,

@@ -21,6 +21,13 @@ import { QuoteMeta } from '../../types';
 import { buildQuoteNo, formatSequence, addMonthsLocal, parseLocalDate } from '../../hooks/useQuote';
 import { parseNum } from '../../utils/helpers';
 import { DEFAULT_REFERENCE_NOTES } from '../../constants';
+import {
+    CUSTOMER_NAME_PLACEHOLDER,
+    hasCustomerPlaceholder,
+    renderReferenceNote,
+    restoreCustomerPlaceholders,
+    toEditableReferenceNote,
+} from '../../utils/referenceNotes';
 
 interface BasicInfoEditorProps {
     meta: QuoteMeta;
@@ -436,8 +443,8 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                             onClick={() => {
                                 // localStorage에서 저장된 커스텀 기본값이 있으면 사용, 없으면 DEFAULT_REFERENCE_NOTES 사용
                                 const savedNotes = localStorage.getItem('eformsign_custom_reference_notes');
-                                const notesToLoad = savedNotes ? JSON.parse(savedNotes) : [...DEFAULT_REFERENCE_NOTES];
-                                setMeta(m => ({ ...m, referenceNotes: notesToLoad }));
+                                const notesToLoad: string[] = savedNotes ? JSON.parse(savedNotes) : [...DEFAULT_REFERENCE_NOTES];
+                                setMeta(m => ({ ...m, referenceNotes: restoreCustomerPlaceholders(notesToLoad, m.customerName) ?? notesToLoad }));
                             }}
                             className="py-2.5 px-4 bg-purple-50 border border-purple-200 rounded-xl text-sm font-medium text-purple-600 hover:bg-purple-100 hover:border-purple-300 transition-colors flex items-center justify-center gap-2"
                         >
@@ -535,10 +542,11 @@ const SortableNoteItem: React.FC<SortableNoteItemProps> = ({
         zIndex: isDragging ? 10 : 1,
     };
 
-    // {customerName} 또는 {고객사명} 플레이스홀더를 동적으로 치환
-    const displayValue = note
-        .replace('{customerName}', customerName || '고객사')
-        .replace('{고객사명}', customerName || '고객사');
+    // The textarea edits the stored text (placeholder kept); the substituted text is
+    // shown only as a hint. Editing the substituted text used to bake the customer
+    // name into the note and break the link with the customer-name field.
+    const editableValue = toEditableReferenceNote(note);
+    const renderedValue = hasCustomerPlaceholder(note) ? renderReferenceNote(note, customerName) : null;
 
     return (
         <div
@@ -566,13 +574,20 @@ const SortableNoteItem: React.FC<SortableNoteItemProps> = ({
             </div>
             <div className="flex items-center gap-2 flex-1 p-2">
                 <span className="text-blue-500 text-sm font-bold min-w-[24px]">{index + 1}.</span>
-                <textarea
-                    className="input-field flex-1 bg-gray-50/50 text-sm resize-none"
-                    rows={2}
-                    value={displayValue}
-                    onChange={e => onUpdate(e.target.value)}
-                    placeholder="참조 사항 입력..."
-                />
+                <div className="flex-1 min-w-0 space-y-1">
+                    <textarea
+                        className="input-field w-full bg-gray-50/50 text-sm resize-none"
+                        rows={2}
+                        value={editableValue}
+                        onChange={e => onUpdate(e.target.value)}
+                        placeholder="참조 사항 입력..."
+                    />
+                    {renderedValue !== null && (
+                        <p className="px-1 text-xs text-gray-500 break-keep" data-testid={`note-rendered-${index}`}>
+                            <span className="font-medium text-purple-600">{CUSTOMER_NAME_PLACEHOLDER}</span> → 고객사명으로 표시: {renderedValue}
+                        </p>
+                    )}
+                </div>
                 <button
                     type="button"
                     onClick={onRemove}

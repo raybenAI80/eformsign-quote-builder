@@ -21,6 +21,7 @@ import { OnboardingTour, hasCompletedOnboarding, resetOnboarding } from './compo
 
 // Auth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { restoreCustomerPlaceholders } from './utils/referenceNotes';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 function QuoteBuilder() {
@@ -208,7 +209,12 @@ function QuoteBuilder() {
 
   const handleLoadSavedQuote = useCallback(
     (quote: SavedQuote) => {
-      actions.setMeta(() => ({ ...quote.meta }));
+      // Notes saved by the old editor may have the customer name baked in; restore the placeholder.
+      actions.setMeta(() => ({
+        ...quote.meta,
+        referenceNotes:
+          restoreCustomerPlaceholders(quote.meta.referenceNotes, quote.meta.customerName) ?? quote.meta.referenceNotes,
+      }));
       actions.setItems(quote.items);
       setShowSavedPanel(false);
       toast.success(`"${quote.name}" 견적서를 불러왔습니다. 미리보기가 업데이트되었습니다.`);

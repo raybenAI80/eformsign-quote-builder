@@ -500,3 +500,17 @@ describe('local date helpers', () => {
         expect(addDaysLocal('', 0)).toBe(getLocalToday());
     });
 });
+
+describe('normalizeRestoredMeta 참조사항 자리표시자 구제', () => {
+    it('고객사명이 굳어 저장된 첫 문구는 고객사명을 비우기 전에 자리표시자로 복원한다', () => {
+        const stored = {
+            ...createDefaultMeta(),
+            customerName: '디이에프',
+            referenceNotes: ['본 견적은 『디이에프의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다. (수정)', '계약기간'],
+        };
+        const restored = normalizeRestoredMeta(stored);
+        expect(restored.customerName).toBe('');
+        expect(restored.referenceNotes[0]).toBe('본 견적은 『{고객사명}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다. (수정)');
+        expect(restored.referenceNotes[1]).toBe('계약기간');
+    });
+});
