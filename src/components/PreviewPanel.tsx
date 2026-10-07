@@ -4,6 +4,7 @@ import { toKRW, nf } from '../utils/formatters';
 import { SUPPLIER_PROFILE, getCategoryLabel, CategorySection } from '../constants';
 import { EformsignLogo } from './EformsignLogo';
 import { addMonthsLocal, parseLocalDate } from '../hooks/useQuote';
+import { renderReferenceNote } from '../utils/referenceNotes';
 
 interface PreviewPanelProps {
   meta: QuoteMeta;
@@ -496,9 +497,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
             </h3>
             <div className="space-y-2 text-[13px] text-gray-600 leading-relaxed">
               {meta.referenceNotes.map((note, i) => {
-                const displayNote = note
-                  .replace('{customerName}', meta.customerName || '고객사')
-                  .replace('{고객사명}', meta.customerName || '고객사');
+                const displayNote = renderReferenceNote(note, meta.customerName);
                 return displayNote.trim() && (
                   <p key={i} className="flex gap-2">
                     <span className="text-gray-400 shrink-0">{i + 1}.</span>
