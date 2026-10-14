@@ -1,0 +1,707 @@
+{
+  "version": 1,
+  "automation": {
+    "autoLearnOnStart": true,
+    "autoLearnOnClose": true,
+    "autoHandoffOnStop": true,
+    "autoVerifyOnStop": false,
+    "scheduledTaskName": "SystemIntelligenceAutomation"
+  },
+  "verification": {
+    "fallbackToInference": true,
+    "commands": [
+      {
+        "command": "npm run build",
+        "reason": "build",
+        "required": true
+      },
+      {
+        "command": "pwsh -File \".\\scripts\\run-completion-gate.ps1\"",
+        "reason": "Verify the local harness contract, company workstream model, and completion gate stay aligned",
+        "required": true
+      }
+    ],
+    "ui": {
+      "autoRequireForUiChanges": true,
+      "forceRequired": false,
+      "url": "",
+      "path": "/",
+      "expectText": "",
+      "screenshotDir": ".sysint\\browser-evidence",
+      "freshnessMinutes": 240
+    }
+  },
+  "recovery": {
+    "autoStartDevServers": false,
+    "cleanupCommands": null,
+    "healthTimeoutSeconds": 45,
+    "devServers": [
+      {
+        "name": "dev",
+        "command": "npm run dev",
+        "cwd": ".",
+        "port": 3000,
+        "url": "http://localhost:3000",
+        "replaceExisting": false
+      },
+      {
+        "name": "preview",
+        "command": "npm run preview",
+        "cwd": ".",
+        "port": 4173,
+        "url": "http://localhost:4173",
+        "replaceExisting": false
+      }
+    ]
+  },
+  "ci": {
+    "defaultProvider": "external"
+  },
+  "sync": {
+    "enabled": false,
+    "targetRoot": "",
+    "autoPushOnAutomation": false,
+    "machineName": "GRAM"
+  },
+  "autoElevation": {
+    "enabled": true,
+    "sessionLimit": 3,
+    "maxSeenHashes": 200,
+    "applyOnAutomationStop": true,
+    "applyOnAutomationRun": false,
+    "recordLessons": true,
+    "globalDocumentPreflightProfilePath": "C:\\Users\\FORCS\\.agent-harness\\profiles\\document-preflight-base.json",
+    "globalDocumentPreflightProfile": "formal_ko_government_doc",
+    "documentPreflightTargets": []
+  },
+  "skillEvolution": {
+    "enabled": true,
+    "applyOnAutomationStop": true,
+    "applyOnAutomationRun": false,
+    "minConfidence": 0.8,
+    "minEvidenceCount": 1,
+    "maxDraftsPerStop": 1,
+    "outputRoot": "C:\\Users\\FORCS\\.codex\\data\\system-intelligence\\generated-skills"
+  },
+  "nativeEditors": {
+    "reuseExistingTargetWindow": true,
+    "closeBlankDocumentsBeforeOpen": true,
+    "guardSavesByTargetWindow": true,
+    "forbidBlindActiveDocumentSave": true,
+    "requireVisibleReloadAfterExternalEdits": true,
+    "requireVisualVerificationForVisualClaims": true
+  },
+  "artifacts": {
+    "enabled": true,
+    "tempMaxAgeHours": 12,
+    "evidenceMaxAgeHours": 24,
+    "tempPatterns": [
+      ".tmp-*.png",
+      "tmp-*.png",
+      ".tmp-*.jpg",
+      "tmp-*.jpg",
+      ".tmp-*.jpeg",
+      "tmp-*.jpeg",
+      ".tmp-*.gif",
+      "tmp-*.gif",
+      ".tmp-*.webm",
+      "tmp-*.webm",
+      ".tmp-*.mp4",
+      "tmp-*.mp4"
+    ],
+    "evidenceDirectories": ".sysint\\browser-evidence",
+    "evidencePatterns": [
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webm",
+      "*.mp4"
+    ]
+  },
+  "health": {
+    "staleSnapshotHours": 24,
+    "staleVerificationHours": 24,
+    "staleCiHours": 72,
+    "blockedPenalty": 30,
+    "failedVerificationPenalty": 25,
+    "failedCiPenalty": 20,
+    "failedRecoveryPenalty": 15,
+    "missingVerificationPenalty": 10,
+    "missingCiPenalty": 5,
+    "staleSnapshotPenalty": 10,
+    "staleVerificationPenalty": 12,
+    "staleCiPenalty": 8
+  },
+  "orchestration": {
+    "defaultLanes": [
+      "explore",
+      "implement",
+      "verify"
+    ],
+    "defaultReviewRequired": true,
+    "parallelDispatchDefault": "parallel_when_independent",
+    "defaultForIndependentSubtasks": true,
+    "minIndependentLanesForParallel": 2,
+    "avoidParallelOnCriticalPath": true,
+    "avoidParallelOnOverlappingWriteScopes": true,
+    "avoidParallelForTrivialTasks": true,
+    "autoPlanForSubstantialTasks": true,
+    "substantialTitleWordThreshold": 5,
+    "autoScaleForLargeTasks": true,
+    "largeTaskWordThreshold": 9,
+    "largeTaskMinDomainCount": 2,
+    "maxAutoParallelLanes": 7,
+    "scaleTriggerTags": [
+      "large",
+      "epic",
+      "parallel",
+      "multi-agent",
+      "cross-functional",
+      "cross-surface",
+      "company-workstream",
+      "design",
+      "qa",
+      "release",
+      "growth"
+    ],
+    "companyModel": {
+      "recommendedActiveWorkers": 6,
+      "codeExecutionPlane": "ao",
+      "rolePlane": "gstack",
+      "gatedLanes": [
+        "qa",
+        "review-release"
+      ],
+      "activation": {
+        "requireDependencyCompletion": true,
+        "requireFreshVerificationForGatedLanes": true,
+        "requireBoundRuntimeForCodeLanes": true,
+        "requireBoundWorkerToStartSubstantialTasks": true,
+        "requireRuntimeBindingForLaneStart": true,
+        "autoPromoteParentTaskOnWorkerBind": true
+      },
+      "runtimeRouting": {
+        "defaults": {
+          "code": "codex",
+          "role": "gstack"
+        },
+        "lanes": {
+          "product-strategy": "gstack",
+          "strategy": "gstack",
+          "design": "gstack",
+          "backend": "codex",
+          "frontend": "codex",
+          "infra": "codex",
+          "analytics": "codex",
+          "growth-marketing": "gstack",
+          "qa": "gstack",
+          "review-release": "gstack",
+          "submission-strategy": "gstack",
+          "evidence-review": "gstack",
+          "document-authoring": "gstack"
+        },
+        "concurrency": {
+          "maxActiveWorkers": 6,
+          "maxCodeWorkers": 4,
+          "maxRoleSessions": 3,
+          "maxConcurrentActivations": 4
+        }
+      },
+      "rolePacks": {
+        "product-discovery": {
+          "description": "Shape the problem, scope, and execution framing before code lanes begin.",
+          "gstack": [
+            "/office-hours",
+            "/plan-ceo-review",
+            "/plan-eng-review"
+          ],
+          "deliverables": [
+            "problem framing",
+            "success metrics",
+            "staffing decision"
+          ],
+          "entryGate": "Run /office-hours first whenever scope, wedge, evaluator lens, or narrative is still unsettled.",
+          "useWhen": [
+            "new idea or initiative",
+            "problem framing or wedge is still ambiguous",
+            "submission framing is not locked"
+          ]
+        },
+        "design-review": {
+          "description": "Drive the design direction, UX risk review, and implementation constraints.",
+          "gstack": [
+            "/plan-design-review",
+            "/design-consultation"
+          ],
+          "deliverables": [
+            "design direction",
+            "UX risk review",
+            "implementation constraints"
+          ],
+          "entryGate": "Open this lane only when the task has real UI, UX, mockup, or live visual-surface scope.",
+          "useWhen": [
+            "UI/UX scope exists",
+            "screens, mockups, dashboards, or live visual flows need review"
+          ],
+          "skipWhen": [
+            "document-only authoring",
+            "infrastructure, auth, MCP, CLI, or backend work with no visual surface"
+          ],
+          "followUpGstack": [
+            "/design-review"
+          ]
+        },
+        "architecture-review": {
+          "description": "Lock architecture boundaries and implementation risks for platform-heavy work.",
+          "gstack": [
+            "/office-hours",
+            "/plan-eng-review"
+          ],
+          "deliverables": [
+            "architecture decision",
+            "system boundaries",
+            "execution risks"
+          ]
+        },
+        "quality-gate": {
+          "description": "Run structured QA and produce a ship-or-fix recommendation.",
+          "gstack": [
+            "/qa",
+            "/qa-only"
+          ],
+          "deliverables": [
+            "test charter",
+            "bug triage",
+            "ship recommendation"
+          ]
+        },
+        "release-governance": {
+          "description": "Review the diff, make the release decision, and sync user-facing documentation.",
+          "gstack": [
+            "/review",
+            "/ship",
+            "/document-release"
+          ],
+          "deliverables": [
+            "release decision",
+            "launch checklist",
+            "documentation sync"
+          ]
+        },
+        "growth-strategy": {
+          "description": "Define the growth hypothesis, funnel focus, and experiment priorities.",
+          "gstack": [
+            "/office-hours",
+            "/plan-ceo-review"
+          ],
+          "deliverables": [
+            "growth hypothesis",
+            "funnel plan",
+            "experiment priorities"
+          ]
+        },
+        "growth-marketing": {
+          "description": "Turn the growth strategy into a channel brief and launch messaging.",
+          "gstack": [
+            "/document-release"
+          ],
+          "deliverables": [
+            "campaign brief",
+            "channel plan",
+            "launch messaging"
+          ]
+        },
+        "submission-strategy": {
+          "description": "Frame the submission narrative, evaluator lens, and proof strategy.",
+          "deliverables": [
+            "submission narrative",
+            "evaluator lens",
+            "evidence gap list"
+          ],
+          "gstack": [
+            "/office-hours",
+            "/plan-ceo-review"
+          ],
+          "entryGate": "If the submission narrative, evaluator lens, or competitive wedge is not already locked, start with /office-hours.",
+          "useWhen": [
+            "government or procurement submission strategy",
+            "narrative repositioning",
+            "proposal rewrite around a stronger wedge"
+          ]
+        },
+        "submission-evidence": {
+          "description": "Audit source proof and map each claim to evidence.",
+          "deliverables": [
+            "evidence matrix",
+            "proof links",
+            "missing evidence list"
+          ]
+        },
+        "submission-authoring": {
+          "description": "Turn the approved narrative and evidence set into a document-ready draft plan.",
+          "deliverables": [
+            "section ownership",
+            "authoring checklist",
+            "draft assembly plan"
+          ]
+        },
+        "submission-review": {
+          "description": "Run compliance and submission-quality review before final packaging.",
+          "gstack": [
+            "/review"
+          ],
+          "deliverables": [
+            "document defect list",
+            "compliance review",
+            "submission readiness"
+          ]
+        },
+        "submission-release": {
+          "description": "Package the final artifacts, release notes, and filing checklist.",
+          "gstack": [
+            "/document-release"
+          ],
+          "deliverables": [
+            "filing checklist",
+            "final package review",
+            "archive note"
+          ]
+        }
+      },
+      "templates": {
+        "feature": {
+          "description": "Product feature work across product, design, engineering, QA, and release.",
+          "lanes": [
+            {
+              "lane": "product-strategy",
+              "titlePrefix": "Product strategy",
+              "kind": "non_code",
+              "plane": "role",
+              "rolePack": "product-discovery"
+            },
+            {
+              "lane": "design",
+              "titlePrefix": "Design review",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "product-strategy"
+              ],
+              "rolePack": "design-review"
+            },
+            {
+              "lane": "backend",
+              "titlePrefix": "Backend implementation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "product-strategy"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "frontend",
+              "titlePrefix": "Frontend implementation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "product-strategy",
+                "design"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "qa",
+              "titlePrefix": "QA validation",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "backend",
+                "frontend"
+              ],
+              "rolePack": "quality-gate"
+            },
+            {
+              "lane": "review-release",
+              "titlePrefix": "Review and release",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "qa"
+              ],
+              "rolePack": "release-governance"
+            }
+          ]
+        },
+        "platform": {
+          "description": "Platform or infrastructure work across architecture, backend, infra, QA, and release.",
+          "lanes": [
+            {
+              "lane": "product-strategy",
+              "titlePrefix": "Architecture and scope",
+              "kind": "non_code",
+              "plane": "role",
+              "rolePack": "architecture-review"
+            },
+            {
+              "lane": "backend",
+              "titlePrefix": "Backend implementation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "product-strategy"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "infra",
+              "titlePrefix": "Infrastructure implementation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "product-strategy"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "qa",
+              "titlePrefix": "Operational QA",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "backend",
+                "infra"
+              ],
+              "rolePack": "quality-gate",
+              "gstack": [
+                "/review"
+              ]
+            },
+            {
+              "lane": "review-release",
+              "titlePrefix": "Operational release review",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "qa"
+              ],
+              "rolePack": "release-governance"
+            }
+          ]
+        },
+        "growth": {
+          "description": "Growth work across strategy, design, frontend, analytics, marketing, QA, and release.",
+          "lanes": [
+            {
+              "lane": "strategy",
+              "titlePrefix": "Growth strategy",
+              "kind": "non_code",
+              "plane": "role",
+              "rolePack": "growth-strategy"
+            },
+            {
+              "lane": "design",
+              "titlePrefix": "Growth design",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "strategy"
+              ],
+              "rolePack": "design-review"
+            },
+            {
+              "lane": "frontend",
+              "titlePrefix": "Growth frontend implementation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "strategy",
+                "design"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "analytics",
+              "titlePrefix": "Analytics instrumentation",
+              "kind": "code",
+              "plane": "execution",
+              "dependsOn": [
+                "strategy"
+              ],
+              "aoEligible": true
+            },
+            {
+              "lane": "growth-marketing",
+              "titlePrefix": "Growth marketing",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "strategy",
+                "design"
+              ],
+              "rolePack": "growth-marketing"
+            },
+            {
+              "lane": "qa",
+              "titlePrefix": "Growth QA",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "frontend",
+                "analytics"
+              ],
+              "rolePack": "quality-gate"
+            },
+            {
+              "lane": "review-release",
+              "titlePrefix": "Growth release review",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "qa"
+              ],
+              "rolePack": "release-governance"
+            }
+          ]
+        },
+        "submission": {
+          "description": "Submission and document work across strategy, evidence, authoring, QA, and release.",
+          "lanes": [
+            {
+              "lane": "submission-strategy",
+              "titlePrefix": "Submission strategy",
+              "kind": "non_code",
+              "plane": "role",
+              "rolePack": "submission-strategy"
+            },
+            {
+              "lane": "evidence-review",
+              "titlePrefix": "Evidence review",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "submission-strategy"
+              ],
+              "rolePack": "submission-evidence"
+            },
+            {
+              "lane": "document-authoring",
+              "titlePrefix": "Document authoring",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "submission-strategy",
+                "evidence-review"
+              ],
+              "rolePack": "submission-authoring"
+            },
+            {
+              "lane": "qa",
+              "titlePrefix": "Document QA",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "document-authoring"
+              ],
+              "rolePack": "submission-review"
+            },
+            {
+              "lane": "review-release",
+              "titlePrefix": "Submission release review",
+              "kind": "non_code",
+              "plane": "role",
+              "dependsOn": [
+                "qa"
+              ],
+              "rolePack": "submission-release"
+            }
+          ]
+        }
+      },
+      "autoBootstrap": {
+        "helperScript": "scripts\\auto-start-company-workstream.ps1",
+        "activateInitialRoleLanes": true,
+        "activateInitialCodeLanes": false,
+        "discoveryKeywords": [
+          "idea",
+          "brainstorm",
+          "strategy",
+          "scope",
+          "narrative",
+          "rewrite",
+          "draft",
+          "framing",
+          "wedge",
+          "기획",
+          "아이디어",
+          "전략",
+          "방향",
+          "구상",
+          "재작성",
+          "초안"
+        ],
+        "visualKeywords": [
+          "ui",
+          "ux",
+          "design",
+          "mockup",
+          "wireframe",
+          "screen",
+          "landing",
+          "page",
+          "visual",
+          "prototype",
+          "frontend",
+          "디자인",
+          "화면",
+          "목업",
+          "랜딩",
+          "프로토타입",
+          "시각"
+        ],
+        "submissionKeywords": [
+          "제출",
+          "공고",
+          "조달",
+          "신청",
+          "서식",
+          "평가",
+          "증빙",
+          "설명서",
+          "proposal",
+          "submission",
+          "tender",
+          "rfp"
+        ],
+        "growthKeywords": [
+          "growth",
+          "marketing",
+          "campaign",
+          "funnel",
+          "conversion",
+          "launch",
+          "seo",
+          "gtm"
+        ],
+        "platformKeywords": [
+          "platform",
+          "infra",
+          "runtime",
+          "automation",
+          "orchestration",
+          "harness",
+          "ci",
+          "verification",
+          "pipeline"
+        ]
+      }
+    }
+  },
+  "ui": {
+    "dashboardHtmlPath": "C:\\Users\\FORCS\\.codex\\data\\system-intelligence\\dashboard.html",
+    "dashboardJsonPath": "C:\\Users\\FORCS\\.codex\\data\\system-intelligence\\dashboard.json",
+    "dashboardPort": 8765,
+    "openAfterExport": false
+  }
+}

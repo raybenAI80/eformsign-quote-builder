@@ -1,0 +1,30 @@
+# Tracked baseline for running Agent Orchestrator from WSL against this repo.
+# If you later keep a WSL-native clone, update `projects.eformsign-quote-builder.path`.
+
+dataDir: /home/forcs/.agent-orchestrator
+worktreeDir: /home/forcs/.worktrees
+
+port: 3310
+terminalPort: 14810
+directTerminalPort: 14811
+
+defaults:
+  runtime: tmux
+  agent: codex
+  workspace: worktree
+  notifiers: []
+
+projects:
+  eformsign-quote-builder:
+    name: eformsign Quote Builder
+    repo: rayben80/eformsign-quote-builder
+    path: /mnt/c/eformsign-견적서-빌더
+    defaultBranch: main
+    sessionPrefix: eformsign
+    tracker:
+      plugin: github
+    postCreate:
+      - "npm ci"
+    agentConfig:
+      permissions: default
+    agentRulesFile: .agent-rules.md

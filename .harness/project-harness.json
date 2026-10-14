@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "verification": {
+    "commands": {
+      "lint": {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-project-verification.ps1 -Name lint",
+        "required": true
+      },
+      "typecheck": {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-project-verification.ps1 -Name typecheck",
+        "required": true
+      },
+      "test": {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-project-verification.ps1 -Name test",
+        "required": true
+      }
+    },
+    "stages": {
+      "preCommit": [
+        "lint",
+        "typecheck"
+      ],
+      "prePush": [
+        "test"
+      ],
+      "completion": [
+        "lint",
+        "typecheck",
+        "test"
+      ]
+    }
+  },
+  "docs": {
+    "enforceChangedFilesRule": false,
+    "docPaths": [
+      "docs\\",
+      "AGENTS.md"
+    ],
+    "codePathsRequiringDocs": [
+      "src\\",
+      "app\\",
+      "packages\\",
+      "lib\\",
+      "server\\",
+      "api\\",
+      "config\\",
+      "schema\\",
+      "schemas\\"
+    ]
+  },
+  "hooks": {
+    "installGitHooksByDefault": true
+  }
+}
