@@ -37,8 +37,8 @@ try {
       const res = await route.fetch();
       let body = await res.text();
       const n0 = body.length;
-      body = body.replace(/scale: 2,/g, () => { patched++; return 'scale: (window.__Q?.scale ?? 2),'; });
-      body = body.replace(/toDataURL\((["'])image\/jpeg\1, 0\.95\)/g, () => { patched++; return 'toDataURL((window.__Q?.mime ?? "image/jpeg"), (window.__Q?.quality ?? 0.95))'; });
+      body = body.replace(/scale: (?:2|PDF_CAPTURE_SCALE),/g, () => { patched++; return 'scale: (window.__Q?.scale ?? 2),'; });
+      body = body.replace(/toDataURL\((["'])image\/jpeg\1, (?:0\.95|PDF_JPEG_QUALITY)\)/g, () => { patched++; return 'toDataURL((window.__Q?.mime ?? "image/jpeg"), (window.__Q?.quality ?? 0.95))'; });
       body = body.replace(/addImage\((\w+), (["'])JPEG\2,/g, (_m, v) => { patched++; return `addImage(${v}, (window.__Q?.fmt ?? "JPEG"),`; });
       const headers = { ...res.headers() };
       delete headers['content-length']; delete headers.etag; delete headers['cache-control'];
