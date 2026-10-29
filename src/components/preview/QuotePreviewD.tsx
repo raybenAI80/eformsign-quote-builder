@@ -13,6 +13,7 @@ import {
 } from './previewModel';
 import { QuoteFooterD } from './QuoteFooterD';
 import { selectFooterKind } from './quoteFooterKind';
+import { getQuoteTitleText } from './quoteTitle';
 import './quotePreviewD.css';
 
 /**
@@ -49,7 +50,7 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
         </>
       );
     }
-    return meta.brandingMode === 'public' ? '공공용 이폼사인 견적서' : '이폼사인 견적서';
+    return getQuoteTitleText(meta.brandingMode);
   };
 
   const renderDate = (dateStr: string) => (

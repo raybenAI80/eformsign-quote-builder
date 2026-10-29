@@ -5,6 +5,7 @@ import download from 'downloadjs';
 import { loadPdfFonts, registerPdfFonts, loadScreenFonts, resolvePdfFont } from './fontLoader';
 import { extractTextElements, TextElement } from './textExtractor';
 import { installFontMetricsFix } from './html2canvasMetrics';
+import { applyPdfMetadata, buildMergedPdfTitle, MERGED_PDF_KEYWORDS, type PdfInfo } from './pdfMetadata';
 import { QuoteMeta, QuoteItem } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +20,15 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const PAGE_MARGIN_X_MM = 2; // Reduced from 5mm to prevent grid collapse
 const PAGE_MARGIN_Y_MM = 2; // Reduced from 5mm
+
+/**
+ * PDF 래스터 화질. 단일 견적(exportToPdf)과 병합 견적(capturePageIntoPdf)이 같은 값을 쓴다.
+ * 캡처 배율 3 · JPEG 0.9 는 배율 2 · JPEG 0.95 보다 글자가 선명하다(품목 3개 견적 기준 PDF 0.87MB → 1.05MB).
+ * 이 값에 의존하는 좌표 계산은 없다: 이미지 배치(pxToMm)는 canvas.width 로, 텍스트 레이어는
+ * 요소 CSS 크기로 구한다. PNG 내보내기(exportToImage)는 별도로 배율 2 를 유지한다.
+ */
+const PDF_CAPTURE_SCALE = 3;
+const PDF_JPEG_QUALITY = 0.9;
 
 /** DEBUG MODE - Set to true to see text placement (red text visible) */
 const DEBUG_OCR = false;
@@ -223,6 +233,27 @@ function drawLinkAnnotations(
     return drawn;
 }
 
+/**
+ * 미리보기를 줄여 보여 주는 조상 요소의 CSS scale 을 캡처 동안 1 로 되돌리고, 복원 함수를 돌려준다.
+ * 줄어든 상태로 캡처하면 html2canvas 가 줄 위치는 축소 좌표로, 글자 크기는 원래 크기로 그려
+ * 글자가 겹치고 아래로 밀린다. PDF 경로(exportToPdf)가 같은 방식으로 되돌린다.
+ */
+function resetAncestorScale(element: HTMLElement): () => void {
+    let wrapper: HTMLElement | null = element.parentElement;
+    while (wrapper) {
+        if (wrapper.style.transform && wrapper.style.transform.includes('scale')) {
+            const original = wrapper.style.transform;
+            wrapper.style.transform = 'scale(1)';
+            void wrapper.offsetHeight; // 레이아웃 강제 갱신
+            return () => {
+                wrapper!.style.transform = original;
+            };
+        }
+        wrapper = wrapper.parentElement;
+    }
+    return () => {};
+}
+
 export const exportToImage = async (elementId: string, fileName: string) => {
     const element = document.getElementById(elementId);
     if (!element) {
@@ -234,11 +265,21 @@ export const exportToImage = async (elementId: string, fileName: string) => {
         // 화면 글꼴이 로드 전이면 대체 글꼴로 찍히므로 먼저 기다린다
         await loadScreenFonts();
 
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-        });
+        // PDF 경로와 같이 baseline 탐침 보정을 캡처 구간 동안만 건다 (html2canvasMetrics.ts 주석 참고).
+        // 보정이 없으면 html2canvas 가 모든 글자를 약 0.46em 아래에 그린다.
+        const restoreScale = resetAncestorScale(element);
+        const uninstallMetricsFix = installFontMetricsFix();
+        let canvas: HTMLCanvasElement;
+        try {
+            canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+            });
+        } finally {
+            uninstallMetricsFix();
+            restoreScale();
+        }
 
         canvas.toBlob((blob) => {
             if (blob) {
@@ -251,7 +292,10 @@ export const exportToImage = async (elementId: string, fileName: string) => {
     }
 };
 
-export const exportToPdf = async (elementId: string, fileName: string) => {
+/**
+ * @param info PDF 문서 정보(제목·키워드). 생략하면 파일 이름을 제목으로 쓴다.
+ */
+export const exportToPdf = async (elementId: string, fileName: string, info?: PdfInfo) => {
     const element = document.getElementById(elementId);
     if (!element) {
         console.error(`Element with id ${elementId} not found`);
@@ -354,7 +398,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
             console.log(`Extracted ${textElements.length} text elements from ORIGINAL DOM`);
 
             canvas = await html2canvas(element, {
-                scale: 2,
+                scale: PDF_CAPTURE_SCALE,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 logging: false,
@@ -382,8 +426,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
         toast.loading('PDF 생성 중... (PDF 변환)', { id: 'pdf-export' });
 
-        // Use JPEG quality 0.95
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const imgData = canvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
 
         // Use pre-calculated dimensions (already computed before html2canvas)
         // The values are identical since element dimensions don't change
@@ -414,6 +457,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
         // Register Korean font
         registerPdfFonts(pdf);
+        applyPdfMetadata(pdf, info ?? { title: fileName, keywords: '' });
 
         // 2. Add image (centered on A4 portrait page)
         pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
@@ -514,7 +558,7 @@ async function capturePageIntoPdf(
         linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
 
         canvas = await html2canvas(element, {
-            scale: 2,
+            scale: PDF_CAPTURE_SCALE,
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
@@ -545,7 +589,7 @@ async function capturePageIntoPdf(
     const pageNumber = pdf.getNumberOfPages();
     pdf.setPage(pageNumber);
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const imgData = canvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
     pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
 
     const linksDrawn = drawLinkAnnotations(pdf, linkBoxes, a4Height, pageNumber);
@@ -600,6 +644,7 @@ export const exportMergedPdf = async (
 
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         registerPdfFonts(pdf);
+        applyPdfMetadata(pdf, { title: buildMergedPdfTitle(quotes.length), keywords: MERGED_PDF_KEYWORDS });
 
         for (let i = 0; i < quotes.length; i++) {
             toast.loading(`병합 PDF 생성 중... (${i + 1}/${quotes.length})`, { id: 'pdf-merge' });

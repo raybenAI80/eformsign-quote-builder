@@ -4,6 +4,7 @@ import { Toaster, toast } from 'sonner';
 import { useQuote, calculateQuote, getLocalToday } from './hooks/useQuote';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
 import { exportToImage, exportToPdf, exportMergedPdf } from './utils/exportPdf';
+import { buildPdfTitle, buildPdfKeywords } from './utils/pdfMetadata';
 
 // Layout & Editors
 import { MainLayout } from './components/layout/MainLayout';
@@ -191,7 +192,10 @@ function QuoteBuilder() {
     const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '_').trim();
     const typeLabel = meta.brandingMode === 'public' ? '공공용' : '일반용';
     const filename = `이폼사인_${typeLabel} 견적서_${sanitize(meta.customerName)}_${sanitize(meta.quoteDate)}_${sanitize(meta.contactName)}`;
-    await exportToPdf('pdf-preview-panel', filename);
+    await exportToPdf('pdf-preview-panel', filename, {
+      title: buildPdfTitle(meta),
+      keywords: buildPdfKeywords(meta),
+    });
   };
 
   const handleSaveCurrentQuote = useCallback(
