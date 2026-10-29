@@ -57,7 +57,8 @@ vitest 통과와 배포 번들 grep 은 완료 근거가 아니다. 아래를 �
 ## 4. 함정
 
 - **「~할 때」 해석**: "견적서 만들 때 고객사 비움" 같은 시점 표현은 그 상태에 이르는 **모든 경로**를 뜻한다. 초기화 버튼, 앱 로드 복원, 새로고침, 템플릿 새로 작성이 모두 포함된다. 2026-10-02 에는 이 요구를 초기화 버튼으로만 해석해 복원 경로를 빠뜨렸고, 사용자가 "고객정보가 그대로 남아있는데?"라고 지적했다.
-- **toISOString 하루 어긋남**: `new Date().toISOString().slice(0,10)` 은 UTC 기준이다. KST 자정부터 09시까지는 어제 날짜가 나온다. 견적일자는 반드시 `getLocalToday()` 를 쓴다. `PreviewPanel.tsx`·`QuotePDFDocument.tsx` 의 납기일 계산과 `App.tsx` 의 파일명도 `3915d43` 에서 로컬 날짜로 바꿨다.
+- **toISOString 하루 어긋남**: `new Date().toISOString().slice(0,10)` 은 UTC 기준이다. KST 자정부터 09시까지는 어제 날짜가 나온다. 견적일자는 반드시 `getLocalToday()` 를 쓴다. `PreviewPanel.tsx` 의 납기일 계산과 `App.tsx` 의 파일명도 `3915d43` 에서 로컬 날짜로 바꿨다(당시 함께 고친 `QuotePDFDocument.tsx` 는 호출처가 없어 2026-10-29 삭제).
+- **견적 기한 만료일**: 견적일 당일을 포함해 센다. 만료일은 `addValidityEndLocal` 로 계산한다(2026-10-01 + 1개월 = 2026-10-31, 01-31 + 1개월 = 02-28). `addMonthsLocal` 을 만료일에 쓰면 하루가 넘친다(2026-10-29 사용자 지적, `fccc055`).
 - **bypass-auth**: 쿼리 `?bypass-auth` 는 `import.meta.env.DEV` 에서만 동작한다. 배포본에서는 로그인이 필요하다.
 - **1024px 편집기 숨김**: `MainLayout.tsx` 는 `innerWidth < 1024` 이면 편집기 패널을 숨긴다. mobile 프리셋에서는 입력란이 보이지 않는다.
 - **온보딩 모달**: 첫 방문 시 투어가 화면을 가린다. 「건너뛰기」를 누르면 `localStorage` 에 완료 표시가 저장된다.

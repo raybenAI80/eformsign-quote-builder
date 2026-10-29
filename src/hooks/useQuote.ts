@@ -99,6 +99,17 @@ export const addMonthsLocal = (dateStr: string | undefined, months: number): str
   return getLocalToday(d);
 };
 
+// Last valid day of an N-month period that includes dateStr itself (Korean Civil Code art. 160):
+// same day-of-month N months later minus 1 day; if that day does not exist, the month's last day
+export const addValidityEndLocal = (dateStr: string | undefined, months: number): string => {
+  const d = parseLocalDate(dateStr);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() !== day) d.setDate(0);
+  else d.setDate(d.getDate() - 1);
+  return getLocalToday(d);
+};
+
 export const createDefaultMeta = (): QuoteMeta => {
   const today = getLocalToday();
   return {

@@ -3,7 +3,7 @@ import { QuoteMeta, CalculationResult, CalculatedRow } from '../types';
 import { toKRW, nf } from '../utils/formatters';
 import { SUPPLIER_PROFILE, getCategoryLabel, CategorySection } from '../constants';
 import { EformsignLogo } from './EformsignLogo';
-import { addMonthsLocal, parseLocalDate } from '../hooks/useQuote';
+import { addValidityEndLocal, parseLocalDate } from '../hooks/useQuote';
 import { renderReferenceNote } from '../utils/referenceNotes';
 
 interface PreviewPanelProps {
@@ -56,9 +56,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ meta, calculation, c
   const showRowDiscount = showDiscount && !isSubsidy;
 
   // Calculate Due Date
-  // 견적 기한: 견적일로부터 N개월 (기본 1개월). 월말 초과 시 해당 월 말일로 클램프 (로컬 날짜 기준)
+  // 견적 기한: 견적일 당일을 포함해 N개월 (기본 1개월). N개월 뒤 같은 날의 전날이 만료일이고,
+  // 그 날짜가 없으면(월말 초과) 해당 월 말일 (로컬 날짜 기준)
   const validityMonths = meta.validityMonths && meta.validityMonths > 0 ? meta.validityMonths : 1;
-  const dueDateStr = addMonthsLocal(meta.quoteDate, validityMonths);
+  const dueDateStr = addValidityEndLocal(meta.quoteDate, validityMonths);
 
   // 한글 요일 포맷터 (요일은 날짜보다 작게)
   const formatDateWithDay = (dateStr: string) => {
