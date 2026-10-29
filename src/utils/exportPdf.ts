@@ -21,6 +21,15 @@ const A4_HEIGHT_MM = 297;
 const PAGE_MARGIN_X_MM = 2; // Reduced from 5mm to prevent grid collapse
 const PAGE_MARGIN_Y_MM = 2; // Reduced from 5mm
 
+/**
+ * PDF 래스터 화질. 단일 견적(exportToPdf)과 병합 견적(capturePageIntoPdf)이 같은 값을 쓴다.
+ * 캡처 배율 3 · JPEG 0.9 는 배율 2 · JPEG 0.95 보다 글자가 선명하다(품목 3개 견적 기준 PDF 0.87MB → 1.05MB).
+ * 이 값에 의존하는 좌표 계산은 없다: 이미지 배치(pxToMm)는 canvas.width 로, 텍스트 레이어는
+ * 요소 CSS 크기로 구한다. PNG 내보내기(exportToImage)는 별도로 배율 2 를 유지한다.
+ */
+const PDF_CAPTURE_SCALE = 3;
+const PDF_JPEG_QUALITY = 0.9;
+
 /** DEBUG MODE - Set to true to see text placement (red text visible) */
 const DEBUG_OCR = false;
 
@@ -389,7 +398,7 @@ export const exportToPdf = async (elementId: string, fileName: string, info?: Pd
             console.log(`Extracted ${textElements.length} text elements from ORIGINAL DOM`);
 
             canvas = await html2canvas(element, {
-                scale: 2,
+                scale: PDF_CAPTURE_SCALE,
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 logging: false,
@@ -417,8 +426,7 @@ export const exportToPdf = async (elementId: string, fileName: string, info?: Pd
 
         toast.loading('PDF 생성 중... (PDF 변환)', { id: 'pdf-export' });
 
-        // Use JPEG quality 0.95
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const imgData = canvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
 
         // Use pre-calculated dimensions (already computed before html2canvas)
         // The values are identical since element dimensions don't change
@@ -550,7 +558,7 @@ async function capturePageIntoPdf(
         linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
 
         canvas = await html2canvas(element, {
-            scale: 2,
+            scale: PDF_CAPTURE_SCALE,
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
@@ -581,7 +589,7 @@ async function capturePageIntoPdf(
     const pageNumber = pdf.getNumberOfPages();
     pdf.setPage(pageNumber);
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const imgData = canvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
     pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
 
     const linksDrawn = drawLinkAnnotations(pdf, linkBoxes, a4Height, pageNumber);
