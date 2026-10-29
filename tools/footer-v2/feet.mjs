@@ -1,16 +1,11 @@
-// footer-v2 시안 마크업 4종(현재·F1·F2·F3). 앱 구현은 src/components/preview/QuoteFooterD.tsx.
+// footer-v2 시안 마크업 3종(F1·F2·F3). 앱 구현은 src/components/preview/QuoteFooterD.tsx.
 // PUB = 시안 HTML 에서 저장소 public/ 폴더로 가는 상대 경로(build.mjs 가 넘긴다).
-// 푸터 마크업 4종. 문구는 소개서 4p(인증)·강점 이미지(forcs-strengths.png)·1p 에서 글자 그대로 옮겼다.
+// 푸터 마크업 3종. 문구는 소개서 4p(인증)·강점 이미지(forcs-strengths.png, 삭제됨)·1p 에서 글자 그대로 옮겼다.
 export const makeFeet = (PUB) => {
 const EMB = (k, alt) => `<img class="emb emb-${k}" src="${PUB}/design-d/emblems/${k}.png" alt="${alt}">`;
 const EMBS = `${EMB('csap', 'CSAP')}${EMB('kip', 'K-Innovative Product 혁신제품')}${EMB('gov', '과학기술정보통신부')}${EMB('aws', 'AWS Qualified Software')}${EMB('iso', 'ISO 27001 27017 27018')}${EMB('gs', 'GS 1등급')}`;
 
 return {
-  current: `<div class="qd-foot">
-    <img class="qd-badges" src="${PUB}/badges/logo.png" alt="인증 마크">
-    <img class="qd-st" src="${PUB}/forcs-strengths.png" alt="FORCS 강점">
-  </div>`,
-
   // F1 콜로폰: 서명 | 강점 4칸 | 엠블럼 한 줄
   f1: `<div class="qd-foot fx f1">
     <div class="f1-sig">

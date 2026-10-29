@@ -7,7 +7,7 @@ OUT=os.path.join(ROOT,'docs','design-mode','footer-v2')  # 최종 시트
 D=os.path.join(ROOT,'.work','footer-v2')  # build.mjs 중간 산출물
 m=json.load(open(os.path.join(D,'measure.json'),encoding='utf8'))
 F=lambda s,b=False: ImageFont.truetype('C:/Windows/Fonts/malgunbd.ttf' if b else 'C:/Windows/Fonts/malgun.ttf', s)
-V=[('current','현재'),('f1','F1 콜로폰'),('f2','F2 브랜드 밴드'),('f3','F3 인증 원장')]
+V=[('f1','F1 콜로폰'),('f2','F2 브랜드 밴드'),('f3','F3 인증 원장')]
 S=0.69
 rows=[]
 for k,l in V:

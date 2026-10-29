@@ -1,4 +1,5 @@
 // footer-v2 시안 빌드 + 캡처 + 측정 (스크래치용). 실행: node build.mjs
+// 「현재」 시안(배지+강점 이미지)은 해당 이미지 3종 삭제와 함께 뺐다. 기록은 docs/design-mode/footer-v2/current.png.
 import { makeFeet } from './feet.mjs';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,7 +21,6 @@ const extra = readFileSync(join(DIR, 'foot.css'), 'utf8');
 
 
 const VARIANTS = [
-  { id: 'current', label: '현재', name: '배지 + 강점 이미지 (지금 출력물)' },
   { id: 'f1', label: 'F1', name: '콜로폰 — 절제된 활자형' },
   { id: 'f2', label: 'F2', name: '브랜드 밴드 — 슬라이드 1p 장면' },
   { id: 'f3', label: 'F3', name: '인증 원장 — 4p 내용 중심' },
