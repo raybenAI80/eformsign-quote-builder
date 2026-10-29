@@ -262,6 +262,7 @@ export const exportToImage = async (elementId: string, fileName: string) => {
     }
 
     try {
+        toast.loading('이미지 생성 중...', { id: 'png-export' });
         // 화면 글꼴이 로드 전이면 대체 글꼴로 찍히므로 먼저 기다린다
         await loadScreenFonts();
 
@@ -281,14 +282,19 @@ export const exportToImage = async (elementId: string, fileName: string) => {
             restoreScale();
         }
 
+        // PDF 저장과 같이 파일 이름의 ( ) / \ : * ? " < > | 는 '_' 로 바꾼다
+        const safeFileName = fileName.replace(/[()/\\:*?"<>|]/g, '_').trim() + '.png';
         canvas.toBlob((blob) => {
             if (blob) {
-                download(blob, `${fileName}.png`, 'image/png');
+                download(blob, safeFileName, 'image/png');
+                toast.success('PNG 이미지로 저장했습니다.', { id: 'png-export' });
+            } else {
+                toast.error('이미지 저장 중 오류가 발생했습니다.', { id: 'png-export' });
             }
-        });
+        }, 'image/png');
     } catch (error) {
         console.error('Error exporting to image:', error);
-        toast.error('이미지 저장 중 오류가 발생했습니다.');
+        toast.error('이미지 저장 중 오류가 발생했습니다.', { id: 'png-export' });
     }
 };
 
