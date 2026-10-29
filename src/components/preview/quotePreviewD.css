@@ -422,25 +422,180 @@
   flex: 1 1 auto;
   padding-bottom: 22px;
 }
-.qd-foot {
+/*
+ * 하단(푸터). 마크업은 QuoteFooterD.tsx, 설계 근거는 docs/design-mode/footer-v2/DESIGN.md.
+ * 폭 1123px(좌우 여백 52px, 푸터 가용 폭 1019px), 높이 201px 고정. 8px 간격 체계.
+ * 글자 하한 12px. letter-spacing·그림자·blur·미디어쿼리를 쓰지 않는다.
+ */
+.paper.qd-paper .qd-foot {
+  box-sizing: border-box;
   flex: none;
-  padding: 14px 0 26px;
-  display: flex;
-  align-items: center;
-  gap: 26px;
+  position: relative;
+  height: 201px;
+  padding: 24px 0 32px;
   border-top: 1px solid var(--qd-l);
 }
-/* 인증 배지 줄: 강점 이미지(560px, 원본 1024x296 → 높이 162px) 아래쪽 아이콘 줄(원본 y 162~275, 중심 218.5 → 119.5px)에
-   배지 잉크 중심(원본 195px 높이 중 6~188 → 270px 폭에서 중심 23.6px)을 맞춘다. 이미지 크기가 바뀌면 96px 을 다시 계산한다. */
-.qd-foot .qd-badges {
-  width: 270px;
-  height: auto;
+.qd-paper .qd-foot .qd-emb {
+  display: block;
+  height: 40px;
+  width: auto;
   flex: none;
-  align-self: flex-start;
-  margin-top: 96px;
 }
-.qd-foot .qd-st {
-  width: 560px;
-  height: auto;
-  margin-left: auto;
+.qd-paper .qd-foot .qd-st {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 0 12px 0 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+}
+.qd-paper .qd-foot .qd-st.qd-st-first {
+  padding-left: 0;
+}
+.qd-paper .qd-foot .qd-st + .qd-st::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background: var(--qd-l);
+}
+.qd-paper .qd-foot .qd-st b {
+  display: block;
+  height: 28px;
+  font-family: var(--qd-head);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 28px;
+  color: var(--qd-n);
+  white-space: nowrap;
+}
+.qd-paper .qd-foot .qd-st b i {
+  font-style: normal;
+  font-size: 16px;
+}
+.qd-paper .qd-foot .qd-st span {
+  display: block;
+  margin-top: 4px;
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--qd-g);
+}
+
+/* 공공용 F1 콜로폰: 세 열이 같은 가로 중심축에 세로 중앙 정렬, 세로 헤어라인은 열 사이 */
+.paper.qd-paper .qd-foot-pub {
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+}
+.qd-paper .qd-sig {
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.qd-paper .qd-sig-eye {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--qd-g);
+}
+.qd-paper .qd-sig-name {
+  margin: 4px 0 0;
+  font-family: var(--qd-head);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 28px;
+  color: var(--qd-n);
+}
+.qd-paper .qd-pub-str,
+.qd-paper .qd-pub-emb {
+  position: relative;
+  padding-left: 24px;
+  display: flex;
+  align-items: center;
+}
+.qd-paper .qd-pub-str {
+  align-items: stretch;
+  padding-right: 8px;
+}
+.qd-paper .qd-pub-str::before,
+.qd-paper .qd-pub-emb::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background: var(--qd-l);
+}
+.qd-paper .qd-pub-emb {
+  gap: 8px;
+}
+
+/*
+ * 일반용 F2 브랜드 밴드. 밴드는 합계 바(.qd-gt)와 같은 네이비·폭(470px)이고 오른쪽 정렬이라 왼쪽 선이 합계 바와 같다.
+ * 왼쪽 블록 폭 = 밴드 왼쪽 선(1019 - 470 = 549px). 엠블럼 줄은 이 폭에 양끝 정렬하고, 강점 4칸도 같은 폭을 나눠 쓴다.
+ * 그래서 두 줄의 왼쪽 선이 같고, 엠블럼 줄 오른쪽 끝이 밴드 왼쪽 선과 위아래로 맞는다.
+ * 강점 행·밴드·일러스트는 같은 바닥선(푸터 아래 32px)에 선다.
+ */
+.paper.qd-paper .qd-foot-gen {
+  padding: 16px 0 32px;
+}
+.qd-paper .qd-gen-left {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 32px;
+  width: 549px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.qd-paper .qd-gen-emb {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.qd-paper .qd-gen-emb .qd-emb {
+  height: 44px;
+}
+.qd-paper .qd-gen-str {
+  display: flex;
+}
+.qd-paper .qd-gen-str .qd-st {
+  height: 72px;
+}
+.qd-paper .qd-gen-str .qd-st + .qd-st::before {
+  top: 0;
+  bottom: 0;
+}
+.qd-paper .qd-band {
+  position: absolute;
+  right: 0;
+  bottom: 32px;
+  width: 470px;
+  height: 72px;
+  padding-left: 24px;
+  display: flex;
+  align-items: center;
+  background: var(--qd-n);
+}
+.qd-paper .qd-slogan {
+  font-family: var(--qd-head);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 26px;
+  color: #fff;
+  white-space: nowrap;
+}
+.qd-paper .qd-gen-ch {
+  position: absolute;
+  right: 16px;
+  bottom: 32px;
+  height: 152px;
+  width: auto;
 }

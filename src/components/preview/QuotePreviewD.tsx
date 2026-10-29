@@ -11,6 +11,8 @@ import {
   getDayName,
   getPreviewModel,
 } from './previewModel';
+import { QuoteFooterD } from './QuoteFooterD';
+import { selectFooterKind } from './quoteFooterKind';
 import './quotePreviewD.css';
 
 /**
@@ -329,14 +331,7 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
         )}
       </div>
 
-      <div className="qd-foot">
-        <img className="qd-badges" src="/badges/logo.png" alt="인증 마크" />
-        <img
-          className="qd-st"
-          src="/forcs-strengths.png"
-          alt="FORCS 강점 - 31년 업력, 100% 자체 기술력, 시장 점유율 1위, 글로벌 진출, IPO 상장, 50여 개 수상"
-        />
-      </div>
+      <QuoteFooterD kind={selectFooterKind(meta)} />
     </div>
   );
 };
