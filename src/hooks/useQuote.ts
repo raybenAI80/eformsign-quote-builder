@@ -135,7 +135,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     vatRate: 10,
     title: '이폼사인 견적서',
     subtitle: '',
-    brandingMode: 'ai',
+    brandingMode: 'default',
     sealMode: 'omitted',
     referenceNotes: [
       '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
@@ -181,7 +181,7 @@ export const createEmptyMeta = (): QuoteMeta => {
     vatRate: 10,
     title: '',
     subtitle: '',
-    brandingMode: 'ai',
+    brandingMode: 'default',
     sealMode: 'omitted',
     referenceNotes: [...DEFAULT_REFERENCE_NOTES],
     bizNoLink: SUPPLIER_PROFILE.bizNoLink,

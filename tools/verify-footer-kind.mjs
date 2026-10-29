@@ -1,9 +1,11 @@
-// 견적서 하단 디자인 자동 선택(일반 F2 / 공공 F1) 브라우저 시나리오 검증.
-// 선택 규칙: src/components/preview/quoteFooterKind.ts (brandingMode==='public' 또는 sector==='public' 이면 공공).
+// 견적서 하단 디자인 자동 선택 브라우저 시나리오 검증.
+// 선택 규칙: src/components/preview/quoteFooterKind.ts — 옵션 탭 브랜딩 설정(brandingMode)으로만 정한다.
+//   일반 견적서(default)=F2 브랜드 밴드, AI 견적서(ai)·공공 견적서(public)=F1 콜로폰. 항목 탭 sector 는 판정에 쓰지 않는다.
+// 시나리오: a 새 견적 기본(카드 순서 일반·공공·AI, 일반 선택, F2) / b 일반 PDF / c 공공 F1 / e AI F1 + 새로고침 유지(d) / f 일반+sector 경로(모두 F2) / g 초기화 후 상태.
 //
 // 실행 (환경변수는 vite 프로세스에만 필요하며 node 가 파일에서 읽어 이 프로세스로 주입한다. 값은 출력하지 않는다):
 //   PW_CHROME=<chrome-headless-shell.exe> node --env-file=<.env> --env-file=<.env.local> tools/verify-footer-kind.mjs <출력 폴더>
-// 출력 폴더에 a-general-*.png, c-public-*.png, d-reload-*.png, general.pdf, public.pdf, preview-standalone-*.html, results.json 을 쓴다.
+// 출력 폴더에 options.png(옵션 탭 카드), a-general-*.png, c-public-*.png, e-ai-*.png, d-reload-*.png, g-reset-*.png, general.pdf, public.pdf, preview-standalone-*.html, results.json 을 쓴다.
 // PDF 측정·렌더는 tools/inspect-pdf.py, tools/measure-pdf-alignment.py 가 맡는다.
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -136,6 +138,16 @@ const gotoOptions = async page => {
   await page.getByRole('button', { name: /옵션 설정/ }).first().click();
   await page.waitForTimeout(400);
 };
+// 옵션 탭 「브랜딩 설정」 카드의 표시 순서와 선택 상태(선택된 카드에만 체크 svg 가 있다).
+const brandingCards = page =>
+  page.evaluate(() => {
+    const h = [...document.querySelectorAll('h2')].find(e => e.textContent.trim() === '브랜딩 설정');
+    const grid = h?.parentElement?.querySelector('.grid');
+    return [...(grid?.querySelectorAll('button') ?? [])].map(b => ({
+      label: b.querySelector('.font-bold')?.textContent?.trim() ?? null,
+      selected: !!b.querySelector('svg'),
+    }));
+  });
 const pickBranding = async (page, label) => {
   await gotoOptions(page);
   await page.getByRole('button', { name: new RegExp(label) }).first().click();
@@ -167,6 +179,10 @@ try {
     const skip = page.getByText('건너뛰기');
     if (await skip.count()) await skip.first().click();
     await page.waitForTimeout(300);
+    await gotoOptions(page);
+    results.steps.a0 = { cards: await brandingCards(page) };
+    await page.locator('h2', { hasText: '브랜딩 설정' }).locator('xpath=..').screenshot({ path: join(OUT, 'options.png') });
+    log(JSON.stringify(results.steps.a0));
     await fillBasic(page);
     await fillSales(page);
     await addItems(page);
@@ -193,7 +209,16 @@ try {
     results.steps.cPdf = { suggestedFilename: await download(page, () => page.locator('button[title="PDF / 인쇄"]').click(), join(OUT, 'public.pdf')) };
     await page.waitForTimeout(800);
 
-    // ---- d. 새로고침 → 공공 상태와 F1 유지 ----
+    // ---- e. AI 견적서 → F1 (제목에 AI 아이콘) ----
+    step = 'e-ai';
+    await pickBranding(page, 'AI 견적서');
+    results.steps.e = await footerFacts(page);
+    results.steps.eCards = await brandingCards(page);
+    results.steps.eTitleHasAiIcon = await page.locator('#preview-panel .qd-title img[alt="AI"]').count();
+    await capture(page, 'e-ai');
+    log(JSON.stringify(results.steps.e), 'aiIcon=' + results.steps.eTitleHasAiIcon);
+
+    // ---- d. 새로고침 → AI 상태와 F1 유지 ----
     step = 'd-reload';
     await page.reload();
     await page.waitForTimeout(2500);
@@ -201,6 +226,8 @@ try {
     if (await skip2.count()) await skip2.first().click();
     await page.waitForTimeout(500);
     results.steps.d = await footerFacts(page);
+    results.steps.dTitleHasAiIcon = await page.locator('#preview-panel .qd-title img[alt="AI"]').count();
+    results.steps.dCards = await brandingCards(page).catch(() => null);
     await capture(page, 'd-reload');
     log(JSON.stringify(results.steps.d));
 
@@ -215,6 +242,20 @@ try {
     await pickSector(page, '일반 기업용');
     results.steps.fSectorGeneral = await footerFacts(page);
     log(['fDefault', 'fSectorPublic', 'fSectorSubsidy', 'fSectorGeneral'].map(k => `${k}=${results.steps[k].kind}`).join(' '));
+
+    // ---- g. AI 견적서로 바꾼 뒤 초기화 → 브랜딩과 하단 ----
+    step = 'g-reset';
+    await pickBranding(page, 'AI 견적서');
+    results.steps.gBefore = await footerFacts(page);
+    await page.locator('button[title="초기화"]').first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: '확인', exact: true }).click();
+    await page.waitForTimeout(800);
+    results.steps.g = await footerFacts(page);
+    await gotoOptions(page);
+    results.steps.gCards = await brandingCards(page);
+    await capture(page, 'g-reset');
+    log('before=' + results.steps.gBefore.kind, 'after=' + results.steps.g.kind, JSON.stringify(results.steps.gCards));
   } finally {
     await browser.close();
   }

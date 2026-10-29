@@ -2,18 +2,17 @@ import type { QuoteMeta } from '../../types';
 
 /**
  * 견적서 하단 디자인 종류.
- * - 'public'  : 공공용 푸터 (F1 콜로폰: 서명 + 강점 4칸 + 인증 엠블럼 한 줄)
- * - 'general' : 일반용 푸터 (F2 브랜드 밴드: 엠블럼 + 강점 + 슬로건 밴드 + 일러스트)
+ * - 'public'  : 콜로폰 하단 (F1: 서명 + 강점 4칸 + 인증 엠블럼 한 줄). AI·공공 견적서가 쓴다.
+ * - 'general' : 브랜드 밴드 하단 (F2: 엠블럼 + 강점 + 슬로건 밴드 + 일러스트). 일반 견적서가 쓴다.
  */
 export type QuoteFooterKind = 'public' | 'general';
 
 /**
- * 기존 고객 구분값으로 하단 디자인을 고른다. 새 상태 필드는 없다.
- * - meta.brandingMode === 'public' (옵션 탭의 「공공 견적서」, 제목의 「공공용」 접두 기준)
- * - meta.sector === 'public' (항목 탭의 「정부·공공기관용」, 견적 정보 카드의 배지 기준)
- * 둘 중 하나라도 공공이면 'public', 그 밖의 값(ai·default·general·subsidy·미설정)은 'general'.
+ * 옵션 탭 「브랜딩 설정」(meta.brandingMode)만으로 하단 디자인을 고른다. 새 상태 필드는 없다.
+ * - 'default' (일반 견적서, 이폼사인 SaaS) → 'general' (F2 브랜드 밴드)
+ * - 'ai' (AI 견적서)·'public' (공공 견적서) → 'public' (F1 콜로폰)
+ * - 값이 없으면 새 견적의 기본값(일반 견적서)과 같이 'general'.
+ * 항목 탭의 섹터(meta.sector)는 하단 판정에 쓰지 않는다.
  */
-export const selectFooterKind = (
-  meta: Pick<QuoteMeta, 'brandingMode' | 'sector'>
-): QuoteFooterKind =>
-  meta.brandingMode === 'public' || meta.sector === 'public' ? 'public' : 'general';
+export const selectFooterKind = (meta: Pick<QuoteMeta, 'brandingMode'>): QuoteFooterKind =>
+  meta.brandingMode === 'ai' || meta.brandingMode === 'public' ? 'public' : 'general';

@@ -98,10 +98,11 @@
 
 ---
 
-## 앱 반영 (2026-10-29, 사용자 결정 「일반은 F2, 공공은 F1」)
+## 앱 반영 (2026-10-29, 사용자 결정 「일반 견적서는 F2, AI·공공 견적서는 F1」)
 
 - 구현: `src/components/preview/QuoteFooterD.tsx`(마크업), `quoteFooterKind.ts`(선택 규칙, 단위 테스트 `quoteFooterKind.test.ts`), `quotePreviewD.css`(`.qd-foot` 이하). F3 는 앱에 넣지 않았다(시안만 남김).
-- 선택 규칙: `meta.brandingMode === 'public'`(옵션 설정의 「공공 견적서」, 제목의 「공공용」 접두) 또는 `meta.sector === 'public'`(항목 탭의 「정부·공공기관용」, 견적 정보 카드 배지)이면 F1, 그 밖(`ai`·`default`·`general`·`subsidy`·미설정)은 F2. 새 상태 필드는 없다.
+- 선택 규칙: 옵션 탭 「브랜딩 설정」(`meta.brandingMode`)만으로 정한다. `default`(일반 견적서)는 F2, `ai`(AI 견적서)·`public`(공공 견적서)은 F1, 값이 없으면 새 견적 기본값과 같이 F2. 항목 탭의 섹터(`meta.sector`)는 하단 판정에 쓰지 않는다. 새 상태 필드는 없다.
+- 옵션 탭 카드 순서는 일반 견적서 · 공공 견적서 · AI 견적서이고, 새 견적(`createDefaultMeta`·`createEmptyMeta`)의 기본 `brandingMode` 는 `default` 다. 저장본 복원 시 필드가 없을 때의 폴백(`ensureMetaDefaults`, 레거시 boolean 포함)은 예전 견적의 모양을 지키려고 `ai` 로 남겼다.
 - 클래스 이름은 앱 쪽에서 `qd-` 접두로 바꿨다(시안 `f1·f2·fx·st·emb` → `qd-foot-pub·qd-foot-gen·qd-st·qd-emb`). 시안 빌드 도구(`tools/footer-v2/`)는 시안 이름 그대로다.
 - F2 다듬기: 시안은 엠블럼 줄(약 342px)이 강점 행(525px)보다 짧아 엠블럼 오른쪽(일러스트 머리 왼쪽)이 비어 보였다. 왼쪽 블록 폭을 밴드 왼쪽 선(1019 - 470 = 549px)에 맞추고, 엠블럼 줄을 이 폭에 양끝 정렬(높이 40 → 44px)했다. 강점 4칸도 같은 폭을 나눠 쓴다. 두 줄의 왼쪽 선이 같고, 엠블럼 줄 오른쪽 끝이 밴드 왼쪽 선과 위아래로 맞는다.
 - 자산: `public/design-d/emblems/*.png`(엠블럼 6종 원본), `public/design-d/intro-characters.png`(일러스트, 표시 크기의 2배 406x304 로 축소, 원본 245KB → 81KB). 출처는 `public/design-d/README.txt`.
