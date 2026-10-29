@@ -182,16 +182,23 @@ function QuoteBuilder() {
     toast.success('CSV 파일로 내보냈습니다.');
   };
 
+  // PDF·PNG 저장이 같은 파일 이름(확장자 제외)을 쓴다.
+  const buildExportFilename = () => {
+    const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '_').trim();
+    const typeLabel = meta.brandingMode === 'public' ? '공공용' : '일반용';
+    return `이폼사인_${typeLabel} 견적서_${sanitize(meta.customerName)}_${sanitize(meta.quoteDate)}_${sanitize(meta.contactName)}`;
+  };
+
   const handleExportImage = async () => {
     if (!ensureValid()) return;
-    await exportToImage('preview-panel', `견적서_${meta.customerName || 'draft'}`);
+    // 미리보기를 끄면 #preview-panel 이 display:none 이라 캡처할 수 없다 — PDF 용 화면 밖 사본(같은 내용, 같은 297mm 폭)을 쓴다.
+    const visible = (document.getElementById('preview-panel')?.offsetWidth ?? 0) > 0;
+    await exportToImage(visible ? 'preview-panel' : 'pdf-preview-panel', buildExportFilename());
   };
 
   const handleExportPdf = async () => {
     if (!ensureValid()) return;
-    const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '_').trim();
-    const typeLabel = meta.brandingMode === 'public' ? '공공용' : '일반용';
-    const filename = `이폼사인_${typeLabel} 견적서_${sanitize(meta.customerName)}_${sanitize(meta.quoteDate)}_${sanitize(meta.contactName)}`;
+    const filename = buildExportFilename();
     await exportToPdf('pdf-preview-panel', filename, {
       title: buildPdfTitle(meta),
       keywords: buildPdfKeywords(meta),

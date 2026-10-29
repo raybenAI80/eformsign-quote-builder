@@ -184,6 +184,20 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Export PNG — PDF 가 주 동작이므로 보조(테두리) 스타일 */}
+            <button
+              className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 sm:px-2.5 py-1.5 text-xs font-bold text-gray-700 shadow-sm hover:border-[#00a99d] hover:text-[#00a99d]"
+              onClick={onExportImage}
+              title="PNG 이미지로 저장"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              {showPdfText && <span>PNG</span>}
+            </button>
+
             {/* Export PDF */}
             <button
               className="inline-flex items-center gap-1 rounded-md bg-[#00a99d] px-2 sm:px-2.5 py-1.5 text-xs font-bold text-white shadow-md hover:bg-[#008a81]"
