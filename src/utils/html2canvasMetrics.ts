@@ -102,7 +102,7 @@ const baselineCache = new Map<string, number>();
  * html2canvas의 FontMetrics.parseMetrics와 "동일한 방식"으로
  * line box(글리프 박스) 상단에서 baseline까지의 거리를 px로 잰다.
  *
- * @param fontFamily computed font-family (예: 'NanumSquare, "Noto Sans KR", sans-serif')
+ * @param fontFamily computed font-family (예: 'Pretendard, "Malgun Gothic", sans-serif')
  * @param fontSize   computed font-size   (예: '14px')
  */
 export function measureBaselinePx(fontFamily: string, fontSize: string): number {
