@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>견적서 공급사·고객사·담당자 블록 수정 시안</title>
+<style>
+/* 글꼴: 구현과 같은 파일. 이 파일 기준 상대 경로. */
+@font-face{font-family:"Paperlogy";src:url("../../../public/fonts/design-d/Paperlogy-6SemiBold.woff2") format("woff2");font-weight:600;font-style:normal;font-display:block}
+@font-face{font-family:"Paperlogy";src:url("../../../public/fonts/design-d/Paperlogy-8ExtraBold.woff2") format("woff2");font-weight:800;font-style:normal;font-display:block}
+@font-face{font-family:"Pretendard";src:url("../../../public/fonts/design-d/Pretendard-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:"Pretendard";src:url("../../../public/fonts/design-d/Pretendard-SemiBold.woff2") format("woff2");font-weight:600;font-style:normal;font-display:block}
+.paper.qd-paper {
+  --qd-n: #0B3C66;
+  --qd-ink: #1a1a1a;
+  --qd-g: #555555;
+  --qd-l: #CCCCCC;
+  --qd-head: "Paperlogy", "Pretendard", "Malgun Gothic", sans-serif;
+
+  /* 가로 297mm 로 그린 뒤 PDF 에서 A4 세로 1쪽으로 축소한다. 높이는 같은 A4 세로 비율(297mm × 297/210). */
+  min-height: 420mm;
+  padding: 44px 52px 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #000;
+  font-family: "Pretendard", "Malgun Gothic", sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: normal;
+  font-synthesis: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.qd-paper *,
+.qd-paper *::before,
+.qd-paper *::after {
+  box-sizing: border-box;
+}
+.qd-paper h1,
+.qd-paper h2,
+.qd-paper h3,
+.qd-paper b,
+.qd-paper strong {
+  font-weight: inherit;
+}
+.qd-paper h1,
+.qd-paper h2,
+.qd-paper h3,
+.qd-paper p {
+  margin: 0;
+}
+.qd-paper img {
+  display: block;
+  max-width: none;
+}
+.qd-paper a {
+  color: inherit;
+}
+.qd-paper th {
+  font-weight: 600;
+}
+.qd-nb {
+  white-space: nowrap;
+}
+/* 숫자 칸. tabular-nums 는 쓰지 않는다: 표준 자릿수 폭(tnum)은 화면 글리프를 넓히는데 PDF 텍스트 레이어(jsPDF)는
+   그 기능을 적용하지 못해 숫자 줄의 레이어 폭이 5~8% 짧아진다(2026-10-29 실측). */
+.qd-num {
+  font-feature-settings: normal;
+}
+
+.qd-logos {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.qd-logo-e {
+  width: 150px;
+  height: auto;
+}
+.qd-logo-f {
+  width: 110px;
+  height: auto;
+}
+.qd-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 22px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--qd-n);
+}
+.qd-paper h1.qd-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--qd-head);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--qd-n);
+  white-space: nowrap;
+}
+.qd-title img {
+  height: 34px;
+  width: auto;
+}
+.qd-meta {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 4px 28px;
+  text-align: right;
+}
+.qd-meta .qd-k {
+  font-size: 12px;
+  color: var(--qd-g);
+  font-weight: 600;
+}
+.qd-meta .qd-k span {
+  font-weight: 400;
+}
+.qd-meta .qd-v {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--qd-ink);
+  white-space: nowrap;
+}
+.qd-meta .qd-v small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--qd-g);
+}
+
+.qd-three {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  align-items: start;
+  margin-top: 22px;
+  border-bottom: 1px solid var(--qd-l);
+}
+.qd-three > div {
+  padding: 2px 22px 18px 0;
+}
+.qd-three > div + div {
+  padding-left: 22px;
+  border-left: 1px solid var(--qd-l);
+}
+.qd-paper .qd-three h3,
+.qd-paper .qd-pay h3,
+.qd-paper .qd-notes h3 {
+  font-family: var(--qd-head);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qd-n);
+  margin-bottom: 8px;
+}
+.qd-three p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--qd-ink);
+}
+.qd-paper .qd-three p.qd-nm {
+  font-size: 17px;
+  font-weight: 400;
+  margin-bottom: 2px;
+}
+.qd-three p small {
+  color: var(--qd-g);
+  font-size: 12px;
+  font-weight: 400;
+}
+.qd-ceo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.qd-ceo-omit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--qd-g);
+  white-space: nowrap;
+}
+.qd-seal {
+  display: inline-flex;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #C62828;
+  border-radius: 50%;
+  color: #C62828;
+  font-size: 9px;
+  font-weight: 400;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  transform: rotate(-5deg);
+}
+.qd-seal-img {
+  object-fit: contain;
+  flex: none;
+}
+
+.qd-paper table.qd-items {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin-top: 24px;
+}
+.qd-items th {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qd-n);
+  padding: 7px 8px;
+  border-bottom: 2px solid var(--qd-n);
+}
+.qd-items th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.qd-items td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--qd-l);
+  vertical-align: top;
+  font-size: 14px;
+  font-weight: 400;
+}
+.qd-items td:first-child {
+  padding-left: 0;
+}
+.qd-items td.qd-item b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--qd-ink);
+}
+.qd-items td.qd-item .qd-note {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--qd-g);
+  margin-top: 3px;
+  white-space: pre-wrap;
+}
+.qd-items td.qd-item .qd-note b,
+.qd-items td.qd-item .qd-note strong {
+  display: inline;
+  font-size: inherit;
+  font-weight: 600;
+  color: inherit;
+}
+.qd-items td.qd-item .qd-note i,
+.qd-items td.qd-item .qd-note em {
+  display: inline;
+  font-size: inherit;
+  font-style: italic;
+  color: inherit;
+}
+.qd-items td > em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--qd-n);
+}
+.qd-items td.qd-amt small {
+  display: block;
+  font-size: 11px;
+  color: var(--qd-g);
+  font-weight: 400;
+}
+.qd-items td.qd-amt b {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--qd-ink);
+}
+.qd-items tr.qd-cat td {
+  padding: 14px 0 6px;
+  font-family: var(--qd-head);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qd-n);
+  border-bottom: 1px solid var(--qd-n);
+}
+.qd-items tr.qd-empty td {
+  text-align: center;
+  padding: 28px 0;
+  color: var(--qd-g);
+  font-size: 14px;
+}
+.qd-r {
+  text-align: right;
+}
+
+.qd-sumrow {
+  display: flex;
+  gap: 40px;
+  margin-top: 22px;
+  align-items: flex-start;
+}
+.qd-pay {
+  flex: 1;
+  border: 1px solid var(--qd-l);
+  padding: 14px 18px;
+}
+.qd-pay p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.qd-pay p b {
+  font-weight: 400;
+}
+.qd-paper .qd-pay a.pdf-target-link {
+  font-weight: 400;
+  text-decoration: underline;
+  color: var(--qd-n);
+}
+.qd-sm {
+  width: 470px;
+  margin-left: auto;
+  flex: none;
+}
+.qd-sm .qd-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--qd-l);
+}
+.qd-sm .qd-row span:first-child {
+  color: var(--qd-g);
+  font-weight: 400;
+}
+.qd-sm .qd-row b {
+  font-weight: 400;
+}
+.qd-sm .qd-dc span:first-child,
+.qd-sm .qd-dc b {
+  color: var(--qd-n);
+}
+.qd-sm .qd-gt {
+  font-family: var(--qd-head);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--qd-n);
+  color: #fff;
+  padding: 14px 16px;
+  margin-top: 10px;
+}
+.qd-sm .qd-gt span:first-child {
+  font-size: 16px;
+  font-weight: 800;
+}
+.qd-sm .qd-gt span:last-child {
+  font-size: 22px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.qd-sm .qd-tp {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0 0;
+  font-size: 13px;
+  color: var(--qd-g);
+  font-weight: 400;
+}
+.qd-sm .qd-tp b {
+  color: var(--qd-ink);
+  font-weight: 400;
+}
+
+.qd-notes {
+  margin-top: 22px;
+  border-top: 2px solid var(--qd-n);
+  padding-top: 10px;
+}
+.qd-paper .qd-notes h3 {
+  margin-bottom: 6px;
+}
+.qd-notes p {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 2px;
+  text-wrap: pretty;
+}
+.qd-notes p i {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--qd-g);
+  flex: none;
+  width: 18px;
+}
+.qd-notes p span {
+  white-space: pre-wrap;
+}
+
+.qd-body {
+  flex: 1 1 auto;
+  padding-bottom: 22px;
+}
+.qd-foot {
+  flex: none;
+  padding: 14px 0 26px;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  border-top: 1px solid var(--qd-l);
+}
+.qd-foot .qd-bd {
+  width: 270px;
+  height: auto;
+  flex: none;
+}
+.qd-foot .qd-st {
+  width: 560px;
+  height: auto;
+  margin-left: auto;
+}
+
+/* ================================================================
+   여기부터 시안 전용. 위 규칙은 src/components/preview/quotePreviewD.css 사본(현재 구현).
+   ================================================================ */
+html{background:#9aa3ab}
+body{margin:0;padding:32px 0 64px;font-family:"Pretendard","Malgun Gothic",sans-serif;font-synthesis:none;
+  word-break:keep-all;overflow-wrap:break-word;line-break:strict}
+.wrap{width:1123px;margin:0 auto}
+.tag{display:flex;align-items:baseline;gap:14px;margin:34px 0 10px;color:#fff;font-family:"Paperlogy","Pretendard",sans-serif}
+.tag:first-child{margin-top:0}
+.tag b{font-size:22px;font-weight:800}
+.tag span{font-size:15px;font-weight:600;opacity:.92}
+/* 슬라이스 = 견적서 위쪽 일부(제목 영역 + 이 블록 + 표 머리·2행). 폭 1123px 고정, 높이는 내용만큼. */
+.paper.qd-paper.slice{box-sizing:border-box;width:1123px;min-height:0;height:auto;padding-bottom:26px;display:block}
+.slice .qd-items{margin-top:24px}
+
+/* ---- 시안 공통: 블록 안쪽 글자는 현재 구현(.qd-three)과 같은 크기·색 ---- */
+.qd-paper .pb{display:grid;margin-top:22px}
+.qd-paper .pb h3{font-family:var(--qd-head);font-size:12px;font-weight:600;color:var(--qd-n);margin:0 0 8px}
+.qd-paper .pb p{font-size:13px;line-height:1.65;color:var(--qd-ink);margin:0}
+.qd-paper .pb p.qd-nm{font-size:17px;font-weight:400;margin-bottom:2px}
+.qd-paper .pb p small{color:var(--qd-g);font-size:12px;font-weight:400}
+
+/* ---- 시안 1. 옅은 배경 카드 ----
+   세 칸을 따로 떨어진 카드로. 틴트 F2F9FF(가이드 Light Blue) + 1px #CCC 테두리 + 위 4px 네이비. */
+.qd-paper .pb1{grid-template-columns:1.1fr 1fr 1fr;gap:14px;align-items:stretch}
+.qd-paper .pb1>div{background:#F2F9FF;border:1px solid var(--qd-l);border-top:4px solid var(--qd-n);padding:15px 20px 18px}
+
+/* ---- 시안 2. 표 머리 띠 (문서 양식) ----
+   칸마다 네이비 띠(흰 글자)를 위에 두고, 아래는 네이비 1px 테두리 박스. 칸 사이는 흰 2px 틈(띠) / 네이비 1px 선(본문). */
+.qd-paper .pb2{grid-template-columns:1.1fr 1fr 1fr;align-items:stretch}
+.qd-paper .pb2>div{display:flex;flex-direction:column;border:1px solid var(--qd-n)}
+.qd-paper .pb2>div+div{border-left:0}
+.qd-paper .pb2 h3{margin:0;background:var(--qd-n);color:#fff;font-size:13px;padding:8px 18px}
+.qd-paper .pb2>div+div h3{border-left:2px solid #fff}
+.qd-paper .pb2 .bd{padding:14px 18px 18px;flex:1}
+
+/* ---- 시안 3. 단일 박스 + 섹션 제목 ----
+   세 칸 전체를 회색 F4F4F4 패널 하나로 감싸고, 왼쪽 6px 네이비 띠 + "거래 정보" 제목줄. 칸 사이는 1px #CCC 선. */
+.qd-paper .pb3{display:block;border:1px solid var(--qd-l);border-left:6px solid var(--qd-n);background:#F4F4F4}
+.qd-paper .pb3 .hd{display:flex;align-items:baseline;gap:12px;padding:11px 24px 10px;border-bottom:1px solid var(--qd-l);
+  font-family:var(--qd-head);font-size:15px;font-weight:800;color:var(--qd-n)}
+.qd-paper .pb3 .hd small{font-size:12px;font-weight:600;color:var(--qd-g)}
+.qd-paper .pb3 .cols{display:grid;grid-template-columns:1.1fr 1fr 1fr}
+.qd-paper .pb3 .cols>div{padding:14px 22px 18px 24px}
+.qd-paper .pb3 .cols>div+div{border-left:1px solid var(--qd-l)}
+
+/* ---- 시안 4. 위계 재배치 ----
+   수신처인 고객사를 첫 칸으로 올리고 네이비 바탕(흰 글자)으로 채운다. 공급사·담당자는 회색 F4F4F4 보조 카드. */
+.qd-paper .pb4{grid-template-columns:1.2fr 1fr 1fr;gap:12px;align-items:stretch}
+.qd-paper .pb4>div{background:#F4F4F4;border:1px solid var(--qd-l);padding:16px 20px 18px}
+.qd-paper .pb4>div.main{background:var(--qd-n);border-color:var(--qd-n);color:#fff}
+.qd-paper .pb4>div.main h3,.qd-paper .pb4>div.main p,.qd-paper .pb4>div.main p small{color:#fff}
+.qd-paper .pb4>div.main p.qd-nm{font-size:21px;margin-bottom:6px}
+.qd-paper .pb4>div.main h3{font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- 공통 조각: 제목 영역, 품목 표 머리 -->
+<template id="tpl-top">
+  <div class="qd-logos">
+    <img class="qd-logo-e" src="../../../public/design-d/eformsign-logo-blue.png" alt="eformsign 로고">
+    <img class="qd-logo-f" src="../../../public/design-d/forcs-ci-en-original.png" alt="FORCS 로고">
+  </div>
+  <div class="qd-titlebar">
+    <h1 class="qd-title">이폼사인 견적서</h1>
+    <div class="qd-meta">
+      <span class="qd-k">견적번호</span>
+      <span class="qd-k">견적일</span>
+      <span class="qd-k">견적 기한 <span>(견적일로부터 1개월)</span></span>
+      <span class="qd-v qd-num">FORCS-EFS-CB-202610231</span>
+      <span class="qd-v qd-num"><span class="qd-nb">2026-10-23</span> <small>(금)</small></span>
+      <span class="qd-v qd-num"><span class="qd-nb">2026-11-23</span> <small>(월)</small></span>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-tbl">
+  <table class="qd-items">
+    <colgroup><col><col style="width:90px"><col style="width:130px"><col style="width:90px"><col style="width:170px"></colgroup>
+    <thead><tr><th>항목</th><th>수량(건)</th><th>단가(원)</th><th>할인율</th><th>금액(원)</th></tr></thead>
+    <tbody>
+      <tr class="qd-cat"><td colspan="5">문서</td></tr>
+      <tr>
+        <td class="qd-item"><b>eformsign Enterprise</b><div class="qd-note">기업용 무제한 서명, 카카오톡/문자(OTP) 인증, Open API 포함</div></td>
+        <td class="qd-r qd-num">2,000</td><td class="qd-r qd-num">800</td><td class="qd-r qd-num">-</td>
+        <td class="qd-r qd-num qd-amt"><b>1,600,000</b></td>
+      </tr>
+      <tr>
+        <td class="qd-item"><b>추가 문서</b><div class="qd-note">추가 제공 문서</div></td>
+        <td class="qd-r qd-num">100</td><td class="qd-r qd-num">800<em>→ 0</em></td><td class="qd-r qd-num">100%</td>
+        <td class="qd-r qd-num qd-amt"><small>(정가 80,000)</small><b>0</b></td>
+      </tr>
+    </tbody>
+  </table>
+</template>
+
+<!-- 세 칸 내용 조각 (시안마다 같은 데이터) -->
+<template id="d-sup">
+  <h3>공급사</h3>
+  <p class="qd-nm">㈜포시에스</p>
+  <p>서울특별시 강남구 논현로 646 (포시에스빌딩)</p>
+  <p>사업자등록번호 <span class="qd-nb qd-num">108-81-85184</span></p>
+  <p>eformsign@forcs.com · <span class="qd-nb qd-num">02-6188-8400</span></p>
+  <div class="qd-ceo"><span class="qd-nb">대표이사 박미경</span><span class="qd-ceo-omit">(직인 생략)</span></div>
+</template>
+<template id="d-cus">
+  <h3>고객사</h3>
+  <p class="qd-nm">(주)한빛물산</p>
+  <p>김민수 팀장</p>
+  <p>minsu.kim@hanbit.example</p>
+  <p class="qd-num">010-2345-6789</p>
+</template>
+<template id="d-con">
+  <h3>영업 담당자</h3>
+  <p class="qd-nm">조병철 <small>프로</small></p>
+  <p>bcjo@forcs.com</p>
+  <p class="qd-num">휴대전화 010-1234-5678</p>
+  <p class="qd-num">직통 02-6188-8201</p>
+</template>
+
+<div class="wrap" id="root"></div>
+
+<script>
+/* 시안 정의. html = 세 칸 블록 마크업. 칸 안쪽은 <template> 조각에서 복제한다. */
+const VARIANTS = [
+  { id: 'current', name: '현재', desc: '흰 바탕 · 1px 회색 선 · 세로 구분선' },
+  { id: 'v1', name: '시안 1', desc: '옅은 배경 카드 — 칸마다 떨어진 틴트 카드 + 위 네이비 선' },
+  { id: 'v2', name: '시안 2', desc: '표 머리 띠 — 네이비 띠 제목 + 테두리 박스 (문서 양식)' },
+  { id: 'v3', name: '시안 3', desc: '단일 박스 + 섹션 제목 — 회색 패널 하나, “거래 정보”, 왼쪽 강조선' },
+  { id: 'v4', name: '시안 4', desc: '위계 재배치 — 고객사를 첫 칸·네이비 바탕으로, 나머지는 회색 보조 카드' },
+];
+const frag = id => document.getElementById(id).content.cloneNode(true);
+const cell = (cls, tplId, wrapBd) => {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  const f = frag(tplId);
+  if (!wrapBd) { d.appendChild(f); return d; }
+  const h = f.querySelector('h3'); d.appendChild(h);
+  const bd = document.createElement('div'); bd.className = 'bd'; bd.appendChild(f); d.appendChild(bd);
+  return d;
+};
+const block = id => {
+  const w = document.createElement('div');
+  if (id === 'current') { w.className = 'qd-three'; w.append(cell('', 'd-sup'), cell('', 'd-cus'), cell('', 'd-con')); }
+  else if (id === 'v1') { w.className = 'pb pb1'; w.append(cell('', 'd-sup'), cell('', 'd-cus'), cell('', 'd-con')); }
+  else if (id === 'v2') { w.className = 'pb pb2'; w.append(cell('', 'd-sup', true), cell('', 'd-cus', true), cell('', 'd-con', true)); }
+  else if (id === 'v3') {
+    w.className = 'pb pb3';
+    const hd = document.createElement('div'); hd.className = 'hd'; hd.innerHTML = '거래 정보 <small>공급사 · 고객사 · 영업 담당자</small>';
+    const cols = document.createElement('div'); cols.className = 'cols'; cols.append(cell('', 'd-sup'), cell('', 'd-cus'), cell('', 'd-con'));
+    w.append(hd, cols);
+  }
+  else if (id === 'v4') { w.className = 'pb pb4'; w.append(cell('main', 'd-cus'), cell('', 'd-sup'), cell('', 'd-con')); }
+  return w;
+};
+const root = document.getElementById('root');
+for (const v of VARIANTS) {
+  const t = document.createElement('div'); t.className = 'tag';
+  t.innerHTML = `<b>${v.name}</b><span>${v.desc}</span>`;
+  const paper = document.createElement('div');
+  paper.className = 'paper qd-paper slice'; paper.id = 'slice-' + v.id;
+  paper.append(frag('tpl-top'), block(v.id), frag('tpl-tbl'));
+  root.append(t, paper);
+}
+</script>
+</body>
+</html>
