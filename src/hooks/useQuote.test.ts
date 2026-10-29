@@ -377,7 +377,7 @@ describe('createDefaultMeta', () => {
         expect(meta.supplier).toBe('㈜포시에스');
         expect(meta.vatRate).toBe(10);
         expect(meta.validityDays).toBe(30);
-        expect(meta.brandingMode).toBe('ai');
+        expect(meta.brandingMode).toBe('default');
         expect(meta.sealMode).toBe('omitted');
         expect(meta.quoteDate).toMatch(/^\d{4}-\d{2}-\d{2}$/); // YYYY-MM-DD 형식
     });

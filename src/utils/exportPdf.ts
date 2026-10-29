@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import download from 'downloadjs';
-import { loadNanumSquareFonts, registerNanumSquareFont } from './fontLoader';
+import { loadPdfFonts, registerPdfFonts, loadScreenFonts, resolvePdfFont } from './fontLoader';
 import { extractTextElements, TextElement } from './textExtractor';
 import { installFontMetricsFix } from './html2canvasMetrics';
 import { QuoteMeta, QuoteItem } from '../types';
@@ -111,7 +111,6 @@ function drawInvisibleTextLayer(
         }
 
         pdf.setPage(pageNumber);
-        pdf.setFont('NanumSquare', 'normal');
 
         const debugOcr = isDebugOcr();
         if (debugOcr) {
@@ -138,7 +137,9 @@ function drawInvisibleTextLayer(
                 if (finalX < 0 || finalX > a4Width) continue;
 
                 pdf.setFontSize(textEl.fontSize);
-                pdf.setFont('NanumSquare', textEl.isBold ? 'bold' : 'normal');
+                // 화면 요소와 같은 글꼴을 고른다 (Paperlogy·Pretendard)
+                const pdfFont = resolvePdfFont(textEl.fontFamily, textEl.fontWeight);
+                pdf.setFont(pdfFont.family, pdfFont.style);
 
                 pdf.text(textEl.text, finalX, finalY);
                 drawn++;
@@ -230,6 +231,9 @@ export const exportToImage = async (elementId: string, fileName: string) => {
     }
 
     try {
+        // 화면 글꼴이 로드 전이면 대체 글꼴로 찍히므로 먼저 기다린다
+        await loadScreenFonts();
+
         const canvas = await html2canvas(element, {
             scale: 2,
             useCORS: true,
@@ -280,8 +284,10 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
 
         toast.loading('PDF 생성 중... (폰트 로딩)', { id: 'pdf-export' });
 
-        // 0. Load Korean font first
-        await loadNanumSquareFonts();
+        // 0. Load Korean fonts first (Paperlogy·Pretendard)
+        await loadPdfFonts();
+        // 화면 글꼴(woff2)도 캡처 전에 로드를 끝낸다 — 아니면 첫 내보내기가 대체 글꼴로 찍힌다
+        await loadScreenFonts();
 
         toast.loading('PDF 생성 중... (이미지 캡처)', { id: 'pdf-export' });
 
@@ -407,7 +413,7 @@ export const exportToPdf = async (elementId: string, fileName: string) => {
         });
 
         // Register Korean font
-        registerNanumSquareFont(pdf);
+        registerPdfFonts(pdf);
 
         // 2. Add image (centered on A4 portrait page)
         pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
@@ -456,6 +462,9 @@ async function capturePageIntoPdf(
     element: HTMLElement,
     isFirstPage: boolean
 ): Promise<void> {
+    // 화면 글꼴이 이 페이지 렌더에 맞게 로드돼 있는지 확인 (이미 로드됐으면 즉시 끝난다)
+    await loadScreenFonts();
+
     // Reset scale transform for accurate capture
     let scaleWrapper: HTMLElement | null = element.parentElement;
     let originalTransform = '';
@@ -586,10 +595,11 @@ export const exportMergedPdf = async (
     toast.loading(`병합 PDF 생성 중... (0/${quotes.length})`, { id: 'pdf-merge' });
 
     try {
-        await loadNanumSquareFonts();
+        await loadPdfFonts();
+        await loadScreenFonts();
 
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
-        registerNanumSquareFont(pdf);
+        registerPdfFonts(pdf);
 
         for (let i = 0; i < quotes.length; i++) {
             toast.loading(`병합 PDF 생성 중... (${i + 1}/${quotes.length})`, { id: 'pdf-merge' });

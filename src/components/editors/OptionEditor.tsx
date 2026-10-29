@@ -23,9 +23,9 @@ const BRANDING_OPTIONS: Array<{
   desc: string;
   icon: string;
 }> = [
-    { id: 'ai', label: 'AI 견적서', desc: 'AI 초거대 지원과제', icon: '🤖' },
     { id: 'default', label: '일반 견적서', desc: '이폼사인 SaaS', icon: '📄' },
     { id: 'public', label: '공공 견적서', desc: '이폼사인 CSAP', icon: '🏛️' },
+    { id: 'ai', label: 'AI 견적서', desc: 'AI 초거대 지원과제', icon: '🤖' },
   ];
 
 export const OptionEditor: React.FC<OptionEditorProps> = ({

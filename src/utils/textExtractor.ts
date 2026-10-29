@@ -32,6 +32,10 @@ export interface TextElement {
     y: number;
     fontSize: number;   // pt — 반올림하지 않은 실제 렌더 크기
     isBold: boolean;
+    /** computed font-family 문자열 (PDF 텍스트 레이어가 화면과 같은 글꼴을 고르는 데 쓴다) */
+    fontFamily: string;
+    /** computed font-weight (400, 600, 800 …) */
+    fontWeight: number;
     /**
      * PDF mm — y(글리프 박스 상단)에서 baseline까지의 거리.
      * html2canvas가 쓰는 것과 동일한 탐침으로 측정한다. 추정 공식이 아니다.
@@ -207,6 +211,9 @@ export function extractTextElements(
 
         const fontSize = getFontSizePt(parent, pxToMm);
         const isBold = isBoldFont(parent);
+        const computedStyle = window.getComputedStyle(parent);
+        const fontFamily = computedStyle.fontFamily;
+        const fontWeight = parseInt(computedStyle.fontWeight) || 400;
         const baselineMm = getBaselineMm(parent, pxToMm);
 
         const range = document.createRange();
@@ -242,6 +249,8 @@ export function extractTextElements(
                 y: (seg.top - containerRect.top) * pxToMm + yOffset,
                 fontSize,
                 isBold,
+                fontFamily,
+                fontWeight,
                 baselineMm,
                 glyphBoxHeight: seg.height * pxToMm,
             });
