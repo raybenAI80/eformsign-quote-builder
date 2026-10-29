@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal } from './useQuote';
+import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal, addValidityEndLocal } from './useQuote';
 import { QuoteItem } from '../types';
 
 describe('formatSequence', () => {
@@ -488,6 +488,18 @@ describe('local date helpers', () => {
         expect(addMonthsLocal('2026-01-31', 1)).toBe('2026-02-28');
         expect(addMonthsLocal('2028-01-31', 1)).toBe('2028-02-29');
         expect(addMonthsLocal('2026-03-15', 2)).toBe('2026-05-15');
+    });
+
+    it('addValidityEndLocal includes the quote date itself in the period', () => {
+        expect(addValidityEndLocal('2026-10-01', 1)).toBe('2026-10-31');
+        expect(addValidityEndLocal('2026-03-15', 2)).toBe('2026-05-14');
+        expect(addValidityEndLocal('2026-01-31', 1)).toBe('2026-02-28');
+        expect(addValidityEndLocal('2026-01-29', 1)).toBe('2026-02-28');
+        expect(addValidityEndLocal('2026-01-28', 1)).toBe('2026-02-27');
+        expect(addValidityEndLocal('2028-01-30', 1)).toBe('2028-02-29');
+        expect(addValidityEndLocal('2026-12-01', 1)).toBe('2026-12-31');
+        expect(addValidityEndLocal('2026-12-15', 1)).toBe('2027-01-14');
+        expect(addValidityEndLocal('2026-10-01', 12)).toBe('2027-09-30');
     });
 
     it('getLocalToday uses local date just after local midnight (not UTC)', () => {
