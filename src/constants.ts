@@ -59,6 +59,11 @@ export const SUPPLIER_PROFILE = {
 
 type QuickAddItemFactory = () => Omit<QuoteItem, 'id'>;
 
+// 구독형 Personal 요금제 수치 (단일 정본). 프리셋 비고와 참고사항 렌더 변환(구독형 문구의 Business 수치를 Personal 로 바꿈)이 함께 쓴다.
+export const PERSONAL_DOC_QUOTA = 50;
+export const PERSONAL_OVERAGE_WON = 1000;
+export const PERSONAL_OVERAGE_WON_TEXT = PERSONAL_OVERAGE_WON.toLocaleString('en-US');
+
 export const QUICK_ADD_CATALOG: Record<
   string,
   { label: string; section: 'SaaS' | 'Credit' | 'Service' | 'Option'; factory: QuickAddItemFactory; style: string }
@@ -152,7 +157,7 @@ export const QUICK_ADD_CATALOG: Record<
       qty: 12,
       unitPrice: 10000,
       discountPct: 0,
-      notes: '멤버 1명, 문서 50건/월 포함 (초과 시 1,000원/건)\n카카오톡 알림톡/SMS 알림 무제한\n템플릿 무제한\n일괄작성·대량전송\nURL로 문서 작성',
+      notes: '멤버 1명, 문서 ' + PERSONAL_DOC_QUOTA + '건/월 포함 (초과 시 ' + PERSONAL_OVERAGE_WON_TEXT + '원/건)\n카카오톡 알림톡/SMS 알림 무제한\n템플릿 무제한\n일괄작성·대량전송\nURL로 문서 작성',
     }),
     style: 'bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100',
   },
@@ -447,14 +452,30 @@ export const QUICK_ADD_CATALOG: Record<
   },
 };
 
-// 기본 참조 사항 (견적서 작성 시 기본값으로 사용)
-export const DEFAULT_REFERENCE_NOTES = [
+// 참고사항 기본 문구 두 벌 (단일 정본). 충전형 = 영업 캡처 충전형 8문장, 구독형 = 9문장.
+// 구독형 4번의 단가(600원)는 저장 문구이고, 견적일 기준 800원 전환은 렌더 때 applyReferenceNoteOverage 가 한다.
+export const PREPAID_REFERENCE_NOTES: readonly string[] = [
   '본 견적은 『{고객사명}의 전자계약 서비스 eformsign 도입』에 한하여 적용되는 견적입니다.',
-  '계약기간: 계약 시작일로 부터 1년입니다.',
+  '계약기간: 계약 시작일로부터 1년입니다.',
   '문서 사용기한: 계약 시작일로부터 최대 2년까지 사용할 수 있습니다.',
   '문서 소진 시, 본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
-  '클라우드 서비스 업데이트에 따라 추가된 신규 기능은 전면 무상 제공\n(일부 기능은 유상, 반영 전 공지)',
-  '본 계약은 상호 신뢰를 바탕으로 계약을 체결하며, 이에 대한 분쟁이 있을 경우 상관례에 따라 상호 협의에 의하여 분쟁을 해결합니다.',
-  'Trial 기간 동안 API 연동에 대한 기술지원 요청 발생 시, 유선 및 원격 지원',
+  '클라우드 서비스 업데이트로 추가된 신규 기능은 무상으로 제공합니다. (일부 기능은 유상이며, 반영 전에 공지합니다.)',
+  '본 계약은 상호 신뢰를 바탕으로 체결하며, 분쟁이 있을 경우 상관례에 따라 상호 협의하여 해결합니다.',
+  'Trial 기간 동안 API 연동 기술지원을 요청하시면 유선 및 원격으로 지원합니다.',
   '기타 사항은 www.eformsign.com 이용약관에 따릅니다.',
 ];
+
+export const SUBSCRIPTION_REFERENCE_NOTES: readonly string[] = [
+  PREPAID_REFERENCE_NOTES[0],
+  '청구일: 익월 1일에 청구하고, 7일에 등록된 카드로 결제합니다.',
+  '구독형 Business 요금제는 매월 기본 문서 100건을 제공하며, 남은 문서는 이월되지 않습니다.',
+  '초과 이용 문서에 대한 금액(1건당 600원)은 추후 인상될 수 있습니다.',
+  '본 견적에 포함된 사항 외에 별도로 사용된 유료 옵션은 실제 사용량에 따라 일괄 청구됩니다.',
+  PREPAID_REFERENCE_NOTES[4],
+  PREPAID_REFERENCE_NOTES[5],
+  PREPAID_REFERENCE_NOTES[6],
+  PREPAID_REFERENCE_NOTES[7],
+];
+
+// 기본 참조 사항 (견적서 작성 시 기본값으로 사용). 충전형 세트의 별칭이다.
+export const DEFAULT_REFERENCE_NOTES = PREPAID_REFERENCE_NOTES;

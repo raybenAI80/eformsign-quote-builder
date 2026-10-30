@@ -358,3 +358,14 @@ h4,
   color: #9ca3af;
   pointer-events: none;
 }
+
+/* 참고사항 안내(요금제 불일치 경고·저장 확인창): 어절 내부에서 줄을 나누지 않는다 (klreq §7.1) */
+.notes-kr {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+  text-wrap: pretty;
+}
+.notes-kr-balance {
+  text-wrap: balance;
+}

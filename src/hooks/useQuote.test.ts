@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal, addValidityEndLocal } from './useQuote';
 import { QuoteItem } from '../types';
+import { DEFAULT_REFERENCE_NOTES } from '../constants';
 
 describe('formatSequence', () => {
     it('숫자만 남기고 제거', () => {
@@ -387,6 +388,15 @@ describe('createDefaultMeta', () => {
 
         expect(meta.referenceNotes.length).toBeGreaterThan(0);
         expect(meta.referenceNotes[0]).toContain('eformsign');
+    });
+
+    it('참고사항 기본값은 constants 의 충전형 세트 하나만 쓴다 (첫 실행 초기값)', () => {
+        expect(createDefaultMeta().referenceNotes).toEqual([...DEFAULT_REFERENCE_NOTES]);
+    });
+
+    it('저장된 meta 에 참고사항이 비어 있으면 같은 충전형 세트로 채운다', () => {
+        const restored = normalizeRestoredMeta({ ...createDefaultMeta(), referenceNotes: [] });
+        expect(restored.referenceNotes).toEqual([...DEFAULT_REFERENCE_NOTES]);
     });
 });
 

@@ -1,12 +1,12 @@
 ---
 name: quote-builder-state-flow
-description: 견적서 빌더의 견적 상태 흐름(새 견적·초기화·앱 로드 복원·템플릿 불러오기)을 바꾸거나 필드를 추가할 때 사용한다. 경로별로 어떤 필드를 유지하고 비우는지, 필드 분류 상수, 완료 전 브라우저 검증 시나리오, 함정을 다룬다. 트리거 - 초기화, 복원, 새 견적, 견적일자, 담당자 유지, 고객사 비움, localStorage, resetQuote, normalizeRestoredMeta, buildResetMeta, RESET_PRESERVED_META_KEYS, RESET_CUSTOMER_META_KEYS, getLocalToday, 참조사항, 자리표시자, 고객사명 연동, placeholder, referenceNotes, renderReferenceNote, restoreCustomerPlaceholder, PDF 저장, PNG 저장, 화질, 쪽 나눔, 여러 쪽, 한 장에 맞춤, 결제 정보, 직인 표시, PDF 메뉴, 운영 배포 확인, verify:export, 출력 파이프라인.
+description: 견적서 빌더의 견적 상태 흐름(새 견적·초기화·앱 로드 복원·템플릿 불러오기)을 바꾸거나 필드를 추가할 때 사용한다. 경로별로 어떤 필드를 유지하고 비우는지, 필드 분류 상수, 완료 전 브라우저 검증 시나리오, 함정을 다룬다. 트리거 - 요금제 유형, 충전형, 구독형, 참고사항 불일치, 초기화, 복원, 새 견적, 견적일자, 담당자 유지, 고객사 비움, localStorage, resetQuote, normalizeRestoredMeta, buildResetMeta, RESET_PRESERVED_META_KEYS, RESET_CUSTOMER_META_KEYS, getLocalToday, 참조사항, 자리표시자, 고객사명 연동, placeholder, referenceNotes, renderReferenceNote, restoreCustomerPlaceholder, PDF 저장, PNG 저장, 화질, 쪽 나눔, 여러 쪽, 한 장에 맞춤, 결제 정보, 직인 표시, PDF 메뉴, 운영 배포 확인, verify:export, 출력 파이프라인.
 ---
 
 # 견적서 빌더 상태 흐름
 
 정본 코드는 `src/hooks/useQuote.ts` 다. 테스트는 `src/hooks/useQuote.test.ts` 에 있다.
-배경 커밋은 `8ba89e4`(초기화 시 담당자 유지·견적일자 오늘), `9ec3624`(앱 로드 복원 시 고객사 비움), `46050ca`(참조사항 자리표시자 보존)다. 참조사항 자리표시자 규칙은 5절에 있다.
+배경 커밋은 `8ba89e4`(초기화 시 담당자 유지·견적일자 오늘), `9ec3624`(앱 로드 복원 시 고객사 비움), `46050ca`(참조사항 자리표시자 보존)다. 참조사항 자리표시자 규칙은 5절, 요금제 유형별 참고사항은 5-1절에 있다.
 게이트는 `C:/Users/FORCS/.agent-harness/gates/gates.json` 의 `R25-ui-state-flow-browser-verify` 이고, 완료 전에 리시트 `ui-state-flow-browser-scenario` 가 필요하다.
 
 ## 1. 경로별 상태 흐름
@@ -90,6 +90,20 @@ vitest 통과와 배포 번들 grep 은 완료 근거가 아니다. 아래를 �
   3. 편집 입력의 value 는 원문이다. 치환 결과는 힌트·미리보기에만 쓴다.
   4. 저장 데이터에 이미 굳은 값이 있을 수 있으면 구제 함수와 적용 경로 3곳을 함께 갱신한다. 구제는 확실히 기본 문구에서 온 값만 대상으로 한다.
   5. `referenceNotes.test.ts` 에 다중 치환·빈 값·구제·비구제(다른 회사명) 케이스를 추가하고, 3절의 참조사항 브라우저 시나리오를 수행한다.
+
+## 5-1. 참고사항과 요금제 유형 (2026-10-30)
+
+영업 요청: 충전형과 구독형은 참고사항 문구가 달라야 하는데 그대로 송부되는 일이 있어 제약 장치가 필요했다. 정본 코드는 `src/utils/planType.ts`, `src/utils/referenceNoteSets.ts`, `src/components/NotesMismatchModal.tsx`, `src/components/preview/overageNotice.ts` 이고, 테스트는 각 파일의 `*.test.ts` 에 있다.
+
+- **기본 문구 두 벌**: `src/constants.ts` 의 `PREPAID_REFERENCE_NOTES`(충전형 8문장), `SUBSCRIPTION_REFERENCE_NOTES`(구독형 9문장)가 단일 정본이다. `DEFAULT_REFERENCE_NOTES` 는 충전형의 별칭이다.
+- **요금제 유형 판별**: `detectPlanType(items)` 가 품목 `category` 만 본다. `'문서 충전'` 이면 충전형, `'구독형'` 이면 구독형, 둘 다 있으면 혼합, 어느 쪽도 없으면 없음이다. category 는 화면에서 바꿀 수 없어서 품목명을 고쳐도 판별이 깨지지 않는다. Business/Personal 등급만 품목명(`detectSubscriptionTiers`)으로 본다.
+- **불일치 경고**: 편집기에 현재 유형 배지가 보이고, 다른 유형 전용 문장(충전형: 계약기간·문서 사용기한·문서 소진 시 / 구독형: 청구일·이월되지 않·초과 이용 문서)이 있으면 경고한다. 혼합·없음은 추측하지 않고 경고하지 않는다. 유형별 「불러오기」 버튼과 유형별 「기본값으로 저장」이 있다.
+- **저장 키**: 사용자 기본값은 localStorage `eformsign_custom_reference_notes_prepaid` / `_subscription` 에 따로 둔다. 예전 키 `eformsign_custom_reference_notes` 는 충전형으로 읽고 지우지 않는다.
+- **저장 직전 확인창**: PDF·PNG 저장 때만 `NotesMismatchModal` 이 불일치를 보여 주고 「그대로 저장」/「수정하러 가기」를 묻는다. 병합 PDF 는 대상이 아니다.
+- **렌더 때 바꾸는 값**: `applyReferenceNoteOverage` 가 저장 문구는 두고 보이는 값만 바꾼다. Business 초과 단가는 견적일이 2027-01-01 이후면 600원이 800원이다. 구독형이 Personal 뿐이면 「Personal 요금제」·50건·1,000원으로, Business 와 Personal 이 함께 있으면 두 값을 나란히 보인다. 예전에 저장된 문구(「1건 당 600원」 등)도 같은 규칙으로 처리한다.
+- **하지 않는 것**: 예전에 저장한 견적·템플릿의 참고사항은 자동으로 고치지 않는다. 경고만 한다. Personal·혼합 견적에서 편집칸은 저장된 문구를 보이고 미리보기·PDF 는 바뀐 숫자를 보인다.
+- **세 축은 서로 다르다**: `brandingMode`(하단 종류 F1·F2), `sector`(가격 계산용), 요금제 유형(참고사항 문구용)을 하나로 합쳐 판정하지 않는다. 요금제 유형을 sector 나 brandingMode 로 추정하면 어긋난다.
+- **검증**: `node --env-file=<메인 체크아웃의 환경변수 파일> tools/verify-reference-notes.mjs <출력 폴더>`. `PW_CHROME` 에 chrome-headless-shell 경로를 주고, 이미 떠 있는 서버를 쓰려면 `QB_BASE_URL` 을 준다. 첫 화면 문구, 구독형 경고, 견적일별 600/800원, 저장 확인창, 혼합 안내, 새로고침 뒤 문구 불변, 유형별 기본값 저장·불러오기를 확인하고 하나라도 어긋나면 exit 1 이다. `verify:export` 에는 포함하지 않았다.
 
 ## 6. PDF 저장 방식 (한 장 / 여러 쪽)
 

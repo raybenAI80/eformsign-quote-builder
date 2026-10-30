@@ -15,6 +15,8 @@ import {
 } from './previewModel';
 import { QuoteFooterD } from './QuoteFooterD';
 import { selectFooterKind } from './quoteFooterKind';
+import { applyReferenceNoteOverage } from './overageNotice';
+import { referenceNoteTierMode } from '../../utils/planType';
 import { getQuoteTitleText } from './quoteTitle';
 import { paginate, measureFlowPaper, type PageSpec } from './pagination';
 import './quotePreviewD.css';
@@ -75,6 +77,8 @@ const QuotePaper: React.FC<QuotePaperProps> = ({
     hasContactPhone,
   } = getPreviewModel(meta, calculation, categoryLabels);
   const renderRows = rowsProp ?? flattenGroups(groups);
+  // 구독형이 Personal 뿐이면 Personal 수치로, Business 와 Personal 이 함께 있으면 두 수치를 나란히 렌더 때 보인다(저장 문구는 그대로)
+  const noteTier = referenceNoteTierMode(calculation.rows);
 
   const colSpan = showRowDiscount ? 5 : 4;
   const sealSize = meta.sealSize ?? 48;
@@ -384,7 +388,8 @@ const QuotePaper: React.FC<QuotePaperProps> = ({
           <div className="qd-notes">
             <h3>{LABELS.notes}</h3>
             {meta.referenceNotes.map((note, i) => {
-              const displayNote = renderReferenceNote(note, meta.customerName);
+              // 초과 단가(600→800원)는 견적일 기준으로 렌더 때만 바꾼다. 저장 문구는 그대로, 인라인 태그 없이 평문.
+              const displayNote = applyReferenceNoteOverage(renderReferenceNote(note, meta.customerName), meta.quoteDate, undefined, noteTier);
               return (
                 displayNote.trim() && (
                   <p key={i}>
