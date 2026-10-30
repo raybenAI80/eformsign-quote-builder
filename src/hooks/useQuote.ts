@@ -136,7 +136,7 @@ export const createDefaultMeta = (): QuoteMeta => {
     title: '이폼사인 견적서',
     subtitle: '',
     brandingMode: 'default',
-    sealMode: 'omitted',
+    sealMode: 'hidden',
     referenceNotes: [
       '본 견적은 『{customerName}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다.',
       '계약기간: 계약 시작일로 부터 1년입니다.',
@@ -182,7 +182,7 @@ export const createEmptyMeta = (): QuoteMeta => {
     title: '',
     subtitle: '',
     brandingMode: 'default',
-    sealMode: 'omitted',
+    sealMode: 'hidden',
     referenceNotes: [...DEFAULT_REFERENCE_NOTES],
     bizNoLink: SUPPLIER_PROFILE.bizNoLink,
     bankAccountLink: SUPPLIER_PROFILE.bankAccountLink,

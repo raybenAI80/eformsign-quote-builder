@@ -378,7 +378,7 @@ describe('createDefaultMeta', () => {
         expect(meta.vatRate).toBe(10);
         expect(meta.validityDays).toBe(30);
         expect(meta.brandingMode).toBe('default');
-        expect(meta.sealMode).toBe('omitted');
+        expect(meta.sealMode).toBe('hidden');
         expect(meta.quoteDate).toMatch(/^\d{4}-\d{2}-\d{2}$/); // YYYY-MM-DD 형식
     });
 
@@ -417,6 +417,10 @@ describe('buildResetMeta (새 견적서 초기화)', () => {
         salesEmail: 'legacy@forcs.com',
         salesContact: '02-000-0000',
     };
+
+    it('직인 표시는 직전 선택과 무관하게 기본값(숨김)으로 돌아간다', () => {
+        expect(buildResetMeta({ ...prev, sealMode: 'stamped' }).sealMode).toBe('hidden');
+    });
 
     it('견적일자는 오늘(로컬)로 바뀐다', () => {
         expect(buildResetMeta(prev).quoteDate).toBe(getLocalToday());
