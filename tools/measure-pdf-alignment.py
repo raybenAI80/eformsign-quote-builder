@@ -4,7 +4,8 @@
 래스터 글자 잉크와 얼마나 어긋나는지 잰다. 레이어는 코드가 계산한 좌표이고 잉크는 실제 그려진 픽셀이므로
 같은 계산을 되풀이하는 검증이 아니다.
 
-사용: python tools/measure-pdf-alignment.py <pdf> [--dpi 200] [--png 렌더결과.png] [--find 문자열 ...]
+사용: python tools/measure-pdf-alignment.py <pdf> [--dpi 200] [--page N] [--png 렌더결과.png] [--find 문자열 ...]
+  --page N : N번째 쪽(1부터, 기본 1)만 잰다. 여러 쪽 PDF 는 쪽마다 따로 돌린다.
 필요: pymupdf, numpy
 지표(줄마다, mm 로 환산):
   dx_left  = 잉크 왼쪽 끝 - 상자 왼쪽 끝      (시작 위치 어긋남)
@@ -23,13 +24,14 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("pdf")
     ap.add_argument("--dpi", type=int, default=200)
+    ap.add_argument("--page", type=int, default=1)
     ap.add_argument("--png")
     ap.add_argument("--find", nargs="*", default=[])
     ap.add_argument("--show", nargs="*", default=[], help="이 문자열을 포함하는 줄의 개별 오프셋을 출력한다(예: 띠 위 흰 글자 줄)")
     args = ap.parse_args()
 
     doc = fitz.open(args.pdf)
-    page = doc[0]
+    page = doc[args.page - 1]
     print(f"pages={len(doc)} size_mm={page.rect.width * 25.4 / 72:.1f}x{page.rect.height * 25.4 / 72:.1f}")
     print("fonts:", sorted({f[3] for f in page.get_fonts()}))
     print("images:", [(i[2], i[3]) for i in page.get_images()])
