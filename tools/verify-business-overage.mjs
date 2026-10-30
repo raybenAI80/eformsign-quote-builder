@@ -98,7 +98,12 @@ try {
       const screen = await readNotes(page, '#preview-panel');
       const pdfView = await readNotes(page, '#pdf-preview-panel .qd-paper');
       const pdfFile = join(OUT, `overage-${date}.pdf`);
-      const dl = await downloadTo(page, () => page.locator('button[title="PDF / 인쇄"]').click(), pdfFile, 240000);
+      // 구독형 품목에 기본(충전형) 참고사항이 남아 있으면 저장 직전 확인창이 뜬다 — 출력 검증이므로 그대로 저장한다
+      const dl = await downloadTo(page, async () => {
+        await page.locator('button[title="PDF / 인쇄"]').click();
+        const modal = page.getByTestId('notes-mismatch-modal');
+        if (await modal.waitFor({ timeout: 2000 }).then(() => true, () => false)) await page.getByRole('button', { name: '그대로 저장' }).click();
+      }, pdfFile, 240000);
       pdfPagePng(pdfFile, join(OUT, `overage-${date}-pdf.png`));
       const text = norm(pdfText(pdfFile).join('\n'));
       const biz = screen['구독형 Business']?.text ?? '';

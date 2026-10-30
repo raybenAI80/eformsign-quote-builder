@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
     DndContext,
@@ -17,10 +17,24 @@ import {
     arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { QuoteMeta } from '../../types';
+import { QuoteItem, QuoteMeta } from '../../types';
 import { buildQuoteNo, formatSequence, addValidityEndLocal, parseLocalDate } from '../../hooks/useQuote';
 import { parseNum } from '../../utils/helpers';
-import { DEFAULT_REFERENCE_NOTES } from '../../constants';
+import {
+    PLAN_TYPE_LABEL,
+    detectPlanType,
+    findMismatchedNotes,
+    otherPlanLabel,
+    planBadgeLabel,
+    type PlanType,
+} from '../../utils/planType';
+import {
+    builtInNotes,
+    notesForType,
+    sameNotes,
+    writeCustomNotes,
+    type NoteSetType,
+} from '../../utils/referenceNoteSets';
 import {
     CUSTOMER_NAME_PLACEHOLDER,
     hasCustomerPlaceholder,
@@ -31,11 +45,13 @@ import {
 
 interface BasicInfoEditorProps {
     meta: QuoteMeta;
+    /** 품목 기준 요금제(충전형·구독형) 판정에만 쓴다 */
+    items: QuoteItem[];
     setMeta: React.Dispatch<React.SetStateAction<QuoteMeta>>;
     isEditing: boolean;
 }
 
-export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta, isEditing }) => {
+export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, items, setMeta, isEditing }) => {
     // Drag and drop sensors for reference notes
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -113,6 +129,69 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
             applyMetaPatch({ issueSequence: formatted });
         }
     }, [meta.issueSequence, applyMetaPatch]);
+
+    // ---- 참고사항: 요금제(충전형·구독형) 안내 ----
+    const planType: PlanType = useMemo(() => detectPlanType(items), [items]);
+    const badgeLabel = useMemo(() => planBadgeLabel(items), [items]);
+    const notes = useMemo(() => meta.referenceNotes ?? [], [meta.referenceNotes]);
+    const mismatches = useMemo(() => findMismatchedNotes(notes, planType), [notes, planType]);
+    const mismatchIndexes = useMemo(() => new Set(mismatches.map(m => m.index)), [mismatches]);
+    // 「이대로 둠」: 이 화면에서만 기억한다. 참고사항이나 요금제 품목이 바뀌면 키가 달라져 경고가 다시 보인다.
+    const planItemCount = useMemo(
+        () => items.filter(i => i.category === '문서 충전' || i.category === '구독형').length,
+        [items]
+    );
+    const warnKey = `${planType}|${planItemCount}|${JSON.stringify(notes)}`;
+    const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+    const showWarning = mismatches.length > 0 && dismissedKey !== warnKey;
+    // 문구나 품목이 한 번이라도 바뀌면 「이대로 둠」을 풀어, 나중에 같은 상태로 돌아와도 경고가 다시 보이게 한다
+    useEffect(() => {
+        if (dismissedKey !== null && dismissedKey !== warnKey) setDismissedKey(null);
+    }, [dismissedKey, warnKey]);
+    const [saveChoiceOpen, setSaveChoiceOpen] = useState(false);
+    const saveChoiceRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!saveChoiceOpen) return;
+        const close = (e: MouseEvent) => {
+            if (!saveChoiceRef.current?.contains(e.target as Node)) setSaveChoiceOpen(false);
+        };
+        const esc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setSaveChoiceOpen(false);
+        };
+        document.addEventListener('mousedown', close);
+        document.addEventListener('keydown', esc);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            document.removeEventListener('keydown', esc);
+        };
+    }, [saveChoiceOpen]);
+
+    /** 그 요금제의 문구로 참고사항 전체를 바꾼다. 지금 문구와 다르면 먼저 확인한다. */
+    const loadNotesOfType = (type: NoteSetType, skipConfirmWhenPristineOther = false) => {
+        const set = notesForType(type);
+        const target = restoreCustomerPlaceholders(set, meta.customerName) ?? set;
+        if (sameNotes(notes, target)) return;
+        const otherType: NoteSetType = type === 'prepaid' ? 'subscription' : 'prepaid';
+        // 경고 상자의 「바꾸기」: 사용자가 고치지 않은 다른 요금제 문구 그대로이면 잃을 것이 없으므로 묻지 않는다.
+        const pristineOther =
+            skipConfirmWhenPristineOther &&
+            (sameNotes(notes, notesForType(otherType)) || sameNotes(notes, builtInNotes(otherType)));
+        if (!pristineOther) {
+            const label = PLAN_TYPE_LABEL[type];
+            if (!window.confirm(`현재 참고사항 ${notes.length}줄이 모두 ${label} 문구로 바뀝니다. 계속할까요?`)) return;
+        }
+        setMeta(m => ({ ...m, referenceNotes: target }));
+    };
+
+    const saveNotesAsDefault = (type: NoteSetType) => {
+        setSaveChoiceOpen(false);
+        if (writeCustomNotes(type, notes)) {
+            toast.success(`현재 참고사항을 ${PLAN_TYPE_LABEL[type]} 기본값으로 저장했습니다.`);
+        } else {
+            toast.error('이 브라우저에서는 기본값을 저장할 수 없습니다.');
+        }
+    };
 
     // 현재 sector 배지 정보
     const sector = meta.sector ?? 'general';
@@ -384,7 +463,7 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
             </section>
 
             {/* Section 4: Reference Notes */}
-            <section className="card space-y-5">
+            <section id="reference-notes-card" tabIndex={-1} className="card space-y-5 outline-none">
                 <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 shadow-sm">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -398,6 +477,108 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                     <h2 className="text-lg font-bold text-gray-900 tracking-tight">견적 참조 사항</h2>
                 </div>
 
+                {planType !== 'none' && (
+                    <div>
+                        <span
+                            data-testid="plan-type-badge"
+                            className={`notes-kr inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                                planType === 'subscription'
+                                    ? 'bg-blue-50 text-blue-700 ring-blue-200'
+                                    : planType === 'prepaid'
+                                      ? 'bg-teal-50 text-teal-700 ring-teal-200'
+                                      : 'bg-gray-100 text-gray-700 ring-gray-300'
+                            }`}
+                        >
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                    planType === 'subscription' ? 'bg-blue-500' : planType === 'prepaid' ? 'bg-teal-500' : 'bg-gray-500'
+                                }`}
+                            />
+                            품목 기준 요금제: {badgeLabel}
+                        </span>
+                    </div>
+                )}
+
+                {showWarning && planType !== 'none' && planType !== 'mixed' && (
+                    <div
+                        role="alert"
+                        data-testid="notes-mismatch-warning"
+                        className="notes-kr flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4"
+                    >
+                        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                <line x1="12" y1="9" x2="12" y2="13" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-[15px] font-extrabold text-amber-900" style={{ fontFamily: 'var(--font-heading)' }}>
+                                참고사항이 요금제와 맞지 않습니다
+                            </h3>
+                            <p className="mt-0.5 text-[13px] text-amber-800">
+                                {PLAN_TYPE_LABEL[planType]} 품목이 있는데 {otherPlanLabel(planType)} 문장이 남아 있습니다.
+                            </p>
+                            <ul className="mt-2.5 flex list-none flex-col gap-1.5 p-0">
+                                {mismatches.map(m => (
+                                    <li
+                                        key={m.index}
+                                        className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[13px] text-amber-900"
+                                    >
+                                        <b className="font-bold">{m.index + 1}번</b> {m.text.split('\n')[0]}
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="btn-primary"
+                                    disabled={!isEditing}
+                                    onClick={() => loadNotesOfType(planType === 'subscription' ? 'subscription' : 'prepaid', true)}
+                                >
+                                    {PLAN_TYPE_LABEL[planType]} 문구로 바꾸기
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded-full px-3 py-2.5 text-sm font-semibold text-gray-500 underline decoration-gray-300 underline-offset-4 hover:text-gray-700"
+                                    onClick={() => setDismissedKey(warnKey)}
+                                >
+                                    이대로 둠
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {planType === 'mixed' && (
+                    <div
+                        role="status"
+                        data-testid="notes-mixed-info"
+                        className="notes-kr flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4"
+                    >
+                        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
+                            </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[13px] leading-relaxed text-blue-900">
+                                충전형과 구독형 품목이 함께 있습니다. 자동 판단을 하지 않으니 참고사항을 직접 확인해 주세요.
+                            </p>
+                            <div className="mt-2.5 flex flex-wrap gap-2">
+                                <button type="button" disabled={!isEditing} onClick={() => loadNotesOfType('prepaid')} className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-100">
+                                    충전형 문구 불러오기
+                                </button>
+                                <button type="button" disabled={!isEditing} onClick={() => loadNotesOfType('subscription')} className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-100">
+                                    구독형 문구 불러오기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <fieldset disabled={!isEditing} className="space-y-3">
                     <DndContext sensors={isEditing ? sensors : undefined} collisionDetection={closestCenter} onDragEnd={handleNoteDragEnd}>
                         <SortableContext items={(meta.referenceNotes || []).map((_, i) => `note-${i}`)} strategy={verticalListSortingStrategy}>
@@ -408,6 +589,7 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                                     note={note}
                                     index={index}
                                     customerName={meta.customerName}
+                                    flag={mismatchIndexes.has(index) ? `${otherPlanLabel(planType)} 문구입니다` : undefined}
                                     onUpdate={(newValue) => {
                                         const newNotes = [...(meta.referenceNotes || [])];
                                         newNotes[index] = newValue;
@@ -430,7 +612,7 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                                 const newNotes = [...(meta.referenceNotes || []), ''];
                                 setMeta(m => ({ ...m, referenceNotes: newNotes }));
                             }}
-                            className="flex-1 py-2.5 px-4 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-500 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 whitespace-nowrap py-2.5 px-4 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-500 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -438,40 +620,66 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, setMeta,
                             </svg>
                             새 항목 추가
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                // localStorage에서 저장된 커스텀 기본값이 있으면 사용, 없으면 DEFAULT_REFERENCE_NOTES 사용
-                                const savedNotes = localStorage.getItem('eformsign_custom_reference_notes');
-                                const notesToLoad: string[] = savedNotes ? JSON.parse(savedNotes) : [...DEFAULT_REFERENCE_NOTES];
-                                setMeta(m => ({ ...m, referenceNotes: restoreCustomerPlaceholders(notesToLoad, m.customerName) ?? notesToLoad }));
-                            }}
-                            className="py-2.5 px-4 bg-purple-50 border border-purple-200 rounded-xl text-sm font-medium text-purple-600 hover:bg-purple-100 hover:border-purple-300 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            기본값 불러오기
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                // 현재 참조 사항을 localStorage에 저장
-                                const notesToSave = meta.referenceNotes || [];
-                                localStorage.setItem('eformsign_custom_reference_notes', JSON.stringify(notesToSave));
-                                alert('현재 참조 사항이 기본값으로 저장되었습니다.');
-                            }}
-                            className="py-2.5 px-4 bg-green-50 border border-green-200 rounded-xl text-sm font-medium text-green-600 hover:bg-green-100 hover:border-green-300 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                                <polyline points="17 21 17 13 7 13 7 21" />
-                                <polyline points="7 3 7 8 15 8" />
-                            </svg>
-                            기본값으로 저장
-                        </button>
+                        <div className="inline-flex overflow-hidden rounded-xl border border-purple-200 bg-purple-50" role="group" aria-label="요금제별 문구 불러오기">
+                            <button
+                                type="button"
+                                onClick={() => loadNotesOfType('prepaid')}
+                                className="flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-100"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                충전형 문구 불러오기
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => loadNotesOfType('subscription')}
+                                className="whitespace-nowrap border-l border-purple-200 px-3.5 py-2.5 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-100"
+                            >
+                                구독형 문구 불러오기
+                            </button>
+                        </div>
+                        <div className="relative" ref={saveChoiceRef}>
+                            <button
+                                type="button"
+                                aria-haspopup="true"
+                                aria-expanded={saveChoiceOpen}
+                                onClick={() => setSaveChoiceOpen(o => !o)}
+                                className="py-2.5 px-4 bg-green-50 border border-green-200 rounded-xl text-sm font-medium text-green-600 hover:bg-green-100 hover:border-green-300 transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                    <polyline points="17 21 17 13 7 13 7 21" />
+                                    <polyline points="7 3 7 8 15 8" />
+                                </svg>
+                                기본값으로 저장
+                            </button>
+                            {saveChoiceOpen && (
+                                <div
+                                    role="menu"
+                                    data-testid="save-default-choice"
+                                    className="notes-kr absolute bottom-full right-0 z-20 mb-2 w-60 rounded-xl border border-gray-200 bg-white p-2 shadow-xl"
+                                >
+                                    <p className="px-2 pb-1.5 pt-1 text-xs text-gray-500">어느 요금제의 기본값으로 저장할까요?</p>
+                                    {(['prepaid', 'subscription'] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() => saveNotesAsDefault(type)}
+                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-green-50 ${
+                                                planType === type ? 'bg-green-50 text-green-700 ring-1 ring-green-200' : 'text-gray-700'
+                                            }`}
+                                        >
+                                            <span>{PLAN_TYPE_LABEL[type]} 기본값으로 저장</span>
+                                            {planType === type && <span className="text-[11px] font-bold text-green-600">품목 기준</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </fieldset>
             </section>
@@ -520,6 +728,8 @@ interface SortableNoteItemProps {
     note: string;
     index: number;
     customerName: string;
+    /** 요금제와 맞지 않는 문장이면 붙이는 표시 문구 */
+    flag?: string;
     onUpdate: (value: string) => void;
     onRemove: () => void;
     isEditing: boolean;
@@ -530,6 +740,7 @@ const SortableNoteItem: React.FC<SortableNoteItemProps> = ({
     note,
     index,
     customerName,
+    flag,
     onUpdate,
     onRemove,
     isEditing
@@ -552,7 +763,8 @@ const SortableNoteItem: React.FC<SortableNoteItemProps> = ({
         <div
             ref={setNodeRef}
             style={style}
-            className={`group flex gap-0 items-stretch rounded-xl border transition-all ${isDragging ? 'shadow-xl ring-2 ring-blue-400 bg-white rotate-1 scale-[1.02]' : 'border-gray-100 hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5'}`}
+            data-note-flagged={flag ? 'true' : undefined}
+            className={`group flex gap-0 items-stretch rounded-xl border transition-all ${isDragging ? 'shadow-xl ring-2 ring-blue-400 bg-white rotate-1 scale-[1.02]' : flag ? 'border-amber-200 border-l-4 border-l-amber-400 bg-amber-50' : 'border-gray-100 hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5'}`}
         >
             {/* Drag Handle - Always visible with left background */}
             <div
@@ -573,15 +785,25 @@ const SortableNoteItem: React.FC<SortableNoteItemProps> = ({
                 </div>
             </div>
             <div className="flex items-center gap-2 flex-1 p-2">
-                <span className="text-blue-500 text-sm font-bold min-w-[24px]">{index + 1}.</span>
+                <span className={`text-sm font-bold min-w-[24px] ${flag ? 'text-amber-700' : 'text-blue-500'}`}>{index + 1}.</span>
                 <div className="flex-1 min-w-0 space-y-1">
                     <textarea
-                        className="input-field w-full bg-gray-50/50 text-sm resize-none"
+                        className={`input-field w-full text-sm resize-none ${flag ? 'bg-white border-amber-200' : 'bg-gray-50/50'}`}
                         rows={2}
                         value={editableValue}
                         onChange={e => onUpdate(e.target.value)}
                         placeholder="참조 사항 입력..."
                     />
+                    {flag && (
+                        <p className="notes-kr flex items-center gap-1 px-1 text-xs font-semibold text-amber-800" data-testid={`note-flag-${index}`}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {flag}
+                        </p>
+                    )}
                     {renderedValue !== null && (
                         <p className="px-1 text-xs text-gray-500 break-keep" data-testid={`note-rendered-${index}`}>
                             <span className="font-medium text-purple-600">{CUSTOMER_NAME_PLACEHOLDER}</span> → 고객사명으로 표시: {renderedValue}

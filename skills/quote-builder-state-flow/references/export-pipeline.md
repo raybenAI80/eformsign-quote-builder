@@ -83,6 +83,8 @@ node --env-file=D:\pjt\eformsign-견적서-빌더\.env --env-file=D:\pjt\eformsi
 `verify:export` 는 환경변수 파일을 저장소 루트에서, 없으면 메인 체크아웃에서 찾고, `PW_CHROME` 이 없으면 ms-playwright 의 최신 chrome-headless-shell 을 쓴다. `PYI` 는 스스로 비운다.
 쪽 구성·결제 정보·직인·PNG 도구는 관찰값만 출력하므로, 기대값 대조는 실행기 `tools/verify-export-all.mjs` 가 한다. 새 기대값은 거기에 추가한다. 하단·메뉴 도구는 스스로 exit 1 한다.
 
+PDF·PNG 저장 직전에 참고사항 불일치 확인창(`NotesMismatchModal`)이 뜰 수 있다. 요금제 유형(충전형·구독형)과 맞지 않는 문장이 참고사항에 있을 때다. 자동화 도구는 「그대로 저장」을 눌러야 저장이 이어진다(`tools/verify-business-overage.mjs` 는 이미 누른다). 병합 PDF 는 이 확인창의 대상이 아니다. 규칙은 SKILL.md 5-1절.
+
 ## 6. 운영 배포 확인 절차
 
 main 병합 → Vercel 이 운영(https://eformsign-quote-builder-liart.vercel.app)에 자동 배포한다. "배포됐을 것"으로 보고하지 않는다.

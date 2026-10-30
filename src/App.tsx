@@ -21,6 +21,8 @@ import { ItemEditor } from './components/editors/ItemEditor';
 import { OptionEditor } from './components/editors/OptionEditor';
 import { HistoryEditor } from './components/editors/HistoryEditor';
 import { ConfirmModal } from './components/ConfirmModal';
+import { NotesMismatchModal } from './components/NotesMismatchModal';
+import { detectPlanType, findMismatchedNotes } from './utils/planType';
 import { OnboardingTour, hasCompletedOnboarding, resetOnboarding } from './components/OnboardingTour';
 
 // Auth
@@ -187,6 +189,42 @@ function QuoteBuilder() {
     toast.success('CSV 파일로 내보냈습니다.');
   };
 
+  // PDF·PNG 저장 직전 확인: 참고사항에 요금제와 맞지 않는 문장이 있으면 한 번 묻는다 (저장을 막지 않는다).
+  const planType = useMemo(() => detectPlanType(items), [items]);
+  const notesMismatches = useMemo(() => findMismatchedNotes(meta.referenceNotes, planType), [meta.referenceNotes, planType]);
+  const [pendingExport, setPendingExport] = useState<(() => void | Promise<void>) | null>(null);
+
+  const withNotesCheck = useCallback(
+    (run: () => void | Promise<void>) => {
+      // 필수 항목이 비어 있으면 원래대로 오류 안내가 먼저 나가도록 곧바로 실행한다
+      if (notesMismatches.length === 0 || !validation.ok) return run();
+      setPendingExport(() => run);
+    },
+    [notesMismatches, validation.ok]
+  );
+
+  const handleNotesModalFix = useCallback(() => {
+    setPendingExport(null);
+    setActiveTab('basic');
+    // 참고사항 칸은 '기본' 탭에 있다. 탭이 그려진 뒤 그 카드로 이동하고 포커스를 둔다.
+    const go = (tries: number) => {
+      const card = document.getElementById('reference-notes-card');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        card.focus({ preventScroll: true });
+      } else if (tries > 0) {
+        setTimeout(() => go(tries - 1), 50);
+      }
+    };
+    requestAnimationFrame(() => go(10));
+  }, []);
+
+  const handleNotesModalSaveAnyway = useCallback(() => {
+    const run = pendingExport;
+    setPendingExport(null);
+    if (run) void run();
+  }, [pendingExport]);
+
   // PDF·PNG 저장이 같은 파일 이름(확장자 제외)을 쓴다.
   const buildExportFilename = () => {
     const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '_').trim();
@@ -194,7 +232,7 @@ function QuoteBuilder() {
     return `이폼사인_${typeLabel} 견적서_${sanitize(meta.customerName)}_${sanitize(meta.quoteDate)}_${sanitize(meta.contactName)}`;
   };
 
-  const handleExportImage = async () => {
+  const exportImageNow = async () => {
     if (!ensureValid()) return;
     // PNG 는 PDF 저장 방식과 무관하게 항상 한 장 이미지다. 여러 쪽 미리보기에는 #preview-panel 이 없으므로 PDF 용 화면 밖 한 장 사본이 잡힌다.
     // 미리보기를 끄면 #preview-panel 이 display:none 이라 캡처할 수 없다 — PDF 용 화면 밖 사본(같은 내용, 같은 297mm 폭)을 쓴다.
@@ -214,10 +252,10 @@ function QuoteBuilder() {
   };
 
   // PDF 본 버튼: 기억된 방식으로 저장
-  const handleExportPdf = () => runPdfExport(pdfLayout);
+  const handleExportPdf = () => withNotesCheck(() => runPdfExport(pdfLayout));
 
   // 저장 방식 메뉴 항목: 그 방식으로 저장하고 기본값으로 기억
-  const handleExportPdfAs = async (layout: PdfLayout) => {
+  const exportPdfAsNow = async (layout: PdfLayout) => {
     const changed = layout !== pdfLayout;
     setPdfLayout(layout);
     writePdfLayout(layout);
@@ -230,6 +268,9 @@ function QuoteBuilder() {
     }
     await runPdfExport(layout);
   };
+
+  const handleExportImage = () => withNotesCheck(exportImageNow);
+  const handleExportPdfAs = (layout: PdfLayout) => withNotesCheck(() => exportPdfAsNow(layout));
 
   // 메뉴를 열 때 숨김 한 장 용지를 재서 쪽 수·글자 비율을 구한다
   const getPdfLayoutInfo = useCallback((): PdfLayoutInfo | null => {
@@ -324,7 +365,7 @@ function QuoteBuilder() {
   const renderWorkspace = () => {
     switch (activeTab) {
       case 'basic':
-        return <BasicInfoEditor meta={meta} setMeta={actions.setMeta} isEditing={true} />;
+        return <BasicInfoEditor meta={meta} items={items} setMeta={actions.setMeta} isEditing={true} />;
       case 'items':
         return (
           <ItemEditor
@@ -522,6 +563,15 @@ function QuoteBuilder() {
         onConfirm={confirmModal.onConfirm}
         onCancel={closeConfirmModal}
         isDestructive={confirmModal.isDestructive}
+      />
+
+      <NotesMismatchModal
+        isOpen={pendingExport !== null}
+        planType={planType}
+        mismatches={notesMismatches}
+        onFix={handleNotesModalFix}
+        onSaveAnyway={handleNotesModalSaveAnyway}
+        onClose={() => setPendingExport(null)}
       />
     </>
   );
