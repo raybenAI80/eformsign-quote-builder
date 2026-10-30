@@ -102,3 +102,18 @@ GitHub commit status context `Vercel` 이 `success` 가 될 때까지 15초 간�
 2. 브라우저로 재현한다(조건이 참인 견적과 거짓인 견적 둘 다). 결제 정보는 `node tools/verify-payment-info.mjs`.
 3. 재현되지 않으면 "문제 없음, 조건은 X 에 있다"고 보고한다.
 사용자 결정: 결제 정보 수동 토글은 만들지 않고 원래 기능을 유지한다.
+
+## 8. 다른 프로젝트 적용 사례 — ROI 시뮬레이터 (2026-10-30)
+
+같은 PDF 문제(작은 글자·흐림)를 ROI 시뮬레이터(`D:\pjt\ROI`)에서 풀며 확인한 것. 이 저장소의 출력물에도 해당한다. 사실·근거 = 볼트 `eformsign-roi-simulator-pack/claims.md`, 이 저장소용 요약 = `eformsign-quote-builder-pack` 의 `claim:html2canvas-traps-from-roi-2026-10-30`.
+
+새 함정:
+1. **`inline-flex` 배지 안 글자가 사라진다**(html2canvas). ROI 의 A/B/C 등급 글자가 PDF 에서 빠졌다. `inline-block` 으로 바꾼다. 검출은 렌더한 PDF 의 「빈 글자 상자」 수 세기(ROI 이전 PDF: span 409개 중 52개 비어 있음).
+2. **`tabular-nums` 는 캡처에서 숫자 뒤에 틈을 낸다**(「1083.3 일」). 캡처되는 DOM 에서는 쓰지 않는다.
+3. **scale 3 은 300 DPI 가 아니다.** A4 를 96px/인치로 그리면 scale 3 = 288 DPI, 3.2 = 307 DPI. 2절의 `PDF_CAPTURE_SCALE = 3` 도 288 DPI 다(한 장 맞춤 축소 시 더 낮다).
+
+설계 교훈: 화면 캡처를 쪽으로 나누는 안은 기각됐다(데스크톱 폭을 A4 에 넣으면 약 6pt). 받는 사람이 읽는 종이를 별도 DOM(794×1123px, 본문 9pt)으로 설계하고 쪽마다 캡처해 해결했다.
+
+링크: PR https://github.com/raybenAI80/eformsign-roi-simulator/pull/2 · 검증 도구 `D:\pjt\ROI\tools\verify-pdf-export.mjs`(77검사: DPI·pt 크기·글자 레이어 정렬·빈 글자 상자·데스크톱 vs 폰 차이).
+
+고객용 문안 교훈(ROI PR https://github.com/raybenAI80/eformsign-roi-simulator/pull/3): 고객에게 가는 PDF에는 내부용 안내(시뮬레이터 딥링크·재현 조건)를 넣지 않고 영업 담당자 문의로 안내한다. 큰 제목은 문서 이름, 그 위 작은 글씨는 도구 이름이다. 저장 전 입력 창에서 고객사명(「OO 귀하」)과 영업 담당자 연락처를 선택 입력으로 받는다.
