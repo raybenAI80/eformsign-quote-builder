@@ -1,7 +1,7 @@
 // 옵션 탭 「직인 표시」 카드 순서(숨김·직인 생략·직인 표시)와 기본 선택(숨김), 선택 동작, 미리보기·PDF 직인 표시를 검증한다.
 // 실행: PW_CHROME=<chrome-headless-shell.exe> PYI=<python> node --env-file=<.env> --env-file=<.env.local> tools/verify-seal-options.mjs <출력 폴더>
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPlaywright, startVite, downloadTo, fillBasic, fillSales } from './lib/quote-driver.mjs';
@@ -72,6 +72,7 @@ try {
     const r = spawnSync(PY, [join(HERE, 'inspect-pdf.py'), pdf, '--find', '직인 생략', '포시에스\n인', '대표이사'], { encoding: 'utf8' });
     out.pdf = r.stdout.split(/\r?\n/).filter(l => /pages=|search|chars/.test(l));
     console.log(JSON.stringify(out, null, 1));
+    writeFileSync(join(OUT, 'results.json'), JSON.stringify(out, null, 2));
     await ctx.close();
   } finally { await browser.close(); }
 } finally { vite.stop(); }

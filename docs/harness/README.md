@@ -20,6 +20,8 @@ This folder is the local operating layer that applies the global harness manual 
 - Layer B, task-specific workflows:
   - `skills\company-workstream-bootstrap\SKILL.md`
   - `skills\api-endpoint-workflow\SKILL.md`
+  - `skills\quote-builder-state-flow\SKILL.md`
+  - `skills\quote-builder-state-flow\references\export-pipeline.md`
   - `docs\harness\adoption-order.md`
 - Layer C, automatic enforcement:
   - `.harness\project-harness.json`

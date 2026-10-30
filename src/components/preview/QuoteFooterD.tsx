@@ -31,7 +31,7 @@ const Strengths: React.FC = () => (
   <>
     <div className="qd-st qd-st-first">
       <b>31<i>년</i></b>
-      <span>업력의 대표<br />SW 기업</span>
+      <span>업력의<br />대표 SW 기업</span>
     </div>
     <div className="qd-st">
       <b>100%</b>
