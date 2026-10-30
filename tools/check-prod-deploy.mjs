@@ -4,8 +4,10 @@
 // 실행: node tools/check-prod-deploy.mjs --sha <병합 커밋(또는 HEAD·origin/main)> --expect "<문자열>" [--expect "<문자열>" ...]
 //        [--url https://eformsign-quote-builder-liart.vercel.app] [--context Vercel] [--interval 15] [--timeout 600]
 //   --interval 폴링 간격(초, 기본 15), --timeout 최대 대기(초, 기본 600). gh CLI 로그인이 필요하다.
+//   병합 직후 로컬에 커밋이 없어도 된다: git fetch origin 후 재시도하고, 그래도 없으면 gh api 로 sha·제목을 구한다(tools/lib/commit-info.mjs).
 //   고유 문자열은 이번 변경이 번들에 남기는 UI 문구가 좋다(식별자는 번들 최소화로 바뀐다).
 import { execFileSync } from 'node:child_process';
+import { resolveCommit } from './lib/commit-info.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (name, def) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : def; };
@@ -23,10 +25,12 @@ if (!shaArg || expects.length === 0) {
   process.exit(2);
 }
 
-const git = (...a) => execFileSync('git', a, { encoding: 'utf8' }).trim();
 const gh = (...a) => execFileSync('gh', a, { encoding: 'utf8' });
-const sha = git('rev-parse', shaArg);
-console.log(`커밋 ${sha.slice(0, 7)} (${git('log', '-1', '--format=%s', sha)})`);
+// 병합 직후에는 로컬에 커밋이 없을 수 있다 → fetch 재시도, 그래도 없으면 gh api. 제목은 표시용이라 못 구해도 진행한다.
+let sha, subject;
+try { ({ sha, subject } = resolveCommit(shaArg, undefined, m => console.log(`  (${m})`))); }
+catch (e) { console.error(e.message); process.exit(1); }
+console.log(`커밋 ${sha.slice(0, 7)}${subject ? ` (${subject})` : ''}`);
 
 async function vercelState() {
   const j = JSON.parse(gh('api', `repos/{owner}/{repo}/commits/${sha}/status`));

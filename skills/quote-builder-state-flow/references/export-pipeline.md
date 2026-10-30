@@ -90,6 +90,7 @@ main 병합 → Vercel 이 운영(https://eformsign-quote-builder-liart.vercel.a
 node tools/check-prod-deploy.mjs --sha <병합 커밋 또는 origin/main> --expect "<이번 변경의 고유 UI 문구>" [--expect "<문구>" ...]
 ```
 GitHub commit status context `Vercel` 이 `success` 가 될 때까지 15초 간격·최대 10분 기다리고(`--interval`, `--timeout` 으로 조정), 운영 `index.html` 의 `/assets/*.js` 번들에서 문자열을 찾아 표로 보인다. 하나라도 MISSING 이면 exit 1.
+병합 직후에는 로컬에 병합 커밋이 없는 것이 보통이다(`gh pr merge` 는 원격에서만 병합한다). 도구가 스스로 처리하므로 먼저 `git fetch` 할 필요가 없다: 로컬에 없으면 `git fetch origin` 을 한 번 하고 다시 시도하고, 그래도 없으면(포크·권한 등) `gh api` 로 sha·제목을 구한다. 짧은 sha(7자)도 된다. 커밋 제목은 표시용이라 못 구해도 판정은 그대로 진행한다. 구현 `tools/lib/commit-info.mjs`, 경로별 검증 `node tools/verify-commit-info.mjs`(git·gh 실패를 주입, 네트워크 불필요).
 고유 문자열은 번들에 남는 UI 문구를 쓴다(식별자는 최소화로 바뀐다). PR 에 Vercel 봇이 남기는 배포 상태 표 댓글은 리뷰 의견이 아니다 — Auto-fix 에서 코드 변경 없이 넘긴다.
 
 ## 7. 회귀·누락을 주장하기 전에 (자기 오판 기록)
