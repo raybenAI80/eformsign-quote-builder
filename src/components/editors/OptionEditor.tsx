@@ -166,9 +166,9 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
             </div>
             <div className="flex gap-2 mt-2">
               {([
-                { id: 'stamped' as const, label: '직인 표시', icon: '🔴' },
-                { id: 'omitted' as const, label: '직인 생략', icon: '📝' },
                 { id: 'hidden' as const, label: '숨김', icon: '👁️‍🗨️' },
+                { id: 'omitted' as const, label: '직인 생략', icon: '📝' },
+                { id: 'stamped' as const, label: '직인 표시', icon: '🔴' },
               ]).map(opt => (
                 <button
                   key={opt.id}
