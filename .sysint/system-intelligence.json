@@ -19,6 +19,11 @@
         "command": "pwsh -File \".\\scripts\\run-completion-gate.ps1\"",
         "reason": "Verify the local harness contract, company workstream model, and completion gate stay aligned",
         "required": true
+      },
+      {
+        "command": "npm run verify:export",
+        "reason": "Verify the PDF/PNG export pipeline in a real browser (pagination, payment info, seal options, PNG button, footer copy, PDF menu copy). Run when export output changes; takes about 5 minutes and needs chrome-headless-shell and system python with pymupdf.",
+        "required": false
       }
     ],
     "ui": {

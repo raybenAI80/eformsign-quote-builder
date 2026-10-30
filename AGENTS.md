@@ -19,6 +19,7 @@
 - Keep diffs small, reversible, and workspace-scoped.
 - Use `docs/checklists/completion-gate.md` as the minimum exit gate.
 - Use `skills/company-workstream-bootstrap/SKILL.md`, `scripts/start-company-workstream.ps1`, and `scripts/activate-company-workstream-lane.ps1` when a task should be staffed across product, design, engineering, QA, or release lanes.
+- Use `skills/quote-builder-state-flow/SKILL.md` for quote state flow (reset, restore, new quote) and, through `skills/quote-builder-state-flow/references/export-pipeline.md`, for PDF/PNG export work: quality constants, pagination, verification tools (`npm run verify:export`), and the production deploy check (`tools/check-prod-deploy.mjs`).
 - Add or update glossary entries when new terms or renamed concepts appear.
 - Record meaningful progress in `sysint` for substantial work.
 - When changing verification behavior, update `.sysint/system-intelligence.json` in the same work block.

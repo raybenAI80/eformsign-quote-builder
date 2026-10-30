@@ -1,6 +1,6 @@
 ---
 name: quote-builder-state-flow
-description: 견적서 빌더의 견적 상태 흐름(새 견적·초기화·앱 로드 복원·템플릿 불러오기)을 바꾸거나 필드를 추가할 때 사용한다. 경로별로 어떤 필드를 유지하고 비우는지, 필드 분류 상수, 완료 전 브라우저 검증 시나리오, 함정을 다룬다. 트리거 - 초기화, 복원, 새 견적, 견적일자, 담당자 유지, 고객사 비움, localStorage, resetQuote, normalizeRestoredMeta, buildResetMeta, RESET_PRESERVED_META_KEYS, RESET_CUSTOMER_META_KEYS, getLocalToday, 참조사항, 자리표시자, 고객사명 연동, placeholder, referenceNotes, renderReferenceNote, restoreCustomerPlaceholder.
+description: 견적서 빌더의 견적 상태 흐름(새 견적·초기화·앱 로드 복원·템플릿 불러오기)을 바꾸거나 필드를 추가할 때 사용한다. 경로별로 어떤 필드를 유지하고 비우는지, 필드 분류 상수, 완료 전 브라우저 검증 시나리오, 함정을 다룬다. 트리거 - 초기화, 복원, 새 견적, 견적일자, 담당자 유지, 고객사 비움, localStorage, resetQuote, normalizeRestoredMeta, buildResetMeta, RESET_PRESERVED_META_KEYS, RESET_CUSTOMER_META_KEYS, getLocalToday, 참조사항, 자리표시자, 고객사명 연동, placeholder, referenceNotes, renderReferenceNote, restoreCustomerPlaceholder, PDF 저장, PNG 저장, 화질, 쪽 나눔, 여러 쪽, 한 장에 맞춤, 결제 정보, 직인 표시, PDF 메뉴, 운영 배포 확인, verify:export, 출력 파이프라인.
 ---
 
 # 견적서 빌더 상태 흐름
@@ -98,3 +98,7 @@ vitest 통과와 배포 번들 grep 은 완료 근거가 아니다. 아래를 �
 - **구조**: 쪽 나눔 계산은 `src/components/preview/pagination.ts`(순수 `paginate` + DOM 측정 `measureFlowPaper`). `QuotePreviewD` 의 `pageMode="paged"` 가 측정용 숨김 용지로 행 높이를 읽고 쪽 용지(`.qd-page`)를 쪽마다 그린다. PDF 는 `.qd-page` 마다 `capturePageIntoPdf` 를 재사용한다.
 - **함정**: ① 쪽 용지에는 id 를 주지 않는다(`#preview-panel` 중복 방지). 캡처 대상은 `#pdf-pages-panel .qd-page`. ② 숨김 `#pdf-pages-panel` 은 'paged' 일 때만 그려지므로, 메뉴에서 방식을 바꾼 직후에는 렌더·측정이 끝나도록 프레임 2번을 기다린 뒤 저장한다(`handleExportPdfAs`). ③ 연속 머리 높이(`THIN_HEAD_H`, `TABLE_MARGIN_TOP`)는 CSS(`.qd-thin`, 표 윗 여백)와 같은 값이어야 한다. ④ 쪽 카드의 그림자·바깥 선은 `.qd-pages-screen`(화면 전용) 아래에만 둔다 — PDF 캡처 대상에 그림자 금지.
 - **검증**: `tools/verify-pagination.mjs`(메뉴·기억·한 장/여러 쪽·50건·공공·1줄 행·병합·PNG), PDF 는 `tools/inspect-pdf.py --png-all`, `tools/make-pdf-pages-sheet.py`, `tools/measure-pdf-alignment.py --page N`.
+
+## 7. 출력물(PDF·PNG) 작업
+
+PDF·PNG 저장, 화질 상수, 쪽 나눔, 결제 정보·직인·하단 표시, 출력 검증 도구, 운영 배포 확인, 회귀를 주장하기 전의 확인 절차는 [references/export-pipeline.md](references/export-pipeline.md) 에 있다. 출력물을 바꾸면 먼저 그 문서를 읽고, 끝나면 `npm run verify:export` 를 통과시킨다. 사실·측정값 근거는 볼트 `eformsign-quote-builder-pack`.

@@ -18,8 +18,10 @@ export function loadPlaywright() {
   );
 }
 
-/** vite dev 서버를 띄운다. 반환값의 stop() 으로 이 프로세스만 종료한다. */
+/** QB_BASE_URL 이 있으면(verify-export-all.mjs 가 vite 를 한 번만 띄운 경우) 새로 띄우지 않고 그 주소를 쓴다. 없으면 vite dev 서버를 띄운다. */
+/** 반환값의 stop() 으로 이 프로세스만 종료한다. */
 export async function startVite(port) {
+  if (process.env.QB_BASE_URL) return { base: process.env.QB_BASE_URL.replace(/\/$/, ''), stop: () => {} };
   const base = `http://localhost:${port}`;
   const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], {
     cwd: ROOT,
