@@ -1,11 +1,20 @@
 import React from 'react';
 import { EformsignLogo } from './EformsignLogo';
 import { useAuth } from '../contexts/AuthContext';
+import { PdfSaveSplitButton, type PdfLayoutInfo } from './PdfSaveMenu';
+import type { PdfLayout } from '../utils/pdfLayoutPref';
 
 interface HeaderProps {
   onExportCSV: () => void;
   onExportImage: () => void;
+  /** PDF 본 버튼: 기억된 방식으로 저장 */
   onExportPdf: () => void;
+  /** PDF 저장 방식 메뉴 항목: 그 방식으로 저장하고 기본값으로 기억 */
+  onExportPdfAs: (layout: PdfLayout) => void;
+  /** 현재 기본 PDF 저장 방식 */
+  pdfLayout: PdfLayout;
+  /** 메뉴를 열 때 호출: 쪽 수·글자 비율을 실제로 잰다 */
+  getPdfLayoutInfo: () => PdfLayoutInfo | null;
   onReset: () => void;
   showPreview: boolean;
   onTogglePreview: () => void;
@@ -19,6 +28,9 @@ export const Header: React.FC<HeaderProps> = ({
   onExportCSV,
   onExportImage,
   onExportPdf,
+  onExportPdfAs,
+  pdfLayout,
+  getPdfLayoutInfo,
   onReset,
   showPreview,
   onTogglePreview,
@@ -198,19 +210,14 @@ export const Header: React.FC<HeaderProps> = ({
               {showPdfText && <span>PNG</span>}
             </button>
 
-            {/* Export PDF */}
-            <button
-              className="inline-flex items-center gap-1 rounded-md bg-[#00a99d] px-2 sm:px-2.5 py-1.5 text-xs font-bold text-white shadow-md hover:bg-[#008a81]"
-              onClick={onExportPdf}
-              title="PDF / 인쇄"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {showPdfText && <span>PDF</span>}
-            </button>
+            {/* Export PDF — [PDF | ▾] 분할 버튼. 본 버튼은 기억된 방식, ▾ 는 저장 방식 메뉴 */}
+            <PdfSaveSplitButton
+              layout={pdfLayout}
+              onExport={onExportPdf}
+              onExportAs={onExportPdfAs}
+              getInfo={getPdfLayoutInfo}
+              showText={showPdfText}
+            />
           </div>
         </div>
       </div>

@@ -13,6 +13,10 @@ export interface PreviewPanelProps {
   calculation: CalculationResult;
   categoryLabels?: { section: string; label: string }[];
   showPolicies: boolean;
+  /** 'paged' 면 여러 쪽(쪽마다 용지 한 장), 아니면 한 장. PDF 저장 방식 설정을 따른다 */
+  pageMode?: 'fit' | 'paged';
+  /** PDF 캡처용 숨김 렌더. 쪽 카드 그림자·바깥 선처럼 캡처에 들어가면 안 되는 화면 장식을 끈다 */
+  forExport?: boolean;
 }
 
 /**
