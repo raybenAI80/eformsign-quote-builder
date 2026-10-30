@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import type { PdfLayout } from '../utils/pdfLayoutPref';
+import { buildPdfLayoutMenuText } from '../utils/pdfLayoutMenuText';
 
 /** 메뉴를 열 때 잰 값. 부제의 쪽 수와 글자 비율은 실제 측정값이다. */
 export interface PdfLayoutInfo {
@@ -35,12 +36,6 @@ const OPTIONS: Array<{ layout: PdfLayout; title: string }> = [
   { layout: 'paged', title: '여러 쪽으로 나눠 저장' },
 ];
 
-const subtitleOf = (layout: PdfLayout, info: PdfLayoutInfo | null): string => {
-  if (!info) return layout === 'fit' ? '1쪽' : '글자 크기 그대로';
-  if (layout === 'paged') return `${info.pagedPages}쪽 · 글자 크기 그대로`;
-  return info.fitPct >= 99 ? '1쪽 · 글자 크기 그대로' : `1쪽 · 글자 약 ${info.fitPct}%로 줄어듭니다`;
-};
-
 /**
  * 헤더의 PDF 분할 버튼: [PDF | ▾]. 본 버튼은 기억된 방식으로 저장하고, ▾ 는 저장 방식 메뉴를 연다.
  * 헤더 안쪽 줄이 overflow-hidden 이라 메뉴는 포털(document.body)로 띄운다.
@@ -53,6 +48,7 @@ export const PdfSaveSplitButton: React.FC<PdfSaveSplitButtonProps> = ({ layout, 
   const caretRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const menuId = React.useId();
+  const menuText = buildPdfLayoutMenuText(info);
   const getMenuItems = (): HTMLElement[] => {
     const nodes = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]');
     return nodes ? Array.from(nodes) : [];
@@ -180,6 +176,11 @@ export const PdfSaveSplitButton: React.FC<PdfSaveSplitButtonProps> = ({ layout, 
             <p role="presentation" className="px-3 pb-2 pt-2 text-xs text-gray-500">
               PDF 쪽 구성 · 항목 <span className="whitespace-nowrap">{info?.itemCount ?? 0}건</span>
             </p>
+            {menuText.notice && (
+              <p role="presentation" className="px-3 pb-2 text-xs text-gray-500 [text-wrap:pretty]">
+                {menuText.notice}
+              </p>
+            )}
             {OPTIONS.map(opt => {
               const selected = opt.layout === layout;
               return (
@@ -195,7 +196,7 @@ export const PdfSaveSplitButton: React.FC<PdfSaveSplitButtonProps> = ({ layout, 
                   <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center text-[#00a99d]">{selected && CHECK}</span>
                   <span className="min-w-0">
                     <span className="block text-[13px] font-bold text-gray-800">{opt.title}</span>
-                    <span className="mt-0.5 block text-xs text-gray-500">{subtitleOf(opt.layout, info)}</span>
+                    <span className="mt-0.5 block text-xs text-gray-500">{menuText.subtitles[opt.layout]}</span>
                   </span>
                 </button>
               );
