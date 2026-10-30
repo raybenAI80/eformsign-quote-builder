@@ -11,7 +11,7 @@ mkdirSync(OUT, { recursive: true });
 const { chromium } = loadPlaywright();
 const results = { steps: {}, failures: [] };
 const NAMES = ['+ 구독형 Business', '+ 문서 세팅 3건', '+ 추가 문서', '+ 충전형 문서', '+ 계정 구성 지원', '+ 유료 옵션 활용 가능 (10만)', '+ 타임스탬프', '+ 사용자 교육 1H'];
-const NOTICE = '지금은 한 장에 들어가서 두 방식의 결과가 같습니다.';
+const NOTICE = '내용이 A4 한 장에 모두 들어가 어느 방식으로 저장해도 결과가 같습니다.';
 const caretBtn = page => page.locator('button[aria-label="PDF 저장 방식 선택"]');
 
 async function open(browser, base, itemCount) {

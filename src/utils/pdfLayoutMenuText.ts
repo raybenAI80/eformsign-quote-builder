@@ -14,7 +14,7 @@ export interface PdfLayoutMenuText {
   subtitles: Record<PdfLayout, string>;
 }
 
-export const SINGLE_PAGE_NOTICE = '지금은 한 장에 들어가서 두 방식의 결과가 같습니다.';
+export const SINGLE_PAGE_NOTICE = '내용이 A4 한 장에 모두 들어가 어느 방식으로 저장해도 결과가 같습니다.';
 
 /** 축소 없이 한 장에 들어가고 여러 쪽으로 나눠도 1쪽이면 두 방식의 결과가 같다. */
 export const fitsOnOnePage = (info: PdfLayoutMenuInput): boolean => info.fitPct >= 99 && info.pagedPages <= 1;
