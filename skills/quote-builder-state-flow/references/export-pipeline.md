@@ -59,13 +59,14 @@
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu]` | 6종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 5분(쪽 구성 160초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage]` | 7종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 5분(쪽 구성 160초 + 결제 정보 75초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
 | 헤더 PNG 버튼·PNG 저장을 바꿨을 때 | `tools/verify-png-button.mjs` | 버튼 표시·파일명·이미지 크기·미리보기 끈 상태 |
 | 하단 강점 칸 문구·정렬을 바꿨을 때 | `tools/verify-footer-copy.mjs` | F1·F2 문구 줄·칸 높이 같음, 스크린샷·PDF |
 | PDF 저장 메뉴 문구를 바꿨을 때 | `tools/verify-pdf-menu-copy.mjs` | 1건·26건 메뉴 문구, 가로 넘침 없음, 스크린샷 |
+| Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
 | 하단 종류 판정(브랜딩)을 바꿨을 때 | `tools/verify-footer-kind.mjs` | F1·F2 자동 선택, 새로고침 유지, 초기화 (`verify:export` 에 미포함) |
 | 상태 흐름(초기화·복원) | `tools/verify-quote-scenario.mjs` | 3절 시나리오(SKILL.md) (`verify:export` 에 미포함) |
 | 화질 상수를 바꿨을 때 | `tools/pdf-sharpness-compare.mjs`, `tools/measure-pdf-export.mjs`, `tools/measure-png-export.mjs` | 2절 |

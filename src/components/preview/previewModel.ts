@@ -1,6 +1,7 @@
 import { QuoteMeta, CalculationResult, CalculatedRow } from '../../types';
 import { SUPPLIER_PROFILE, getCategoryLabel, CategorySection } from '../../constants';
 import { addValidityEndLocal, parseLocalDate } from '../../hooks/useQuote';
+import { applyBusinessOverageNotice } from './overageNotice';
 
 /**
  * 견적서 미리보기의 표시 규칙.
@@ -71,6 +72,13 @@ export const isAmountBlank = (row: Pick<CalculatedRow, 'unitPrice'>): boolean =>
 export const hasEnterpriseItem = (rows: Pick<CalculatedRow, 'section' | 'item'>[]): boolean =>
   rows.some(r => r.section === 'SaaS' && String(r.item).includes('Enterprise'));
 
+/** 구독형 Business 행의 초과 단가 문구를 견적일 기준으로 바꾼 사본 (저장된 행은 그대로) */
+const withOverageNotice = (row: CalculatedRow, quoteDate: string | undefined): CalculatedRow => {
+  const notes = applyBusinessOverageNotice(row.item, row.notes, quoteDate);
+  const note = applyBusinessOverageNotice(row.item, row.note, quoteDate);
+  return notes === row.notes && note === (row.note ?? '') ? row : { ...row, notes, ...(row.note !== undefined ? { note } : {}) };
+};
+
 export interface CategoryGroup {
   section: CategorySection;
   label: string;
@@ -118,7 +126,9 @@ export const getPreviewModel = (
     groups.push({
       section: row.section,
       label: categoryLabels?.find(c => c.section === row.section)?.label || getCategoryLabel(row.section),
-      rows: calculation.rows.filter(r => r.section === row.section),
+      rows: calculation.rows
+        .filter(r => r.section === row.section)
+        .map(r => withOverageNotice(r, meta.quoteDate)),
     });
   }
 

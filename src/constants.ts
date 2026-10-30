@@ -136,6 +136,7 @@ export const QUICK_ADD_CATALOG: Record<
       qty: 12,
       unitPrice: 40000,
       discountPct: 0,
+      // 초과 단가 문구는 출력 시 견적일 기준으로 바뀐다(2027-01-01부터 800원/건). preview/overageNotice.ts 참고. 저장되는 기본 문구는 600원 그대로 둔다.
       notes: '멤버 무제한, 문서 100건/월 포함 (초과 시 600원/건)\n카카오톡 알림톡/SMS 알림 무제한\n템플릿 무제한\n일괄작성·대량전송\nURL로 문서 작성\n그룹 및 권한 설정\nAPI/Webhook 제공\n프리미엄 서비스 제공',
     }),
     style: 'bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100',

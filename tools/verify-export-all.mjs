@@ -1,14 +1,15 @@
 // 출력물(PDF·PNG·미리보기) 브라우저 검증 일괄 실행기.
-// vite dev 서버를 한 번만 띄우고(QB_BASE_URL) 검증 도구 6종을 차례로 실행한다. 하나라도 실패하면 exit 1.
+// vite dev 서버를 한 번만 띄우고(QB_BASE_URL) 검증 도구 7종을 차례로 실행한다. 하나라도 실패하면 exit 1.
 //   1 verify-pagination    PDF 쪽 구성(한 장/여러 쪽)·메뉴·기억·병합·PNG
 //   2 verify-payment-info  결제 정보 블록(Enterprise 견적에서만)
 //   3 verify-seal-options  직인 표시 카드 순서·기본값
 //   4 verify-png-button    헤더 PNG 저장 버튼
 //   5 verify-footer-copy   하단 강점 칸 문구 줄 나눔
 //   6 verify-pdf-menu-copy PDF 저장 메뉴 문구
+//   7 verify-business-overage Business 구독형 초과 단가 문구(견적일 기준 600→800원, 미리보기·PDF 글자)
 // 1~4 는 관찰값만 출력하는 도구라서 이 실행기가 결과(results.json·표준 출력)를 읽어 기대값과 대조한다. 5·6 은 도구가 직접 exit 1 한다.
 //
-// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu]
+// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage]
 //   환경변수 파일(.env·.env.local)은 저장소 루트에서, 없으면(worktree) 메인 체크아웃에서 찾아 읽는다. 값은 출력하지 않는다.
 //   PW_CHROME 이 없으면 %LOCALAPPDATA%\ms-playwright 의 최신 chrome-headless-shell 을 쓴다.
 //   PYI 는 비운다(shim 의 python 에는 pymupdf 가 없다). 시스템 python 에 pymupdf 가 있어야 한다.
@@ -152,6 +153,7 @@ const STEPS = [
   { key: 'png', tool: 'verify-png-button.mjs', check: (dir, stdout) => checkPng(stdout) },
   { key: 'footer', tool: 'verify-footer-copy.mjs', check: () => [] },
   { key: 'menu', tool: 'verify-pdf-menu-copy.mjs', check: () => [] },
+  { key: 'overage', tool: 'verify-business-overage.mjs', check: () => [] },
 ];
 
 const vite = await startVite(Number(process.env.QB_PORT ?? 3019));
