@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SavedQuote } from '../types';
+import type { PdfLayout } from '../utils/pdfLayoutPref';
 
 interface Props {
   savedQuotes: SavedQuote[];
@@ -9,6 +10,8 @@ interface Props {
   onMergeExport: (selected: SavedQuote[]) => Promise<boolean>;
   onClose: () => void;
   isMerging: boolean;
+  /** PDF 저장 방식. 병합 PDF 도 이 방식을 따른다(안내 문구만 달라진다) */
+  pdfLayout?: PdfLayout;
 }
 
 const nf = new Intl.NumberFormat('ko-KR');
@@ -21,6 +24,7 @@ export default function SavedQuotesPanel({
   onMergeExport,
   onClose,
   isMerging,
+  pdfLayout = 'fit',
 }: Props) {
   const [saveName, setSaveName] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -233,8 +237,10 @@ export default function SavedQuotesPanel({
                   </React.Fragment>
                 ))}
               </div>
-              <p className="text-[11px] text-indigo-500">
-                선택한 견적서가 순서대로 각 1페이지씩 합쳐져 하나의 PDF 파일로 저장됩니다.
+              <p className="text-[11px] text-indigo-500 [word-break:keep-all] [overflow-wrap:break-word]">
+                {pdfLayout === 'paged'
+                  ? '선택한 견적서가 순서대로 합쳐져 하나의 PDF 파일로 저장됩니다. 견적이 길면 여러 쪽으로 나뉘고, 쪽 번호는 견적마다 따로 붙습니다.'
+                  : '선택한 견적서가 순서대로 각 1페이지씩 합쳐져 하나의 PDF 파일로 저장됩니다.'}
               </p>
             </div>
           )}

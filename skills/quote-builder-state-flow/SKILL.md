@@ -90,3 +90,11 @@ vitest 통과와 배포 번들 grep 은 완료 근거가 아니다. 아래를 �
   3. 편집 입력의 value 는 원문이다. 치환 결과는 힌트·미리보기에만 쓴다.
   4. 저장 데이터에 이미 굳은 값이 있을 수 있으면 구제 함수와 적용 경로 3곳을 함께 갱신한다. 구제는 확실히 기본 문구에서 온 값만 대상으로 한다.
   5. `referenceNotes.test.ts` 에 다중 치환·빈 값·구제·비구제(다른 회사명) 케이스를 추가하고, 3절의 참조사항 브라우저 시나리오를 수행한다.
+
+## 6. PDF 저장 방식 (한 장 / 여러 쪽)
+
+- **상태**: `pdfLayout`('fit' 기본 | 'paged')은 `App.tsx` 상태이고 사용자 기기 localStorage(`eformsign_quote_pdf_layout`, `src/utils/pdfLayoutPref.ts`)에만 기억한다. 견적 데이터(meta·items)·임시저장·저장 견적에는 들어가지 않는다. 초기화 버튼은 이 설정을 건드리지 않는다.
+- **적용 경로**: 헤더 PDF 본 버튼 = 기억된 방식, ▾ 메뉴 항목 = 그 방식으로 저장 + 기억, 멀티 견적 병합 PDF = 기억된 방식(견적마다 쪽 번호 따로), 화면 미리보기 = 기억된 방식('paged'면 쪽 카드). PNG 는 항상 한 장 이미지다.
+- **구조**: 쪽 나눔 계산은 `src/components/preview/pagination.ts`(순수 `paginate` + DOM 측정 `measureFlowPaper`). `QuotePreviewD` 의 `pageMode="paged"` 가 측정용 숨김 용지로 행 높이를 읽고 쪽 용지(`.qd-page`)를 쪽마다 그린다. PDF 는 `.qd-page` 마다 `capturePageIntoPdf` 를 재사용한다.
+- **함정**: ① 쪽 용지에는 id 를 주지 않는다(`#preview-panel` 중복 방지). 캡처 대상은 `#pdf-pages-panel .qd-page`. ② 숨김 `#pdf-pages-panel` 은 'paged' 일 때만 그려지므로, 메뉴에서 방식을 바꾼 직후에는 렌더·측정이 끝나도록 프레임 2번을 기다린 뒤 저장한다(`handleExportPdfAs`). ③ 연속 머리 높이(`THIN_HEAD_H`, `TABLE_MARGIN_TOP`)는 CSS(`.qd-thin`, 표 윗 여백)와 같은 값이어야 한다. ④ 쪽 카드의 그림자·바깥 선은 `.qd-pages-screen`(화면 전용) 아래에만 둔다 — PDF 캡처 대상에 그림자 금지.
+- **검증**: `tools/verify-pagination.mjs`(메뉴·기억·한 장/여러 쪽·50건·공공·1줄 행·병합·PNG), PDF 는 `tools/inspect-pdf.py --png-all`, `tools/make-pdf-pages-sheet.py`, `tools/measure-pdf-alignment.py --page N`.

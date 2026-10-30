@@ -6,6 +6,7 @@ import { loadPdfFonts, registerPdfFonts, loadScreenFonts, resolvePdfFont } from 
 import { extractTextElements, TextElement } from './textExtractor';
 import { installFontMetricsFix } from './html2canvasMetrics';
 import { applyPdfMetadata, buildMergedPdfTitle, MERGED_PDF_KEYWORDS, type PdfInfo } from './pdfMetadata';
+import type { PdfLayout } from './pdfLayoutPref';
 import { QuoteMeta, QuoteItem } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,6 +85,16 @@ function computePageImageLayout(elementWidth: number, elementHeight: number): Pa
         offsetX: PAGE_MARGIN_X_MM + (availableWidth - imgWidth) / 2,
         offsetY: PAGE_MARGIN_Y_MM,
     };
+}
+
+/**
+ * 한 장에 맞춰 저장할 때 글자가 어느 비율로 줄어드는지(1 = 그대로). 용지 폭에 맞췄을 때의 이미지 폭 대비,
+ * 높이에 맞추느라 줄어든 이미지 폭의 비율이다. 저장 방식 메뉴의 "글자 약 N%" 문구가 이 값을 쓴다.
+ */
+export function estimatePdfFitScale(elementWidth: number, elementHeight: number): number {
+    if (!elementWidth || !elementHeight) return 1;
+    const { imgWidth } = computePageImageLayout(elementWidth, elementHeight);
+    return Math.min(1, imgWidth / (A4_WIDTH_MM - PAGE_MARGIN_X_MM * 2));
 }
 
 /** jsPDF GState(불투명도) 설정. 타입 정의에 없어서 안전하게 감싼다. */
@@ -301,7 +312,20 @@ export const exportToImage = async (elementId: string, fileName: string) => {
 /**
  * @param info PDF 문서 정보(제목·키워드). 생략하면 파일 이름을 제목으로 쓴다.
  */
-export const exportToPdf = async (elementId: string, fileName: string, info?: PdfInfo) => {
+export type { PdfLayout };
+
+/** 캡처 대상 요소 목록. 여러 쪽 모드는 쪽 용지(.qd-page)마다, 한 장 모드는 요소 하나. */
+function collectPageElements(root: HTMLElement, layout: PdfLayout): HTMLElement[] {
+    if (layout !== 'paged') return [root];
+    return Array.from(root.querySelectorAll<HTMLElement>('.qd-page'));
+}
+
+/**
+ * @param elementId 한 장 모드는 용지 하나를 담은 패널, 여러 쪽 모드는 쪽 용지들을 담은 패널의 id
+ * @param info PDF 문서 정보(제목·키워드). 생략하면 파일 이름을 제목으로 쓴다.
+ * @param layout 'fit' = A4 한 장에 맞춤(기본), 'paged' = 쪽마다 용지 하나씩 여러 쪽
+ */
+export const exportToPdf = async (elementId: string, fileName: string, info?: PdfInfo, layout: PdfLayout = 'fit') => {
     const element = document.getElementById(elementId);
     if (!element) {
         console.error(`Element with id ${elementId} not found`);
@@ -339,119 +363,9 @@ export const exportToPdf = async (elementId: string, fileName: string, info?: Pd
         // 화면 글꼴(woff2)도 캡처 전에 로드를 끝낸다 — 아니면 첫 내보내기가 대체 글꼴로 찍힌다
         await loadScreenFonts();
 
-        toast.loading('PDF 생성 중... (이미지 캡처)', { id: 'pdf-export' });
-
-        // Reset CSS scale on ancestor element for accurate capture
-        // Find the ancestor with scale transform
-        let scaleWrapper: HTMLElement | null = element.parentElement;
-        let originalTransform = '';
-        while (scaleWrapper) {
-            if (scaleWrapper.style.transform && scaleWrapper.style.transform.includes('scale')) {
-                originalTransform = scaleWrapper.style.transform;
-                scaleWrapper.style.transform = 'scale(1)';
-                // Force reflow to apply the style change
-                void scaleWrapper.offsetHeight;
-                break;
-            }
-            scaleWrapper = scaleWrapper.parentElement;
-        }
-
-        // 1. Get original element dimensions using offsetWidth/Height
-        // These are NOT affected by CSS transforms, unlike getBoundingClientRect
-        const elementWidth = element.offsetWidth;
-        const elementHeight = element.offsetHeight;
-        console.log('Element dimensions (offset):', elementWidth, 'x', elementHeight);
-
-        if (elementWidth === 0 || elementHeight === 0) {
-            throw new Error('요소가 화면에 표시되지 않습니다. (width 또는 height가 0)');
-        }
-
-        // Pre-calculate PDF dimensions before html2canvas
-        // This allows us to pass the correct pxToMm to extractTextElements
-        const a4Width = A4_WIDTH_MM;
-        const a4Height = A4_HEIGHT_MM;
-
-        const {
-            imgWidth: preImgWidth,
-            imgHeight: preImgHeight,
-            offsetX: preOffsetX,
-            offsetY: preOffsetY,
-        } = computePageImageLayout(elementWidth, elementHeight);
-
-        // pxToMm for text extraction (based on original element dimensions)
-        const prePxToMm = preImgWidth / elementWidth;
-
-        console.log('Pre-calculated PDF dimensions:', {
-            preImgWidth, preImgHeight, preOffsetX, preOffsetY, prePxToMm
-        });
-
-        // ★ 텍스트 추출과 이미지 캡처는 반드시 같은 CSS 상태에서 일어나야 한다.
-        //   installFontMetricsFix()는 html2canvas의 baseline 탐침이 Tailwind preflight
-        //   (img{display:block})에 오염되는 것을 캡처 구간 동안만 막는다.
-        //   자세한 근거는 html2canvasMetrics.ts 주석 참고.
-        const uninstallMetricsFix = installFontMetricsFix();
-        let textElements: TextElement[];
-        let canvas: HTMLCanvasElement;
-        try {
-            // Create a rect-like object for extractTextElements
-            const elementBounds = element.getBoundingClientRect();
-            textElements = extractTextElements(
-                element,
-                elementBounds,
-                prePxToMm,
-                0
-            );
-            console.log(`Extracted ${textElements.length} text elements from ORIGINAL DOM`);
-
-            canvas = await html2canvas(element, {
-                scale: PDF_CAPTURE_SCALE,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight,
-                x: 0,
-                y: 0,
-                scrollX: 0,
-                scrollY: 0,
-            });
-        } finally {
-            uninstallMetricsFix();
-        }
-
-        // Validate canvas
-        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-        if (!canvas.width || !canvas.height) {
-            throw new Error('html2canvas가 빈 캔버스를 반환했습니다.');
-        }
-
-        // Restore original CSS scale after capture
-        if (scaleWrapper && originalTransform) {
-            scaleWrapper.style.transform = originalTransform;
-        }
-
-        toast.loading('PDF 생성 중... (PDF 변환)', { id: 'pdf-export' });
-
-        const imgData = canvas.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
-
-        // Use pre-calculated dimensions (already computed before html2canvas)
-        // The values are identical since element dimensions don't change
-        const imgWidth = preImgWidth;
-        const imgHeight = preImgHeight;
-        const offsetX = preOffsetX;
-        const offsetY = preOffsetY;
-
-        // pxToMm for image placement (uses scaled canvas dimensions)
-        const pxToMm = imgWidth / canvas.width;
-
-        console.log('PDF dimensions:', {
-            a4Width, a4Height, imgWidth, imgHeight, pxToMm, offsetX, offsetY,
-            canvasWidth: canvas.width,
-            elementWidth: elementWidth
-        });
-
-        if (!isFinite(pxToMm) || !isFinite(imgHeight)) {
-            throw new Error('PDF 크기 계산 오류');
+        const pageElements = collectPageElements(element, layout);
+        if (pageElements.length === 0) {
+            throw new Error('저장할 쪽을 찾을 수 없습니다. (여러 쪽 렌더링이 아직 끝나지 않았습니다)');
         }
 
         const pdf = new jsPDF({
@@ -465,22 +379,21 @@ export const exportToPdf = async (elementId: string, fileName: string, info?: Pd
         registerPdfFonts(pdf);
         applyPdfMetadata(pdf, info ?? { title: fileName, keywords: '' });
 
-        // 2. Add image (centered on A4 portrait page)
-        pdf.addImage(imgData, 'JPEG', offsetX, offsetY, imgWidth, imgHeight);
+        // 쪽마다 이미지 + 투명 텍스트 레이어 + 링크를 올린다 (한 장 모드는 쪽이 하나)
+        for (let i = 0; i < pageElements.length; i++) {
+            toast.loading(
+                pageElements.length > 1
+                    ? `PDF 생성 중... (${i + 1}/${pageElements.length}쪽 캡처)`
+                    : 'PDF 생성 중... (이미지 캡처)',
+                { id: 'pdf-export' }
+            );
+            await capturePageIntoPdf(pdf, pageElements[i], i === 0);
+        }
 
-        console.log('Generated single page A4 Portrait PDF');
+        console.log(`Generated ${pageElements.length}-page A4 Portrait PDF (${layout})`);
 
-        // 3. Link Overlay
-        const linkBoxes = extractLinkBoxes(element, imgWidth, offsetX, offsetY);
-        drawLinkAnnotations(pdf, linkBoxes, a4Height, 1);
-
-        // 4. OCR Text Layer - Using positions extracted from ORIGINAL DOM
-        // ★ FIX: Now using original element coordinates which match pxToMm calculation
-        toast.loading('PDF 생성 중... (텍스트 레이어)', { id: 'pdf-export' });
-
-        drawInvisibleTextLayer(pdf, textElements, offsetX, offsetY, a4Width, a4Height, 1);
-
-        // 5. Save PDF using the fileHandle obtained earlier (or fallback to download)
+        // Save PDF using the fileHandle obtained earlier (or fallback to download)
+        toast.loading('PDF 생성 중... (저장)', { id: 'pdf-export' });
         const blob = pdf.output('blob');
 
         if (fileHandle) {
@@ -502,7 +415,7 @@ export const exportToPdf = async (elementId: string, fileName: string, info?: Pd
 };
 
 /**
- * Capture one page from the hidden merge panel into the jsPDF document.
+ * 요소 하나(한 장 용지 또는 여러 쪽 모드의 쪽 용지 하나)를 PDF 한 쪽으로 올린다. 한 장 저장·여러 쪽 저장·병합 저장이 모두 이 함수를 쓴다.
  *
  * 단일 견적(exportToPdf)과 동일하게 이미지 + 투명 텍스트 레이어 + 링크 annotation을
  * 모두 올린다. 그래야 병합 PDF도 검색/복사가 된다.
@@ -536,7 +449,7 @@ async function capturePageIntoPdf(
         if (scaleWrapper && originalTransform) {
             scaleWrapper.style.transform = originalTransform;
         }
-        throw new Error('병합 렌더링 패널이 화면에 표시되지 않습니다. (width 또는 height가 0)');
+        throw new Error('렌더링 패널이 화면에 표시되지 않습니다. (width 또는 height가 0)');
     }
 
     const a4Width = A4_WIDTH_MM;
@@ -602,7 +515,7 @@ async function capturePageIntoPdf(
     const textDrawn = drawInvisibleTextLayer(pdf, textElements, offsetX, offsetY, a4Width, a4Height, pageNumber);
 
     console.log(
-        `Merged page ${pageNumber}: element ${elementWidth}x${elementHeight}px → ${imgWidth.toFixed(2)}x${imgHeight.toFixed(2)}mm, ` +
+        `PDF page ${pageNumber}: element ${elementWidth}x${elementHeight}px → ${imgWidth.toFixed(2)}x${imgHeight.toFixed(2)}mm, ` +
         `pxToMm=${pxToMmForText}, text ${textDrawn}/${textElements.length}, links ${linksDrawn}/${linkBoxes.length}`
     );
 }
@@ -610,16 +523,18 @@ async function capturePageIntoPdf(
 /**
  * Render multiple quotes into a single multi-page PDF.
  *
- * @param quotes        Array of quote data to merge (each becomes one A4 page)
+ * @param quotes        Array of quote data to merge (한 장 모드는 견적 1건 = 1쪽, 여러 쪽 모드는 견적 1건 = 쪽 N개)
  * @param fileName      Output filename (without .pdf)
  * @param setRenderData Setter that swaps the hidden merge panel's data; pass null to clean up
  * @param elementId     DOM id of the hidden render panel (default: 'pdf-merge-panel')
+ * @param layout        'fit' = 견적마다 한 장에 맞춤, 'paged' = 견적마다 여러 쪽(쪽 번호는 견적별)
  */
 export const exportMergedPdf = async (
     quotes: Array<{ name: string; meta: QuoteMeta; items: QuoteItem[] }>,
     fileName: string,
     setRenderData: (data: { meta: QuoteMeta; items: QuoteItem[] } | null) => void,
-    elementId: string = 'pdf-merge-panel'
+    elementId: string = 'pdf-merge-panel',
+    layout: PdfLayout = 'fit'
 ): Promise<boolean> => {
     if (quotes.length === 0) {
         toast.error('병합할 견적서를 선택해주세요.');
@@ -652,6 +567,7 @@ export const exportMergedPdf = async (
         registerPdfFonts(pdf);
         applyPdfMetadata(pdf, { title: buildMergedPdfTitle(quotes.length), keywords: MERGED_PDF_KEYWORDS });
 
+        let addedPages = 0;
         for (let i = 0; i < quotes.length; i++) {
             toast.loading(`병합 PDF 생성 중... (${i + 1}/${quotes.length})`, { id: 'pdf-merge' });
 
@@ -666,7 +582,12 @@ export const exportMergedPdf = async (
             const element = document.getElementById(elementId);
             if (!element) throw new Error(`병합 렌더링 패널(#${elementId})을 찾을 수 없습니다.`);
 
-            await capturePageIntoPdf(pdf, element, i === 0);
+            const pageElements = collectPageElements(element, layout);
+            if (pageElements.length === 0) throw new Error(`견적 ${i + 1}의 쪽을 찾을 수 없습니다.`);
+            for (const pageElement of pageElements) {
+                await capturePageIntoPdf(pdf, pageElement, addedPages === 0);
+                addedPages++;
+            }
         }
 
         const blob = pdf.output('blob');

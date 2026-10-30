@@ -3,7 +3,10 @@ import { Toaster, toast } from 'sonner';
 
 import { useQuote, calculateQuote, getLocalToday } from './hooks/useQuote';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
-import { exportToImage, exportToPdf, exportMergedPdf } from './utils/exportPdf';
+import { exportToImage, exportToPdf, exportMergedPdf, estimatePdfFitScale } from './utils/exportPdf';
+import { readPdfLayout, writePdfLayout, type PdfLayout } from './utils/pdfLayoutPref';
+import { measureFlowPaper, paginate } from './components/preview/pagination';
+import type { PdfLayoutInfo } from './components/PdfSaveMenu';
 import { buildPdfTitle, buildPdfKeywords } from './utils/pdfMetadata';
 
 // Layout & Editors
@@ -35,6 +38,8 @@ function QuoteBuilder() {
   const [showSavedPanel, setShowSavedPanel] = useState(false);
   const [mergeRenderData, setMergeRenderData] = useState<{ meta: QuoteMeta; items: QuoteItem[] } | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  // PDF 저장 방식: 마지막으로 고른 방식을 사용자 기기에 기억한다 (기본 = A4 한 장에 맞춤)
+  const [pdfLayout, setPdfLayout] = useState<PdfLayout>(readPdfLayout);
 
   // Onboarding Tour State
   const [runTour, setRunTour] = useState(false);
@@ -191,19 +196,53 @@ function QuoteBuilder() {
 
   const handleExportImage = async () => {
     if (!ensureValid()) return;
+    // PNG 는 PDF 저장 방식과 무관하게 항상 한 장 이미지다. 여러 쪽 미리보기에는 #preview-panel 이 없으므로 PDF 용 화면 밖 한 장 사본이 잡힌다.
     // 미리보기를 끄면 #preview-panel 이 display:none 이라 캡처할 수 없다 — PDF 용 화면 밖 사본(같은 내용, 같은 297mm 폭)을 쓴다.
     const visible = (document.getElementById('preview-panel')?.offsetWidth ?? 0) > 0;
     await exportToImage(visible ? 'preview-panel' : 'pdf-preview-panel', buildExportFilename());
   };
 
-  const handleExportPdf = async () => {
+  const runPdfExport = async (layout: PdfLayout) => {
     if (!ensureValid()) return;
     const filename = buildExportFilename();
-    await exportToPdf('pdf-preview-panel', filename, {
-      title: buildPdfTitle(meta),
-      keywords: buildPdfKeywords(meta),
-    });
+    await exportToPdf(
+      layout === 'paged' ? 'pdf-pages-panel' : 'pdf-preview-panel',
+      filename,
+      { title: buildPdfTitle(meta), keywords: buildPdfKeywords(meta) },
+      layout
+    );
   };
+
+  // PDF 본 버튼: 기억된 방식으로 저장
+  const handleExportPdf = () => runPdfExport(pdfLayout);
+
+  // 저장 방식 메뉴 항목: 그 방식으로 저장하고 기본값으로 기억
+  const handleExportPdfAs = async (layout: PdfLayout) => {
+    const changed = layout !== pdfLayout;
+    setPdfLayout(layout);
+    writePdfLayout(layout);
+    if (changed && layout === 'paged') {
+      // 여러 쪽 렌더(숨김 패널)가 그려지고 쪽 나눔 측정이 끝날 때까지 기다린다 (프레임 2번, 안전 상한 400ms)
+      await Promise.race([
+        new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+        new Promise<void>(resolve => setTimeout(resolve, 400)),
+      ]);
+    }
+    await runPdfExport(layout);
+  };
+
+  // 메뉴를 열 때 숨김 한 장 용지를 재서 쪽 수·글자 비율을 구한다
+  const getPdfLayoutInfo = useCallback((): PdfLayoutInfo | null => {
+    const paper = document.querySelector<HTMLElement>('#pdf-preview-panel .qd-paper');
+    if (!paper) return null;
+    const m = measureFlowPaper(paper);
+    if (!m) return null;
+    return {
+      itemCount: m.rows.filter(r => r.kind === 'item').length,
+      fitPct: Math.round(estimatePdfFitScale(paper.offsetWidth, paper.offsetHeight) * 100),
+      pagedPages: paginate(m).length,
+    };
+  }, []);
 
   const handleSaveCurrentQuote = useCallback(
     (name: string) => {
@@ -242,7 +281,9 @@ function QuoteBuilder() {
         const ok = await exportMergedPdf(
           selected.map(q => ({ name: q.name, meta: q.meta, items: q.items })),
           filename,
-          setMergeRenderData
+          setMergeRenderData,
+          'pdf-merge-panel',
+          pdfLayout
         );
         if (ok) setShowSavedPanel(false);
         return ok;
@@ -250,7 +291,7 @@ function QuoteBuilder() {
         setIsMerging(false);
       }
     },
-    []
+    [pdfLayout]
   );
 
   const handleTempSave = () => {
@@ -341,6 +382,9 @@ function QuoteBuilder() {
             onExportCSV={handleExportCSV}
             onExportImage={handleExportImage}
             onExportPdf={handleExportPdf}
+            onExportPdfAs={handleExportPdfAs}
+            pdfLayout={pdfLayout}
+            getPdfLayoutInfo={getPdfLayoutInfo}
             onReset={handleReset}
             showPreview={showPreview}
             onTogglePreview={() => setShowPreview(!showPreview)}
@@ -374,6 +418,7 @@ function QuoteBuilder() {
               }
               categoryLabels={categoryLabels}
               showPolicies={true}
+              pageMode={pdfLayout}
             />
           </div>
         }
@@ -411,6 +456,23 @@ function QuoteBuilder() {
             showPolicies={true}
           />
         </div>
+        {/* 여러 쪽 저장용: 쪽 용지(.qd-page)를 쪽마다 캡처한다. 저장 방식이 '여러 쪽'일 때만 그린다 */}
+        {pdfLayout === 'paged' && (
+          <div id="pdf-pages-panel" style={{ width: '297mm' }}>
+            <PreviewPanel
+              meta={previewSnapshot ? previewSnapshot.meta : meta}
+              calculation={
+                previewSnapshot
+                  ? calculateQuote(previewSnapshot.items, previewSnapshot.meta.vatRate, { sector: previewSnapshot.meta.sector, subsidyRate: previewSnapshot.meta.subsidyRate, roundingUnit: previewSnapshot.meta.roundingUnit })
+                  : calculation
+              }
+              categoryLabels={categoryLabels}
+              showPolicies={true}
+              pageMode="paged"
+              forExport
+            />
+          </div>
+        )}
       </div>
 
       {/* Saved Quotes Panel */}
@@ -423,6 +485,7 @@ function QuoteBuilder() {
           onMergeExport={handleMergeExport}
           onClose={() => setShowSavedPanel(false)}
           isMerging={isMerging}
+          pdfLayout={pdfLayout}
         />
       )}
 
@@ -445,6 +508,8 @@ function QuoteBuilder() {
               calculation={calculateQuote(mergeRenderData.items, mergeRenderData.meta.vatRate, { sector: mergeRenderData.meta.sector, subsidyRate: mergeRenderData.meta.subsidyRate, roundingUnit: mergeRenderData.meta.roundingUnit })}
               categoryLabels={categoryLabels}
               showPolicies={true}
+              pageMode={pdfLayout}
+              forExport
             />
           </div>
         </div>

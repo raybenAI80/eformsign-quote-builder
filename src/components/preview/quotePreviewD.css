@@ -599,3 +599,112 @@
   height: 152px;
   width: auto;
 }
+
+/*
+ * 여러 쪽 나눔 (PDF 저장 방식 "여러 쪽으로 나눠 저장"). 쪽 나눔 계산은 pagination.ts.
+ * 쪽 용지(.qd-page)는 한 장 용지와 같은 폭 297mm, 높이 420mm(A4 세로 비율). 2쪽부터는 얇은 연속 머리(.qd-thin)를 쓰고
+ * 쪽 번호(.qd-pageno)는 오른쪽 아래다. 그림자·blur·미디어쿼리를 쓰지 않는다(캡처 대상). 화면 장식은 .qd-pages-screen 아래에만 둔다.
+ */
+.qd-pages {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.qd-pages.qd-pages-screen {
+  gap: 24px;
+  background: #e4e9ef;
+}
+.qd-pages .qd-measurer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+.paper.qd-paper.qd-page {
+  position: relative;
+  height: 420mm;
+  min-height: 0;
+  overflow: hidden;
+}
+.qd-pages-screen .paper.qd-paper.qd-page {
+  outline: 1px solid #cfd6de;
+}
+.qd-paper .qd-thin {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 52px; /* pagination.ts THIN_HEAD_H 와 같은 값 */
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--qd-n);
+}
+.qd-thin-l {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.qd-thin .qd-logo-e {
+  width: 104px;
+}
+.qd-thin-vr {
+  width: 1px;
+  height: 22px;
+  background: var(--qd-l);
+}
+.qd-paper .qd-thin-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--qd-head);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--qd-n);
+  white-space: nowrap;
+}
+.qd-thin-t img {
+  height: 22px;
+  width: auto;
+}
+.qd-thin-r {
+  display: flex;
+  align-items: baseline;
+  gap: 28px;
+  min-width: 0;
+}
+.qd-thin-r .qd-k {
+  margin-right: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qd-g);
+}
+.qd-thin-r .qd-v {
+  font-size: 14px;
+  color: var(--qd-ink);
+  white-space: nowrap;
+}
+.qd-thin-r .qd-cust {
+  display: inline-block;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+/* 2쪽부터 연속 머리 바로 아래 표: 머리 높이 계산(TABLE_MARGIN_TOP)과 같은 24px 간격 */
+.qd-paper .qd-thin + table.qd-items {
+  margin-top: 24px;
+}
+.qd-items tr.qd-cat td .qd-cont {
+  font-family: "Pretendard", "Malgun Gothic", sans-serif;
+  font-weight: 400;
+  color: var(--qd-g);
+}
+.qd-paper .qd-pageno {
+  position: absolute;
+  right: 52px;
+  bottom: 8px; /* 하단 브랜드 밴드(아래에서 32px)와 10px 이상 떨어진다 */
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--qd-g);
+}

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toKRW, nf } from '../../utils/formatters';
+import type { CalculatedRow } from '../../types';
 import { SUPPLIER_PROFILE } from '../../constants';
 import { renderReferenceNote } from '../../utils/referenceNotes';
 import {
   PreviewPanelProps,
+  CategoryGroup,
   LABELS,
   normalizeRichText,
   discountedUnitPrice,
@@ -14,14 +16,48 @@ import {
 import { QuoteFooterD } from './QuoteFooterD';
 import { selectFooterKind } from './quoteFooterKind';
 import { getQuoteTitleText } from './quoteTitle';
+import { paginate, measureFlowPaper, type PageSpec } from './pagination';
 import './quotePreviewD.css';
 
+/** 표 한 행의 그리기 단위. 구분 행(cat)과 품목 행(item)을 한 줄로 편 것이다. */
+type RenderRow =
+  | { key: string; type: 'cat'; label: string; cont?: boolean }
+  | { key: string; type: 'item'; row: CalculatedRow };
+
+const flattenGroups = (groups: CategoryGroup[]): RenderRow[] =>
+  groups.flatMap(({ section, label, rows }): RenderRow[] => [
+    { key: `cat-${section}`, type: 'cat', label },
+    ...rows.map((row): RenderRow => ({ key: row.id, type: 'item', row })),
+  ]);
+
+interface QuotePaperProps extends PreviewPanelProps {
+  id?: string;
+  className?: string;
+  /** 이 용지에 그릴 표 행. 생략하면 전부 */
+  rows?: RenderRow[];
+  /** 'full' = 로고·제목·거래 정보 3칸, 'thin' = 2쪽부터의 얇은 연속 머리 */
+  head?: 'full' | 'thin';
+  /** 합계·결제정보·비고·하단. 마지막 쪽(또는 한 장)에만 true */
+  showTail?: boolean;
+  /** 쪽 번호. 쪽이 하나뿐이면 넘기지 않는다 */
+  pageNo?: { n: number; total: number };
+}
+
 /**
- * 차분한 비즈니스형 견적서 출력물 (출력물은 이 디자인 하나다).
+ * 차분한 비즈니스형 견적서 용지 한 장. 한 장 모드는 이것 하나, 여러 쪽 모드는 쪽마다 하나를 그린다.
  * 시안: docs/design-mode/mock-d-business.html. 표시 항목과 규칙은 getPreviewModel 이 정한다.
- * 루트 id 는 `preview-panel` 이다 (이미지 저장이 이 id 를 캡처한다).
  */
-export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, categoryLabels }) => {
+const QuotePaper: React.FC<QuotePaperProps> = ({
+  meta,
+  calculation,
+  categoryLabels,
+  id,
+  className,
+  rows: rowsProp,
+  head = 'full',
+  showTail = true,
+  pageNo,
+}) => {
   const {
     isStamped,
     isSubsidy,
@@ -38,6 +74,7 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
     contactEmailText,
     hasContactPhone,
   } = getPreviewModel(meta, calculation, categoryLabels);
+  const renderRows = rowsProp ?? flattenGroups(groups);
 
   const colSpan = showRowDiscount ? 5 : 4;
   const sealSize = meta.sealSize ?? 48;
@@ -83,8 +120,28 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
   };
 
   return (
-    <div id="preview-panel" className="paper qd-paper">
+    <div id={id} className={`paper qd-paper${className ? ` ${className}` : ''}`}>
       <div className="qd-body">
+        {head === 'thin' ? (
+          <div className="qd-thin">
+            <div className="qd-thin-l">
+              <img className="qd-logo-e" src="/design-d/eformsign-logo-blue.png" alt="eformsign 로고" />
+              <span className="qd-thin-vr" />
+              <p className="qd-thin-t">{renderTitle()}</p>
+            </div>
+            <div className="qd-thin-r">
+              <span>
+                <span className="qd-k">{LABELS.quoteNo}</span>
+                <span className="qd-v qd-num">{meta.quoteNo || 'FORCS-EFS-XX-0000000'}</span>
+              </span>
+              <span>
+                <span className="qd-k">{LABELS.billTo}</span>
+                <span className="qd-v qd-cust">{meta.customerName || '고객사명'}</span>
+              </span>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="qd-logos">
           <img className="qd-logo-e" src="/design-d/eformsign-logo-blue.png" alt="eformsign 로고" />
           <img className="qd-logo-f" src="/design-d/forcs-ci-en-original.png" alt="FORCS 로고" />
@@ -147,6 +204,8 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
             </div>
           </div>
         </div>
+        </>
+        )}
 
         <table className="qd-items">
           <colgroup>
@@ -166,15 +225,20 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
             </tr>
           </thead>
           <tbody>
-            {groups.map(({ section, label, rows }) => (
-              <React.Fragment key={section}>
-                <tr className="qd-cat">
-                  <td colSpan={colSpan}>{label}</td>
+            {renderRows.map(r =>
+              r.type === 'cat' ? (
+                <tr key={r.key} className="qd-cat">
+                  <td colSpan={colSpan}>
+                    {r.label}
+                    {r.cont && <span className="qd-cont">{' (계속)'}</span>}
+                  </td>
                 </tr>
-                {rows.map(row => {
+              ) : (
+                (() => {
+                  const row = r.row;
                   const noteHtml = row.notes || row.note || '';
                   return (
-                    <tr key={row.id}>
+                    <tr key={r.key}>
                       <td className="qd-item">
                         <b>{row.item}</b>
                         {noteHtml && (
@@ -214,10 +278,10 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
                       </td>
                     </tr>
                   );
-                })}
-              </React.Fragment>
-            ))}
-            {calculation.rows.length === 0 && (
+                })()
+              )
+            )}
+            {renderRows.length === 0 && (
               <tr className="qd-empty">
                 <td colSpan={colSpan}>항목이 없습니다.</td>
               </tr>
@@ -225,6 +289,8 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
           </tbody>
         </table>
 
+        {showTail && (
+        <>
         <div className="qd-sumrow">
           {hasEnterprise && (
             <div className="qd-pay">
@@ -330,9 +396,101 @@ export const QuotePreviewD: React.FC<PreviewPanelProps> = ({ meta, calculation, 
             })}
           </div>
         )}
+        </>
+        )}
       </div>
 
-      <QuoteFooterD kind={selectFooterKind(meta)} />
+      {showTail && <QuoteFooterD kind={selectFooterKind(meta)} />}
+      {pageNo && <div className="qd-pageno">{`${pageNo.n} / ${pageNo.total}`}</div>}
     </div>
   );
 };
+
+/**
+ * 여러 쪽 모드. 보이지 않는 "측정용 용지"(한 장짜리 전체)의 행 높이를 읽어 쪽을 나누고, 쪽마다 용지를 하나씩 그린다.
+ * 측정용 용지에는 id 가 없고(중복 id 방지), 쪽 용지는 `.qd-page` 클래스로 찾는다(캡처 대상).
+ * 쪽이 하나뿐이면 쪽 번호 없이 한 장 모드와 같은 모양이다.
+ */
+const PagedQuotePreview: React.FC<PreviewPanelProps> = props => {
+  const { meta, calculation, categoryLabels, forExport } = props;
+  const measurerRef = useRef<HTMLDivElement>(null);
+  const model = getPreviewModel(meta, calculation, categoryLabels);
+  const rows = useMemo(() => flattenGroups(model.groups), [model.groups]);
+  const [layout, setLayout] = useState<{ specs: PageSpec[]; rowCount: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const paper = measurerRef.current?.querySelector<HTMLElement>('.qd-paper');
+    if (!paper) return;
+    const m = measureFlowPaper(paper);
+    if (!m) return;
+    const specs = paginate(m);
+    setLayout(prev => {
+      const same =
+        prev &&
+        prev.rowCount === m.rows.length &&
+        prev.specs.length === specs.length &&
+        prev.specs.every((p, i) => p.start === specs[i].start && p.end === specs[i].end && p.carry === specs[i].carry);
+      return same ? prev : { specs, rowCount: m.rows.length };
+    });
+  }, []);
+
+  // 내용이 바뀐 렌더 직후(그리기 전)에 다시 잰다. 글꼴 로드·행 높이 변화는 관찰자가 다시 알려 준다.
+  useLayoutEffect(() => {
+    measure();
+  });
+  useLayoutEffect(() => {
+    const paper = measurerRef.current?.querySelector<HTMLElement>('.qd-paper');
+    const table = paper?.querySelector('table.qd-items');
+    if (!paper || !table) return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(paper);
+    ro.observe(table);
+    const fonts = document.fonts;
+    const onFonts = () => measure();
+    fonts?.addEventListener?.('loadingdone', onFonts);
+    void fonts?.ready.then(onFonts);
+    return () => {
+      ro.disconnect();
+      fonts?.removeEventListener?.('loadingdone', onFonts);
+    };
+  }, [measure]);
+
+  // 측정이 끝나기 전·행 수가 어긋난 한 순간에는 한 장으로 그린다
+  const specs: PageSpec[] =
+    layout && layout.rowCount === rows.length ? layout.specs : [{ start: 0, end: rows.length, carry: null }];
+  const total = specs.length;
+
+  return (
+    <div className={`qd-pages${forExport ? '' : ' qd-pages-screen'}`}>
+      <div ref={measurerRef} className="qd-measurer" aria-hidden="true">
+        <QuotePaper {...props} />
+      </div>
+      {specs.map((spec, idx) => {
+        const pageRows: RenderRow[] = rows.slice(spec.start, spec.end);
+        if (spec.carry !== null) {
+          const c = rows[spec.carry];
+          if (c.type === 'cat') pageRows.unshift({ ...c, key: `${c.key}-cont-${idx}`, cont: true });
+        }
+        return (
+          <QuotePaper
+            key={idx}
+            {...props}
+            className="qd-page"
+            rows={pageRows}
+            head={idx === 0 ? 'full' : 'thin'}
+            showTail={idx === total - 1}
+            pageNo={total > 1 ? { n: idx + 1, total } : undefined}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+/**
+ * 견적서 출력물 (출력물은 이 디자인 하나다).
+ * - 한 장 모드(기본): 용지 하나. 루트 id 는 `preview-panel` 이다 (이미지 저장이 이 id 를 캡처한다).
+ * - 여러 쪽 모드(pageMode="paged"): 쪽 용지 여러 장. PDF 저장이 `.qd-page` 를 쪽마다 캡처한다.
+ */
+export const QuotePreviewD: React.FC<PreviewPanelProps> = props =>
+  props.pageMode === 'paged' ? <PagedQuotePreview {...props} /> : <QuotePaper {...props} id="preview-panel" />;
