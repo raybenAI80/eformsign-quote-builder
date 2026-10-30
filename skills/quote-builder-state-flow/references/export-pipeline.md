@@ -48,7 +48,7 @@
 5. **PDF 캡처 금지 CSS**: 넓은 자간·세로쓰기·미디어 쿼리 의존 레이아웃·box-shadow·blur. 쪽 카드의 그림자·바깥 선은 화면 전용 `.qd-pages-screen` 아래에만.
 6. **글꼴 로드 전 캡처**: `loadScreenFonts()` 를 기다린다. 대체 글꼴로 찍히면 글자 폭이 달라진다.
 7. **메뉴에서 방식을 바꾼 직후 저장**: `#pdf-pages-panel` 은 'paged' 일 때만 그려지므로 프레임 2번 기다린 뒤 저장한다(`handleExportPdfAs`).
-8. **1024px 미만에서는 헤더 전체가 숨겨져** PDF·PNG 버튼이 모두 없다(기존 동작, 미해결).
+8. **1024px 미만에서는 헤더 전체가 숨겨져** PDF·PNG 버튼이 모두 없다(PC 전용 도구라 의도한 동작. 좁은 화면용 저장 버튼은 만들지 않는다, 2026-10-30 결정).
 9. **`PYI` 환경변수**: PDF 분석(pymupdf)은 시스템 `python` 에 있다. shim `pyi` 는 pymupdf 가 없다. 검증 도구를 돌릴 때 `PYI` 를 비운다.
 10. **worktree 에는 환경변수 파일이 없다**: 메인 체크아웃 `D:\pjt\eformsign-견적서-빌더` 의 `.env`·`.env.local` 을 `node --env-file` 로 vite 에만 주입한다. 값을 출력하지 않는다.
 11. **결제 정보·직인은 데이터에서 온다**: 결제 정보는 SaaS 행에 `Enterprise` 가 있을 때만(`hasEnterpriseItem`), 직인은 `meta.sealMode`(`hidden` 기본 / `omitted` / `stamped`)로 정한다. 예전 저장본에 `sealMode` 가 없으면 직인 영역을 그리지 않는다.
