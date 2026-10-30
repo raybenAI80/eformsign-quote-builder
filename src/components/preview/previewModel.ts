@@ -64,6 +64,13 @@ export const discountedUnitPrice = (unitPrice: number, discountPct: number): num
 export const isAmountBlank = (row: Pick<CalculatedRow, 'unitPrice'>): boolean =>
   typeof row.unitPrice !== 'number' && (row.unitPrice === '' || isNaN(Number(row.unitPrice)));
 
+/**
+ * 결제 정보 블록(계좌·대금지불조건·서류 링크)은 Enterprise 견적에서만 보인다.
+ * SaaS 구역 품목명에 'Enterprise' 가 들어 있으면 Enterprise 견적이다. 다른 구역(서비스·크레딧 등)의 품목명은 보지 않는다.
+ */
+export const hasEnterpriseItem = (rows: Pick<CalculatedRow, 'section' | 'item'>[]): boolean =>
+  rows.some(r => r.section === 'SaaS' && String(r.item).includes('Enterprise'));
+
 export interface CategoryGroup {
   section: CategorySection;
   label: string;
@@ -123,7 +130,7 @@ export const getPreviewModel = (
     showRowDiscount: showDiscount && !isSubsidy,
     validityMonths,
     dueDateStr: addValidityEndLocal(meta.quoteDate, validityMonths),
-    hasEnterprise: calculation.rows.some(r => r.section === 'SaaS' && String(r.item).includes('Enterprise')),
+    hasEnterprise: hasEnterpriseItem(calculation.rows),
     groups,
     showDiscountLines: !isSubsidy && showDiscount && calculation.discountAmount > 0,
     showSubsidyLine: isSubsidy && calculation.subsidyAmount > 0,
