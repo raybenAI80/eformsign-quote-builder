@@ -123,4 +123,5 @@ PDF·PNG 저장, 화질 상수, 쪽 나눔, 결제 정보·직인·하단 표시
 
 - **글자 단가**: 단가(정가)만 `allowText` 를 쓴다. 숫자·쉼표·공백·원·₩ 밖의 글자가 하나라도 있으면 문자열로 저장한다("별도 협의"). 숫자·쉼표·공백뿐이면 숫자다. 판정은 `isTextPrice`/`isNumericText`.
 - **함정(2026-11-05)**: 예전 입력칸은 `toLocaleString()` 결과와 입력이 정확히 같을 때만 숫자로 저장하고, 아니면 문자열로 저장했다. 2,000 에서 0 을 더 치면 `"2,0000"` 이 문자열로 굳었다. `parseNum("2,0000")` 은 2 를 돌려줘 합계도 틀렸다. 지금은 `parseNum` 이 쉼표를 걷어내고, 복원·템플릿·이력·저장 견적 불러오기는 `normalizeItems`, 계산은 `normalizeUnitPrice` 로 깨진 값을 숫자로 정리한다.
+- **칸 너비(2026-11-05)**: 품목 행 2열은 `flex flex-wrap` 이고 단가·할인단가는 최소 156px(15자리 `999,999,999,999,999` 까지 안 잘림), 수량은 최소 96px, 할인율은 좁으면 다음 줄로 내려간다. 고정 6열 그리드는 1100폭에서 칸이 57px 이라 13자리가 잘렸다. 검증: `node --env-file=<.env> --env-file=<.env.local> tools/verify-input-width.mjs <캡처 폴더>`(scrollWidth<=clientWidth, 1440·1100).
 - **검증**: `node --env-file=<.env> --env-file=<.env.local> tools/verify-thousands-input.mjs <캡처 폴더>`(입력·커서·붙여넣기·복원·할인단가·수량·깨진 저장값·글자 단가). `verify:export` 에는 넣지 않았다.
