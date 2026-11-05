@@ -9,7 +9,8 @@
 |---|---|---|
 | 화면 미리보기 | `src/components/PreviewPanel.tsx`, `preview/QuotePreviewD.tsx`, `preview/quotePreviewD.css` | 축소(약 0.627)해서 보여 준다. `#preview-panel` |
 | PDF·PNG 용 숨김 렌더 | `App.tsx` 의 `#pdf-preview-panel`(폭 297mm), 여러 쪽이면 `#pdf-pages-panel` | 같은 `.qd-paper` 를 배율 1 로 그린다. 캡처 대상은 이쪽 |
-| 캡처·PDF 생성 | `src/utils/exportPdf.ts` (`exportToPdf`, `exportMergedPdf`, `exportToImage`) | html2canvas 로 이미지 → jsPDF. 텍스트 레이어를 따로 얹는다 |
+| 캡처·PDF 생성 | `src/utils/exportPdf.ts` (`exportToPdf`, `exportMergedPdf`, `exportToImage`) | html2canvas 로 이미지 → jsPDF. 텍스트 레이어를 따로 얹는다. 모든 `html2canvas` 호출에 `onclone: inlineLinkedStylesheets` 가 있어야 한다 |
+| 복제본 CSS 보장 | `src/utils/captureStyles.ts` | 복제 iframe 의 `<link rel=stylesheet>` 를 화면에 로드된 규칙의 `<style>` 로 바꾼다(아래 함정 12) |
 | 글자 위치 보정 | `src/utils/html2canvasMetrics.ts` (`installFontMetricsFix`) | PDF·PNG 모두 캡처 구간 동안 걸어야 한다 |
 | 쪽 나눔 | `src/components/preview/pagination.ts` (순수 `paginate`, DOM 측정 `measureFlowPaper`) | 순수 함수라 단위 테스트가 있다 |
 | 제목·문서 정보 | `preview/quoteTitle.ts`, `src/utils/pdfMetadata.ts` | 미리보기·PDF 공용 제목, author `FORCS`, lang `ko-KR` |
@@ -53,13 +54,16 @@
 10. **worktree 에는 환경변수 파일이 없다**: 메인 체크아웃 `D:\pjt\eformsign-견적서-빌더` 의 `.env`·`.env.local` 을 `node --env-file` 로 vite 에만 주입한다. 값을 출력하지 않는다.
 11. **결제 정보·직인은 데이터에서 온다**: 결제 정보는 SaaS 행에 `Enterprise` 가 있을 때만(`hasEnterpriseItem`), 직인은 `meta.sealMode`(`hidden` 기본 / `omitted` / `stamped`)로 정한다. 예전 저장본에 `sealMode` 가 없으면 직인 영역을 그리지 않는다.
 
+12. **복제 iframe 이 CSS 파일을 다시 받다 실패하면 PDF·PNG 가 서식 없는 HTML 이 된다**(2026-11-05 사용자 보고): 로고가 쪽 폭으로 커지고 칸 구분 없이 글자가 붙고 하단 그림이 따로 나온다. html2canvas 는 문서를 iframe 에 복제하고 운영 번들의 `<link rel=stylesheet href=/assets/index-해시.css>` 를 다시 요청한다. 앱을 연 채 새 배포가 나가 옛 해시 파일이 404 가 되면(또는 오프라인) 복제본만 CSS 가 없다. 화면은 이미 로드된 CSS 라 정상이어서 저장 전까지 모른다. vite dev 는 CSS 가 `<style>` 이라 이 경로를 못 탄다(`verify:export` 7종이 통과한 이유). 새 `html2canvas` 호출을 추가하면 `onclone` 에 `inlineLinkedStylesheets(cloned)` 를 넣고 `node tools/verify-pdf-styles.mjs` 로 확인한다.
+13. **브라우저 인쇄(Ctrl+P)는 빈 쪽이 나온다**(미해결): `index.css` 의 `@media print` 가 `body *` 를 숨기고 `#preview-panel` 만 보이게 하는데, Playwright `page.pdf`(print 미디어)로 3쪽이 모두 빈 쪽이었다. PDF 버튼은 인쇄가 아니라 jsPDF 경로다. 2026-11-05 기록만 하고 고치지 않았다.
+
 ## 5. 검증 도구 표
 
 모든 도구는 `tools/lib/quote-driver.mjs`(vite 기동·playwright 로드·견적 입력)를 쓴다. 실행 조건: `PW_CHROME`=chrome-headless-shell.exe, 환경변수 파일은 vite 에만, 뷰포트 1440×1000, 접속은 `/?bypass-auth` + 온보딩 건너뛰기. `QB_BASE_URL` 이 있으면 vite 를 새로 띄우지 않고 그 주소를 쓴다.
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage]` | 7종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 5분(쪽 구성 160초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles]` | 8종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 5분(쪽 구성 160초 + 결제 정보 75초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
@@ -67,6 +71,7 @@
 | 하단 강점 칸 문구·정렬을 바꿨을 때 | `tools/verify-footer-copy.mjs` | F1·F2 문구 줄·칸 높이 같음, 스크린샷·PDF |
 | PDF 저장 메뉴 문구를 바꿨을 때 | `tools/verify-pdf-menu-copy.mjs` | 1건·26건 메뉴 문구, 가로 넘침 없음, 스크린샷 |
 | Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
+| `html2canvas` 호출·CSS 로드 방식(index.html, vite 설정)을 바꿨을 때 | `tools/verify-pdf-styles.mjs` | CSS 파일 요청이 404 인 상태에서 저장한 PDF 한 장·여러 쪽·PNG 가 정상 저장본과 픽셀 차 2% 미만(`tools/compare-raster.py`). `verify:export` 8번째 단계. `tools/repro-pdf-paths.mjs` 는 경로별(PDF 버튼·여러 쪽·병합·인쇄) 재현용 |
 | 하단 종류 판정(브랜딩)을 바꿨을 때 | `tools/verify-footer-kind.mjs` | F1·F2 자동 선택, 새로고침 유지, 초기화 (`verify:export` 에 미포함) |
 | 상태 흐름(초기화·복원) | `tools/verify-quote-scenario.mjs` | 3절 시나리오(SKILL.md) (`verify:export` 에 미포함) |
 | 화질 상수를 바꿨을 때 | `tools/pdf-sharpness-compare.mjs`, `tools/measure-pdf-export.mjs`, `tools/measure-png-export.mjs` | 2절 |
