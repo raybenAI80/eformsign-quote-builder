@@ -55,7 +55,7 @@
 11. **결제 정보·직인은 데이터에서 온다**: 결제 정보는 SaaS 행에 `Enterprise` 가 있을 때만(`hasEnterpriseItem`), 직인은 `meta.sealMode`(`hidden` 기본 / `omitted` / `stamped`)로 정한다. 예전 저장본에 `sealMode` 가 없으면 직인 영역을 그리지 않는다.
 
 12. **복제 iframe 이 CSS 파일을 다시 받다 실패하면 PDF·PNG 가 서식 없는 HTML 이 된다**(2026-11-05 사용자 보고): 로고가 쪽 폭으로 커지고 칸 구분 없이 글자가 붙고 하단 그림이 따로 나온다. html2canvas 는 문서를 iframe 에 복제하고 운영 번들의 `<link rel=stylesheet href=/assets/index-해시.css>` 를 다시 요청한다. 앱을 연 채 새 배포가 나가 옛 해시 파일이 404 가 되면(또는 오프라인) 복제본만 CSS 가 없다. 화면은 이미 로드된 CSS 라 정상이어서 저장 전까지 모른다. vite dev 는 CSS 가 `<style>` 이라 이 경로를 못 탄다(`verify:export` 7종이 통과한 이유). 새 `html2canvas` 호출을 추가하면 `onclone` 에 `inlineLinkedStylesheets(cloned)` 를 넣고 `node tools/verify-pdf-styles.mjs` 로 확인한다.
-13. **브라우저 인쇄(Ctrl+P)는 빈 쪽이 나온다**(미해결): `index.css` 의 `@media print` 가 `body *` 를 숨기고 `#preview-panel` 만 보이게 하는데, Playwright `page.pdf`(print 미디어)로 3쪽이 모두 빈 쪽이었다. PDF 버튼은 인쇄가 아니라 jsPDF 경로다. 2026-11-05 기록만 하고 고치지 않았다.
+13. **브라우저 인쇄(Ctrl+P)는 빈 쪽·잘린 쪽이 나왔다**(2026-11-05 확정·수정): 옛 `@media print` 는 `body *` 를 `visibility:hidden` 으로 숨기고 `#preview-panel` 만 보이게 했다. 원인 셋. ① 여러 쪽 저장 방식(`pageMode="paged"`)의 미리보기에는 `#preview-panel` 이 없어 보일 요소가 없다(전부 빈 쪽). ② 미리보기를 끄면 `#preview-panel` 이 `display:none` 이라 역시 빈 쪽. ③ 한 장 방식에서도 화면용 축소(`MainLayout` 의 `transform: scale(0.627)`)가 인쇄에 그대로 남고, `visibility:hidden` 상위 요소들이 높이 2629px 을 차지해 쪽이 3~4장으로 늘고 끝쪽은 빈 쪽이며, `@page` 가 A4 가로였다. 수정(`index.css` 의 `@media print`, `App.tsx` 의 `beforeprint` 훅): 화면 미리보기 대신 PDF 저장이 쓰는 화면 밖 사본 `#pdf-export-container` 를 인쇄하고(미리보기 켬·끔과 무관, 저장 방식을 따라 한 장 용지 또는 `.qd-page` 쪽 용지), 그 밖의 `#root` 자식·포털(토스트·온보딩·저장 목록)은 `display:none`. 사본은 가로 297mm 이므로 `zoom` 0.707 로 A4 세로(210mm)에 맞추고, `@page` 는 `A4 portrait; margin:0`. 한 장 방식에서 내용이 한 쪽보다 길면 `beforeprint` 에서 `--qd-print-zoom` 을 낮춰 PDF 저장처럼 한 쪽에 넣는다. 확인은 `node tools/verify-print.mjs`(dev·빌드 번들 x 한 장/여러 쪽 x 미리보기 켬/끔 x 품목 보통/많음, 쪽 수가 PDF 버튼과 같고 빈 쪽·편집 화면 문구 없음). 새 화면 요소를 `#root` 밖 포털로 만들거나 `#pdf-export-container` 구조를 바꾸면 이 검사를 다시 돌린다. 참고: 운영 번들은 `?bypass-auth` 가 막혀 있어 이 도구의 build 대상은 `NODE_ENV=development vite build` 로 따로 빌드한다.
 
 ## 5. 검증 도구 표
 
@@ -63,7 +63,7 @@
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles]` | 8종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 5분(쪽 구성 160초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print]` | 9종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 7분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
@@ -72,6 +72,7 @@
 | PDF 저장 메뉴 문구를 바꿨을 때 | `tools/verify-pdf-menu-copy.mjs` | 1건·26건 메뉴 문구, 가로 넘침 없음, 스크린샷 |
 | Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
 | `html2canvas` 호출·CSS 로드 방식(index.html, vite 설정)을 바꿨을 때 | `tools/verify-pdf-styles.mjs` | CSS 파일 요청이 404 인 상태에서 저장한 PDF 한 장·여러 쪽·PNG 가 정상 저장본과 픽셀 차 2% 미만(`tools/compare-raster.py`). `verify:export` 8번째 단계. `tools/repro-pdf-paths.mjs` 는 경로별(PDF 버튼·여러 쪽·병합·인쇄) 재현용 |
+| 인쇄 CSS(`@media print`)·`#pdf-export-container` 구조·헤더/포털 요소를 바꿨을 때 | `node tools/verify-print.mjs [출력 폴더] [--targets dev,build] [--quick]` | print 미디어 `page.pdf` 가 PDF 버튼과 같은 쪽 수, 빈 쪽 없음, A4 세로, 첫 쪽에 제목·견적번호·합계, 편집 화면 문구 없음. `verify:export` 9번째 단계(dev 대상만). 빌드 번들 대상은 단독 실행(빌드 약 15초 포함) |
 | 하단 종류 판정(브랜딩)을 바꿨을 때 | `tools/verify-footer-kind.mjs` | F1·F2 자동 선택, 새로고침 유지, 초기화 (`verify:export` 에 미포함) |
 | 상태 흐름(초기화·복원) | `tools/verify-quote-scenario.mjs` | 3절 시나리오(SKILL.md) (`verify:export` 에 미포함) |
 | 화질 상수를 바꿨을 때 | `tools/pdf-sharpness-compare.mjs`, `tools/measure-pdf-export.mjs`, `tools/measure-png-export.mjs` | 2절 |
