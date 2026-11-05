@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 
-import { useQuote, calculateQuote, getLocalToday } from './hooks/useQuote';
+import { useQuote, calculateQuote, getLocalToday, normalizeItems } from './hooks/useQuote';
+import { parseNum } from './utils/helpers';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
 import { exportToImage, exportToPdf, exportMergedPdf, estimatePdfFitScale } from './utils/exportPdf';
 import { readPdfLayout, writePdfLayout, type PdfLayout } from './utils/pdfLayoutPref';
@@ -169,9 +170,9 @@ function QuoteBuilder() {
       item.item,
       item.qty,
       item.unitPrice,
-      item.qty * item.unitPrice,
+      item.qty * parseNum(item.unitPrice),
       item.discountPct ?? 0,
-      Math.round(item.qty * item.unitPrice * (1 - (item.discountPct ?? 0) / 100)),
+      Math.round(item.qty * parseNum(item.unitPrice) * (1 - (item.discountPct ?? 0) / 100)),
       item.note || item.notes || '',
     ]);
 
@@ -306,7 +307,7 @@ function QuoteBuilder() {
         referenceNotes:
           restoreCustomerPlaceholders(quote.meta.referenceNotes, quote.meta.customerName) ?? quote.meta.referenceNotes,
       }));
-      actions.setItems(quote.items);
+      actions.setItems(normalizeItems(quote.items));
       setShowSavedPanel(false);
       toast.success(`"${quote.name}" 견적서를 불러왔습니다. 미리보기가 업데이트되었습니다.`);
     },

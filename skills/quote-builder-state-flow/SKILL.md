@@ -116,3 +116,11 @@ vitest 통과와 배포 번들 grep 은 완료 근거가 아니다. 아래를 �
 ## 7. 출력물(PDF·PNG) 작업
 
 PDF·PNG 저장, 화질 상수, 쪽 나눔, 결제 정보·직인·하단 표시, 출력 검증 도구, 운영 배포 확인, 회귀를 주장하기 전의 확인 절차는 [references/export-pipeline.md](references/export-pipeline.md) 에 있다. 출력물을 바꾸면 먼저 그 문서를 읽고, 끝나면 `npm run verify:export` 를 통과시킨다. 사실·측정값 근거는 볼트 `eformsign-quote-builder-pack`.
+
+## 8. 숫자 입력칸 (천 단위 쉼표)
+
+금액·수량 입력칸은 `src/components/common/ThousandsInput.tsx` 하나를 쓴다(순수 함수는 `src/utils/thousands.ts`). 입력 중에도 `2,000,000` 형식으로 보이고 저장값은 숫자다. 커서는 왼쪽 숫자 개수를 세어 두었다가 재포맷 뒤 같은 개수 뒤에 놓는다.
+
+- **글자 단가**: 단가(정가)만 `allowText` 를 쓴다. 숫자·쉼표·공백·원·₩ 밖의 글자가 하나라도 있으면 문자열로 저장한다("별도 협의"). 숫자·쉼표·공백뿐이면 숫자다. 판정은 `isTextPrice`/`isNumericText`.
+- **함정(2026-11-05)**: 예전 입력칸은 `toLocaleString()` 결과와 입력이 정확히 같을 때만 숫자로 저장하고, 아니면 문자열로 저장했다. 2,000 에서 0 을 더 치면 `"2,0000"` 이 문자열로 굳었다. `parseNum("2,0000")` 은 2 를 돌려줘 합계도 틀렸다. 지금은 `parseNum` 이 쉼표를 걷어내고, 복원·템플릿·이력·저장 견적 불러오기는 `normalizeItems`, 계산은 `normalizeUnitPrice` 로 깨진 값을 숫자로 정리한다.
+- **검증**: `node --env-file=<.env> --env-file=<.env.local> tools/verify-thousands-input.mjs <캡처 폴더>`(입력·커서·붙여넣기·복원·할인단가·수량·깨진 저장값·글자 단가). `verify:export` 에는 넣지 않았다.

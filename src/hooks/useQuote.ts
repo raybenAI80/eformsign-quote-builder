@@ -9,6 +9,7 @@ import {
   QuoteSnapshot,
 } from '../types';
 import { parseNum, clamp, safeParse } from '../utils/helpers';
+import { normalizeUnitPrice } from '../utils/thousands';
 import { DATA_KEY, SUPPLIER_PROFILE, CategoryLabel, DEFAULT_CATEGORY_LABELS, DEFAULT_REFERENCE_NOTES } from '../constants';
 
 interface StoredQuoteData {
@@ -226,7 +227,11 @@ export const normalizeRestoredMeta = (meta: QuoteMeta & { aiBranding?: boolean }
 };
 
 const cloneMeta = (meta: QuoteMeta): QuoteMeta => ({ ...meta });
-const cloneItems = (items: QuoteItem[]): QuoteItem[] => items.map(item => ({ ...item }));
+/** 이전 버전이 저장한 깨진 단가 문자열("2,00000")을 숫자로 정리한다. 글자 단가("별도 협의")는 그대로 둔다. */
+export const normalizeItems = (items: QuoteItem[]): QuoteItem[] =>
+  items.map(item => ({ ...item, unitPrice: normalizeUnitPrice(item.unitPrice) }));
+
+const cloneItems = (items: QuoteItem[]): QuoteItem[] => normalizeItems(items);
 
 const ensureMetaDefaults = (meta: QuoteMeta & { aiBranding?: boolean }): QuoteMeta => {
   const legacyAi = typeof meta.aiBranding === 'boolean' ? meta.aiBranding : undefined;
@@ -287,7 +292,7 @@ export const calculateQuote = (
     return {
       ...item,
       qty,
-      unitPrice: item.unitPrice, // preserve original (number or string)
+      unitPrice: normalizeUnitPrice(item.unitPrice), // number 유지, 글자 단가(string)는 그대로, 깨진 쉼표 문자열은 숫자로
       discountPct,
       msrp,
       offer,
@@ -384,7 +389,7 @@ export const useQuote = () => {
     const parsed = safeParse<StoredQuoteData | null>(raw, null);
     if (parsed?.meta && parsed?.items) {
       setMeta(normalizeRestoredMeta(parsed.meta));
-      setItems(parsed.items);
+      setItems(normalizeItems(parsed.items));
       if (parsed.presets) setPresets(parsed.presets);
       if (parsed.history) setHistory(parsed.history);
       if (parsed.categoryLabels) setCategoryLabels(parsed.categoryLabels);

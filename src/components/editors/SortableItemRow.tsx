@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { QuoteItem } from '../../types';
 import { clamp, parseNum } from '../../utils/helpers';
 import { RichTextEditor } from '../RichTextEditor';
+import { ThousandsInput } from '../common/ThousandsInput';
+import { parseThousands } from '../../utils/thousands';
 
 export interface SortableItemRowProps {
     item: QuoteItem;
@@ -45,10 +47,8 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
         setLocalOfferPrice(computedOfferPrice > 0 ? String(computedOfferPrice) : '');
     }, [computedOfferPrice]);
 
-    const handleOfferPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const raw = e.target.value.replace(/[^0-9]/g, '');
-        setLocalOfferPrice(raw);
-        const offerPrice = raw ? parseInt(raw, 10) : 0;
+    const handleOfferPriceChange = useCallback((offerPrice: number) => {
+        setLocalOfferPrice(offerPrice > 0 ? String(offerPrice) : '');
         const basePrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseNum(item.unitPrice);
         if (basePrice > 0) {
             const pct = parseFloat(((1 - offerPrice / basePrice) * 100).toFixed(4));
@@ -151,15 +151,11 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             수량
                         </span>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
+                        <ThousandsInput
                             className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
-                            value={item.qty > 0 ? String(item.qty) : ''}
-                            onChange={e => {
-                                const val = e.target.value.replace(/[^0-9]/g, '');
-                                let newQty = val ? parseInt(val, 10) : 0;
+                            value={item.qty > 0 ? item.qty : 0}
+                            onValueChange={next => {
+                                let newQty = typeof next === 'number' ? next : 0;
                                 const patch: Partial<QuoteItem> = { qty: newQty };
                                 // 충전형 문서: 수량별 자동 단가 조정 + 최대 3,000건 제한
                                 if (item.category === '문서 충전') {
@@ -178,19 +174,11 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             단가 (정가)
                         </span>
-                        <input
-                            type="text"
+                        <ThousandsInput
+                            allowText
                             className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
-                            value={typeof item.unitPrice === 'string' && isNaN(Number(item.unitPrice)) ? item.unitPrice : (item.unitPrice ? Number(item.unitPrice).toLocaleString() : '')}
-                            onChange={e => {
-                                const raw = e.target.value;
-                                const numOnly = raw.replace(/[^0-9]/g, '');
-                                if (raw === '' || raw === numOnly || raw === Number(numOnly).toLocaleString()) {
-                                    onUpdate({ unitPrice: numOnly ? parseInt(numOnly, 10) : 0 });
-                                } else {
-                                    onUpdate({ unitPrice: raw });
-                                }
-                            }}
+                            value={item.unitPrice}
+                            onValueChange={next => onUpdate({ unitPrice: next })}
                             placeholder="0"
                         />
                     </label>
@@ -201,15 +189,11 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             할인단가
                         </span>
-                        <input
-                            type="text"
-                            inputMode="numeric"
+                        <ThousandsInput
                             className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
-                            value={isEditingOfferPrice
-                                ? localOfferPrice
-                                : (computedOfferPrice > 0 ? computedOfferPrice.toLocaleString() : '')}
+                            value={isEditingOfferPrice ? parseThousands(localOfferPrice) : computedOfferPrice}
                             onFocus={handleOfferPriceFocus}
-                            onChange={handleOfferPriceChange}
+                            onValueChange={next => handleOfferPriceChange(typeof next === 'number' ? next : 0)}
                             onBlur={handleOfferPriceBlur}
                             placeholder="0"
                             disabled={typeof item.unitPrice !== 'number' || item.unitPrice <= 0}

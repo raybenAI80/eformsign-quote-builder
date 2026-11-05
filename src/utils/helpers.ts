@@ -1,5 +1,6 @@
 export const parseNum = (v: any): number => {
-  const parsed = parseFloat(v);
+  // "1,234" 처럼 천 단위 쉼표가 든 문자열도 1234 로 읽는다 (parseFloat 은 쉼표에서 멈춰 1 을 돌려준다)
+  const parsed = parseFloat(typeof v === 'string' ? v.replace(/,/g, '') : v);
   return isNaN(parsed) ? 0 : parsed;
 };
 
