@@ -186,6 +186,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({
                 <label className="text-xs font-bold text-green-700">지원율 (%)</label>
                 <input
                   type="text"
+                  // numeric-input-ok: 지원율(%) 소수 입력, 천 단위 쉼표 없음
                   inputMode="decimal"
                   value={subsidyRate ? String(subsidyRate) : ''}
                   placeholder="0"

@@ -208,6 +208,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             <div className="flex items-center gap-1">
                                 <input
                                     type="text"
+                                    // numeric-input-ok: 할인율(%) 0~100 정수, 천 단위 쉼표 없음
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     className="w-10 rounded border border-gray-200 px-1 py-1 text-right text-sm font-semibold outline-none focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)]"
