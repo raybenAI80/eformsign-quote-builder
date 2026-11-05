@@ -91,61 +91,79 @@ h4,
   /* For watermark */
 }
 
+/*
+ * 브라우저 인쇄(Ctrl+P, "PDF로 저장" 포함). 화면 미리보기(#preview-panel)는 화면용 축소(transform: scale)와
+ * 가려진 상위 요소의 높이 때문에 인쇄에 쓸 수 없다. 대신 PDF 저장이 쓰는 화면 밖 견적서 사본(#pdf-export-container)을
+ * 인쇄 시 문서 맨 앞으로 꺼내 A4 세로 한 장 폭(210mm)으로 줄여 찍는다. 미리보기가 꺼져 있어도 사본은 항상 있다.
+ * 사본은 가로 297mm 로 그려지므로 zoom 210/297 로 줄인다(0.707, 올림 오차로 빈 쪽이 생기지 않게 내림).
+ * "한 장" 저장 방식에서 내용이 A4 한 쪽보다 길면 인쇄 직전(beforeprint)에 --qd-print-zoom 을 더 낮춘다(App.tsx).
+ * "여러 쪽" 저장 방식이면 쪽 용지(.qd-page, 297mm x 420mm)를 쪽마다 한 장씩 찍는다.
+ */
 @media print {
-
-  /* 페이지 설정: A4 가로 모드, 여백 없음 */
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 0;
   }
 
-  /* 모든 요소 숨기기 */
-  body * {
-    visibility: hidden;
-  }
-
-  /* 프리뷰 패널과 자식 요소만 표시 */
-  #preview-panel,
-  #preview-panel * {
-    visibility: visible;
-  }
-
-  /* 프리뷰 패널을 페이지 전체에 배치 */
-  #preview-panel {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    min-height: auto !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    overflow: visible !important;
-  }
-
-  .paper {
-    width: 100% !important;
-    height: auto !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    overflow: visible !important;
-  }
-
+  html,
   body {
-    background: white !important;
+    background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  html {
-    background: white !important;
-  }
-
-  header,
-  nav,
-  .sidebar,
-  .workspace-controls,
-  .print\:hidden {
+  /* 견적서 사본 외에는 모두 인쇄하지 않는다: 편집 화면·헤더·토스트·위로 버튼·저장 목록·온보딩 */
+  #root > *:not(#pdf-export-container),
+  body > *:not(#root) {
     display: none !important;
+  }
+
+  #root {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #pdf-export-container {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 297mm !important;
+    height: auto !important;
+    overflow: visible !important;
+    zoom: var(--qd-print-zoom, 0.707);
+  }
+
+  /* 여러 쪽 방식이면 쪽 용지만, 아니면 한 장 용지만 */
+  #pdf-export-container > #pdf-preview-panel:has(~ #pdf-pages-panel) {
+    display: none !important;
+  }
+
+  #pdf-export-container .qd-pages {
+    display: block !important;
+    gap: 0 !important;
+  }
+
+  #pdf-export-container .qd-measurer {
+    display: none !important;
+  }
+
+  #pdf-export-container .paper.qd-paper {
+    box-shadow: none !important;
+    margin: 0 !important;
+    outline: none !important;
+  }
+
+  #pdf-export-container .paper.qd-paper.qd-page {
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  #pdf-export-container .paper.qd-paper.qd-page:last-child {
+    break-after: auto;
   }
 }
 

@@ -197,6 +197,29 @@ function QuoteBuilder() {
     if (run) void run();
   }, [pendingExport]);
 
+  // 브라우저 인쇄(Ctrl+P): index.css 의 @media print 가 화면 밖 견적서 사본을 A4 세로로 줄여 찍는다.
+  // "한 장" 저장 방식에서 내용이 A4 한 쪽보다 길면 PDF 저장과 같이 한 쪽에 들어가도록 줄임 비율을 더 낮춘다.
+  useEffect(() => {
+    const PX_PER_MM = 96 / 25.4;
+    const root = document.documentElement;
+    const onBeforePrint = () => {
+      const paper = document.querySelector<HTMLElement>('#pdf-preview-panel .qd-paper');
+      const paged = !!document.getElementById('pdf-pages-panel');
+      if (!paper || paged) { root.style.removeProperty('--qd-print-zoom'); return; }
+      const widthMm = paper.offsetWidth / PX_PER_MM;
+      const heightMm = paper.offsetHeight / PX_PER_MM;
+      const zoom = Math.min(210 / widthMm, 297 / heightMm) * 0.999;
+      root.style.setProperty('--qd-print-zoom', String(zoom));
+    };
+    const onAfterPrint = () => root.style.removeProperty('--qd-print-zoom');
+    window.addEventListener('beforeprint', onBeforePrint);
+    window.addEventListener('afterprint', onAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', onBeforePrint);
+      window.removeEventListener('afterprint', onAfterPrint);
+    };
+  }, []);
+
   // PDF·PNG 저장이 같은 파일 이름(확장자 제외)을 쓴다.
   const buildExportFilename = () => {
     const sanitize = (str: string) => str.replace(/[\/\\:*?"<>|]/g, '_').trim();
