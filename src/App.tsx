@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 
 import { useQuote, calculateQuote, getLocalToday, normalizeItems } from './hooks/useQuote';
-import { parseNum } from './utils/helpers';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
 import { exportToImage, exportToPdf, exportMergedPdf, estimatePdfFitScale } from './utils/exportPdf';
 import { readPdfLayout, writePdfLayout, type PdfLayout } from './utils/pdfLayoutPref';
@@ -161,34 +160,6 @@ function QuoteBuilder() {
     toast.error(msg);
     return false;
   }, [validation]);
-
-  const handleExportCSV = () => {
-    if (!ensureValid()) return;
-    const headers = ['섹션', '항목명', '수량', '단가', '금액', '할인율', '제안가', '비고'];
-    const rows = items.map(item => [
-      item.section,
-      item.item,
-      item.qty,
-      item.unitPrice,
-      item.qty * parseNum(item.unitPrice),
-      item.discountPct ?? 0,
-      Math.round(item.qty * parseNum(item.unitPrice) * (1 - (item.discountPct ?? 0) / 100)),
-      item.note || item.notes || '',
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `견적서_${meta.customerName || 'draft'}_${getLocalToday()}.csv`;
-    link.click();
-    toast.success('CSV 파일로 내보냈습니다.');
-  };
 
   // PDF·PNG 저장 직전 확인: 참고사항에 요금제와 맞지 않는 문장이 있으면 한 번 묻는다 (저장을 막지 않는다).
   const planType = useMemo(() => detectPlanType(items), [items]);
@@ -421,7 +392,6 @@ function QuoteBuilder() {
         sidebar={null}
         header={
           <Header
-            onExportCSV={handleExportCSV}
             onExportImage={handleExportImage}
             onExportPdf={handleExportPdf}
             onExportPdfAs={handleExportPdfAs}

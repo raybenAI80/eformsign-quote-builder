@@ -5,7 +5,6 @@ import { PdfSaveSplitButton, type PdfLayoutInfo } from './PdfSaveMenu';
 import type { PdfLayout } from '../utils/pdfLayoutPref';
 
 interface HeaderProps {
-  onExportCSV: () => void;
   onExportImage: () => void;
   /** PDF 본 버튼: 기억된 방식으로 저장 */
   onExportPdf: () => void;
@@ -25,7 +24,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onExportCSV,
   onExportImage,
   onExportPdf,
   onExportPdfAs,
