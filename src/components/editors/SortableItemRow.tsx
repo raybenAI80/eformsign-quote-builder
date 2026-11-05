@@ -146,13 +146,13 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                 </div>
 
                 {/* Row 2: Qty, Price, Discount in one row */}
-                <div className="sm:col-span-12 grid grid-cols-3 sm:grid-cols-6 gap-3">
-                    <label className="block group/field">
+                <div className="sm:col-span-12 flex flex-wrap gap-3">
+                    <label className="block group/field flex-[0.7_1_96px] min-w-[96px]">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             수량
                         </span>
                         <ThousandsInput
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm tabular-nums outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
                             value={item.qty > 0 ? item.qty : 0}
                             onValueChange={next => {
                                 let newQty = typeof next === 'number' ? next : 0;
@@ -170,13 +170,13 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                             placeholder="0"
                         />
                     </label>
-                    <label className="block group/field">
+                    <label className="block group/field flex-[1.5_1_156px] min-w-[156px]">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             단가 (정가)
                         </span>
                         <ThousandsInput
                             allowText
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm tabular-nums outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
                             value={item.unitPrice}
                             onValueChange={next => onUpdate({ unitPrice: next })}
                             placeholder="0"
@@ -185,12 +185,12 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                     {showDiscount !== false && (
                     <>
                     {/* 할인단가 입력 → 할인율 자동 역산 */}
-                    <label className="block group/field">
+                    <label className="block group/field flex-[1.5_1_156px] min-w-[156px]">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             할인단가
                         </span>
                         <ThousandsInput
-                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-right text-sm tabular-nums outline-none transition-all bg-gray-50/50 focus:border-[var(--forcs-blue)] focus:ring-1 focus:ring-[var(--forcs-blue)] focus:bg-white"
                             value={isEditingOfferPrice ? parseThousands(localOfferPrice) : computedOfferPrice}
                             onFocus={handleOfferPriceFocus}
                             onValueChange={next => handleOfferPriceChange(typeof next === 'number' ? next : 0)}
@@ -200,7 +200,7 @@ export const SortableItemRow: React.FC<SortableItemRowProps> = ({
                         />
                     </label>
                     {/* 할인율 입력 → 할인단가 자동 계산 */}
-                    <label className="block group/field sm:col-span-2">
+                    <label className="block group/field flex-[1.2_1_176px] min-w-[64px]">
                         <span className="mb-1 block text-[10px] font-medium text-gray-400 transition-colors group-focus-within/field:text-[var(--forcs-blue)]">
                             할인율
                         </span>
