@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QuoteSnapshot, QuotePreset } from '../../types';
 import { toast } from 'sonner';
+import { nf } from '../../utils/formatters';
 
 interface HistoryEditorProps {
     history: QuoteSnapshot[];
@@ -167,7 +168,7 @@ export const HistoryEditor: React.FC<HistoryEditorProps> = ({
                                                 <span>항목 {snap.items.length}개</span>
                                                 <span className="w-px h-3 bg-gray-300"></span>
                                                 <span className="font-bold text-[var(--forcs-blue)]">
-                                                    {snap.summary.grand.toLocaleString()}원
+                                                    {nf.format(snap.summary.grand)}원
                                                 </span>
                                                 <span className="w-px h-3 bg-gray-300"></span>
                                                 <span>{snap.meta.customerName || '고객사 미지정'}</span>

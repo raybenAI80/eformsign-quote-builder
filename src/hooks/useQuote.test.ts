@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal, addValidityEndLocal } from './useQuote';
+import { calculateQuote, buildQuoteNo, formatSequence, createDefaultMeta, buildResetMeta, getLocalToday, normalizeRestoredMeta, parseLocalDate, addDaysLocal, addMonthsLocal, addValidityEndLocal, normalizeItems } from './useQuote';
 import { QuoteItem } from '../types';
 import { DEFAULT_REFERENCE_NOTES } from '../constants';
 
@@ -538,5 +538,25 @@ describe('normalizeRestoredMeta 참조사항 자리표시자 구제', () => {
         expect(restored.customerName).toBe('');
         expect(restored.referenceNotes[0]).toBe('본 견적은 『{고객사명}의 전자계약 플랫폼 eformsign 도입』에 한하여 적용되는 견적입니다. (수정)');
         expect(restored.referenceNotes[1]).toBe('계약기간');
+    });
+});
+
+describe('깨진 단가 문자열 정리', () => {
+    const base = { id: 'a', section: 'Service', category: '컨설팅', item: '교육', unitLabel: '회', qty: 2, unitPrice: 0, discountPct: 0 } as QuoteItem;
+
+    it('복원 경로(normalizeItems)가 "2,00000" 을 숫자 200000 으로 바꾼다', () => {
+        const [fixed] = normalizeItems([{ ...base, unitPrice: '2,00000' }]);
+        expect(fixed.unitPrice).toBe(200000);
+    });
+
+    it('글자 단가는 그대로 둔다', () => {
+        const [kept] = normalizeItems([{ ...base, unitPrice: '별도 협의' }]);
+        expect(kept.unitPrice).toBe('별도 협의');
+    });
+
+    it('calculateQuote 는 깨진 문자열 단가도 올바르게 계산한다', () => {
+        const calc = calculateQuote([{ ...base, unitPrice: '2,00000' }], 10);
+        expect(calc.rows[0].unitPrice).toBe(200000);
+        expect(calc.rows[0].msrp).toBe(400000);
     });
 });

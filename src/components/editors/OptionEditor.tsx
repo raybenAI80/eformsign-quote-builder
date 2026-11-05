@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QuoteMeta, QuotePreset } from '../../types';
 import { toast } from 'sonner';
+import { nf } from '../../utils/formatters';
 
 interface OptionEditorProps {
   meta: QuoteMeta;
@@ -310,7 +311,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
                       <span className="w-px h-3 bg-gray-300"></span>
                       <span>
                         {preset.summary
-                          ? `${preset.summary.grand.toLocaleString()}원`
+                          ? `${nf.format(preset.summary.grand)}원`
                           : '금액 정보 없음'}
                       </span>
                       <span className="w-px h-3 bg-gray-300"></span>
