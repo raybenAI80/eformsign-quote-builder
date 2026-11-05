@@ -303,7 +303,7 @@ export const OptionEditor: React.FC<OptionEditorProps> = ({
                         {preset.name}
                       </span>
                       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
-                        {new Date(preset.createdAt).toLocaleDateString()}
+                        {new Date(preset.createdAt).toLocaleDateString('ko-KR')}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-[color:var(--forcs-text-muted)]">

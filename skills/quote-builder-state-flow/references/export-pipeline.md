@@ -63,7 +63,7 @@
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print]` | 9종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 7분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print]` | 9종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 8분(쪽 구성 190초 + 결제 정보 93초 + 인쇄 90초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
@@ -73,6 +73,8 @@
 | Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
 | `html2canvas` 호출·CSS 로드 방식(index.html, vite 설정)을 바꿨을 때 | `tools/verify-pdf-styles.mjs` | CSS 파일 요청이 404 인 상태에서 저장한 PDF 한 장·여러 쪽·PNG 가 정상 저장본과 픽셀 차 2% 미만(`tools/compare-raster.py`). `verify:export` 8번째 단계. `tools/repro-pdf-paths.mjs` 는 경로별(PDF 버튼·여러 쪽·병합·인쇄) 재현용 |
 | 인쇄 CSS(`@media print`)·`#pdf-export-container` 구조·헤더/포털 요소를 바꿨을 때 | `node tools/verify-print.mjs [출력 폴더] [--targets dev,build] [--quick]` | print 미디어 `page.pdf` 가 PDF 버튼과 같은 쪽 수, 빈 쪽 없음, A4 세로, 첫 쪽에 제목·견적번호·합계, 편집 화면 문구 없음. `verify:export` 9번째 단계(dev 대상만). 빌드 번들 대상은 단독 실행(빌드 약 15초 포함) |
+| 숫자 입력칸·숫자/날짜 글자 변환 코드를 바꿨을 때, 모든 변경 | `npx vitest run src/__guards__` | 날 숫자 입력칸(`ThousandsInput` 밖)·인자 없는 `toLocale*String()`·진입점에서 도달 불가한 `src` 모듈을 실패시킨다. 각 검사에 일부러 위반을 넣어 실패하는지 확인하는 테스트가 들어 있다 |
+| 컴포넌트·모듈을 추가·삭제했을 때 | `node tools/check-unused-modules.mjs [루트]` | `index.html` 진입 스크립트에서 import 그래프를 따라 도달하지 않는 `src` 의 `.ts`/`.tsx`(테스트·`.d.ts` 제외)를 나열, 있으면 exit 1. 의도적 보존은 이 파일의 `ALLOW` 에 이유와 함께 적는다 |
 | 하단 종류 판정(브랜딩)을 바꿨을 때 | `tools/verify-footer-kind.mjs` | F1·F2 자동 선택, 새로고침 유지, 초기화 (`verify:export` 에 미포함) |
 | 상태 흐름(초기화·복원) | `tools/verify-quote-scenario.mjs` | 3절 시나리오(SKILL.md) (`verify:export` 에 미포함) |
 | 화질 상수를 바꿨을 때 | `tools/pdf-sharpness-compare.mjs`, `tools/measure-pdf-export.mjs`, `tools/measure-png-export.mjs` | 2절 |
@@ -90,6 +92,18 @@ node --env-file=D:\pjt\eformsign-견적서-빌더\.env --env-file=D:\pjt\eformsi
 쪽 구성·결제 정보·직인·PNG 도구는 관찰값만 출력하므로, 기대값 대조는 실행기 `tools/verify-export-all.mjs` 가 한다. 새 기대값은 거기에 추가한다. 하단·메뉴 도구는 스스로 exit 1 한다.
 
 PDF·PNG 저장 직전에 참고사항 불일치 확인창(`NotesMismatchModal`)이 뜰 수 있다. 요금제 유형(충전형·구독형)과 맞지 않는 문장이 참고사항에 있을 때다. 자동화 도구는 「그대로 저장」을 눌러야 저장이 이어진다(`tools/verify-business-overage.mjs` 는 이미 누른다). 병합 PDF 는 이 확인창의 대상이 아니다. 규칙은 SKILL.md 5-1절.
+
+### CI (`.github/workflows/ci.yml`, 2026-11-05)
+
+PR 과 main push 마다 `npm ci` → `npx tsc --noEmit` → `npx vitest run`(정적 회귀 검사 포함) → `npm run build`. 비밀값은 쓰지 않는다. 이 3종은 비밀값 없이 환경변수를 모두 지운 상태로 로컬에서 통과를 확인했다.
+
+**`npm run verify:export` 를 CI 에서 돌릴 수 있는가 (조사만, 추가하지 않음)**
+- 앱: `?bypass-auth` 는 `import.meta.env.DEV`(개발 서버)에서만 동작한다. 개발 서버는 `src/lib/supabaseClient.ts` 가 `VITE_SUPABASE_URL`·`VITE_SUPABASE_ANON_KEY` 가 없으면 throw 하므로 값이 필요하지만, 가짜 값(`http://127.0.0.1:9`, `dummy-key`)으로 seal·png·footer 3종이 통과했다(로컬 확인). 실제 키가 필요하지 않다.
+- 도구가 Windows 와 이 머신 경로를 전제한다: `playwright-core` 를 `~/.agent-harness/vendor/gstack/node_modules` 에서 읽고(`PLAYWRIGHT_CORE` 로 바꿀 수 있다), `verify-export-all.mjs` 의 `PW_CHROME` 자동 탐색이 `%LOCALAPPDATA%\ms-playwright\...chrome-headless-shell-win64` 뿐이다(`PW_CHROME` 을 직접 주면 우회). `playwright-core` 는 `package.json` 에 없다.
+- 시스템 `python` 에 `pymupdf` 필요(`pip install pymupdf`), `compare-raster.py` 는 추가 패키지가 필요할 수 있다.
+- 글꼴·줄 나눔·쪽 수를 재는 검사라서 Linux 러너의 글꼴이 이 머신과 다르면 기대값이 어긋날 수 있다(미확인). `windows-latest` 러너가 이 머신과 가장 가깝다.
+- 실행 시간은 로컬 실측 약 8분(쪽 구성 190초·결제 93초·인쇄 90초), 러너 설치(브라우저·python) 별도.
+- 결론: 비밀값 없이 가능하지만, 도구의 경로 가정을 고치고 러너에서 기대값이 맞는지 시험하는 작업이 선행되어야 한다. 그래서 job 을 추가하지 않았다. 별도 작업으로 `windows-latest` + `PW_CHROME`/`PLAYWRIGHT_CORE` 지정 + 가짜 Supabase 값으로 시도할 것.
 
 ## 6. 운영 배포 확인 절차
 

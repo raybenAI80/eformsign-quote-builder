@@ -266,7 +266,7 @@ export const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ meta, items, s
                         </div>
                         {meta.quoteDate && (
                             <p className="mt-1.5 text-[11px] text-[#00a99d] font-medium">
-                                만료: {parseLocalDate(addValidityEndLocal(meta.quoteDate, meta.validityMonths ?? 1)).toLocaleDateString()}
+                                만료: {parseLocalDate(addValidityEndLocal(meta.quoteDate, meta.validityMonths ?? 1)).toLocaleDateString('ko-KR')}
                             </p>
                         )}
                     </div>

@@ -125,3 +125,17 @@ PDF·PNG 저장, 화질 상수, 쪽 나눔, 결제 정보·직인·하단 표시
 - **함정(2026-11-05)**: 예전 입력칸은 `toLocaleString()` 결과와 입력이 정확히 같을 때만 숫자로 저장하고, 아니면 문자열로 저장했다. 2,000 에서 0 을 더 치면 `"2,0000"` 이 문자열로 굳었다. `parseNum("2,0000")` 은 2 를 돌려줘 합계도 틀렸다. 지금은 `parseNum` 이 쉼표를 걷어내고, 복원·템플릿·이력·저장 견적 불러오기는 `normalizeItems`, 계산은 `normalizeUnitPrice` 로 깨진 값을 숫자로 정리한다.
 - **칸 너비(2026-11-05)**: 품목 행 2열은 `flex flex-wrap` 이고 단가·할인단가는 최소 156px(15자리 `999,999,999,999,999` 까지 안 잘림), 수량은 최소 96px, 할인율은 좁으면 다음 줄로 내려간다. 고정 6열 그리드는 1100폭에서 칸이 57px 이라 13자리가 잘렸다. 검증: `node --env-file=<.env> --env-file=<.env.local> tools/verify-input-width.mjs <캡처 폴더>`(scrollWidth<=clientWidth, 1440·1100).
 - **검증**: `node --env-file=<.env> --env-file=<.env.local> tools/verify-thousands-input.mjs <캡처 폴더>`(입력·커서·붙여넣기·복원·할인단가·수량·깨진 저장값·글자 단가). `verify:export` 에는 넣지 않았다.
+
+## 9. 변경 종류별 필수 검사 (2026-11-05)
+
+하루에 회귀 6건이 났다(단가 쉼표 깨짐·칸 잘림·죽은 코드·옛 CSS 404·인쇄 빈 쪽). 원인은 모두 "그 변경에 맞는 검사를 안 돌렸거나 검사가 없었다"였다. 변경 종류를 보고 아래 검사를 돌린다. 기본 3종(`npx tsc --noEmit`, `npx vitest run`, `npm run build`)은 항상 필수이고 CI(`.github/workflows/ci.yml`)도 같은 3종을 PR 마다 돈다.
+
+| 변경 종류 | 필수 검사 | 막는 것 |
+|---|---|---|
+| 숫자 입력칸 추가·수정 | `ThousandsInput` 사용(날 `<input inputMode="numeric">` 금지, 퍼센트처럼 쉼표가 필요 없으면 윗줄에 `// numeric-input-ok: <이유>`). 정적 검사 `src/__guards__/guards.test.ts` + `tools/verify-thousands-input.mjs` + `tools/verify-input-width.mjs` | `2,00000` 같은 쉼표 깨짐, 칸 너비 잘림 |
+| 숫자·날짜를 글자로 만드는 코드 | 인자 없는 `toLocaleString()`·`toLocaleDateString()` 금지. 숫자는 `nf`·`formatThousands`·`toKRW`, 날짜는 `'ko-KR'` 명시(같은 정적 검사) | 브라우저 언어에 따라 달라지는 표기 |
+| PDF·PNG·인쇄·CSS 로드·`html2canvas`·`@media print` | `npm run verify:export` 9종 전부(styles·print 포함, 약 8분). 개발 서버는 CSS 를 `<style>` 로 넣으므로 빌드 번들이 필요한 인쇄는 `node tools/verify-print.mjs --targets dev,build` 도 | 옛 해시 CSS 404 로 서식 누락, 인쇄 빈 쪽 |
+| 컴포넌트·기능·파일 추가·삭제 | `node tools/check-unused-modules.mjs`(테스트도 같은 검사를 한다). 그리고 **그 기능을 부르는 버튼·메뉴가 화면에 실제로 있는가**를 앱에서 눌러 확인. 파일이 import 되어도 그 import 가 죽은 코드 안이면 검사를 통과한다 | 화면에서 도달 불가한 죽은 코드를 기능으로 오인(CSV 내보내기·SummaryBar 사건) |
+| 병합 후 | `node tools/check-prod-deploy.mjs --sha <병합 커밋> --expect "<문구>"`. 기대 문자열은 **이번 변경에만 있는 JS 문자열**(UI 문구)을 쓴다. CSS 만 바뀐 변경은 JS 번들에 새 문자열이 없으므로 `--expect` 가 의미 없다: 이 경우 새 CSS 클래스명이 들어 있는 CSS 번들을 직접 확인하거나 배포 상태(Vercel success)만 확인한다 | "배포됐을 것"이라는 추측 |
+
+도구 전체 목록과 실행법은 [references/export-pipeline.md](references/export-pipeline.md) 5절이다.
