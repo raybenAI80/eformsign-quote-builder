@@ -9,7 +9,7 @@
 |---|---|---|
 | 화면 미리보기 | `src/components/PreviewPanel.tsx`, `preview/QuotePreviewD.tsx`, `preview/quotePreviewD.css` | 축소(약 0.627)해서 보여 준다. `#preview-panel` |
 | PDF·PNG 용 숨김 렌더 | `App.tsx` 의 `#pdf-preview-panel`(폭 297mm), 여러 쪽이면 `#pdf-pages-panel` | 같은 `.qd-paper` 를 배율 1 로 그린다. 캡처 대상은 이쪽 |
-| 캡처·PDF 생성 | `src/utils/exportPdf.ts` (`exportToPdf`, `exportMergedPdf`, `exportToImage`) | html2canvas 로 이미지 → jsPDF. 텍스트 레이어를 따로 얹는다. 모든 `html2canvas` 호출에 `onclone: inlineLinkedStylesheets` 가 있어야 한다 |
+| 캡처·PDF 생성 | `src/utils/exportPdf.ts` (`exportToPdf`, `exportMergedPdf`, `exportToImage`) | html2canvas 로 이미지 → jsPDF. 텍스트 레이어를 따로 얹는다. 모든 `html2canvas` 호출에 `onclone: cloned => prepareClonedDocument(cloned)` 가 있어야 한다 |
 | 복제본 CSS 보장 | `src/utils/captureStyles.ts` | 복제 iframe 의 `<link rel=stylesheet>` 를 화면에 로드된 규칙의 `<style>` 로 바꾼다(아래 함정 12) |
 | 글자 위치 보정 | `src/utils/html2canvasMetrics.ts` (`installFontMetricsFix`) | PDF·PNG 모두 캡처 구간 동안 걸어야 한다 |
 | 쪽 나눔 | `src/components/preview/pagination.ts` (순수 `paginate`, DOM 측정 `measureFlowPaper`) | 순수 함수라 단위 테스트가 있다 |
@@ -54,8 +54,10 @@
 10. **worktree 에는 환경변수 파일이 없다**: 메인 체크아웃 `D:\pjt\eformsign-견적서-빌더` 의 `.env`·`.env.local` 을 `node --env-file` 로 vite 에만 주입한다. 값을 출력하지 않는다.
 11. **결제 정보·직인은 데이터에서 온다**: 결제 정보는 SaaS 행에 `Enterprise` 가 있을 때만(`hasEnterpriseItem`), 직인은 `meta.sealMode`(`hidden` 기본 / `omitted` / `stamped`)로 정한다. 예전 저장본에 `sealMode` 가 없으면 직인 영역을 그리지 않는다.
 
-12. **복제 iframe 이 CSS 파일을 다시 받다 실패하면 PDF·PNG 가 서식 없는 HTML 이 된다**(2026-11-05 사용자 보고): 로고가 쪽 폭으로 커지고 칸 구분 없이 글자가 붙고 하단 그림이 따로 나온다. html2canvas 는 문서를 iframe 에 복제하고 운영 번들의 `<link rel=stylesheet href=/assets/index-해시.css>` 를 다시 요청한다. 앱을 연 채 새 배포가 나가 옛 해시 파일이 404 가 되면(또는 오프라인) 복제본만 CSS 가 없다. 화면은 이미 로드된 CSS 라 정상이어서 저장 전까지 모른다. vite dev 는 CSS 가 `<style>` 이라 이 경로를 못 탄다(`verify:export` 7종이 통과한 이유). 새 `html2canvas` 호출을 추가하면 `onclone` 에 `inlineLinkedStylesheets(cloned)` 를 넣고 `node tools/verify-pdf-styles.mjs` 로 확인한다.
+12. **복제 iframe 이 CSS 파일을 다시 받다 실패하면 PDF·PNG 가 서식 없는 HTML 이 된다**(2026-11-05 사용자 보고): 로고가 쪽 폭으로 커지고 칸 구분 없이 글자가 붙고 하단 그림이 따로 나온다. html2canvas 는 문서를 iframe 에 복제하고 운영 번들의 `<link rel=stylesheet href=/assets/index-해시.css>` 를 다시 요청한다. 앱을 연 채 새 배포가 나가 옛 해시 파일이 404 가 되면(또는 오프라인) 복제본만 CSS 가 없다. 화면은 이미 로드된 CSS 라 정상이어서 저장 전까지 모른다. vite dev 는 CSS 가 `<style>` 이라 이 경로를 못 탄다(`verify:export` 7종이 통과한 이유). 새 `html2canvas` 호출을 추가하면 `onclone` 에 `prepareClonedDocument(cloned)`(함정 14: 글꼴 로드 대기 포함)를 넣고 `node tools/verify-pdf-styles.mjs` 로 확인한다.
 13. **브라우저 인쇄(Ctrl+P)는 빈 쪽·잘린 쪽이 나왔다**(2026-11-05 확정·수정): 옛 `@media print` 는 `body *` 를 `visibility:hidden` 으로 숨기고 `#preview-panel` 만 보이게 했다. 원인 셋. ① 여러 쪽 저장 방식(`pageMode="paged"`)의 미리보기에는 `#preview-panel` 이 없어 보일 요소가 없다(전부 빈 쪽). ② 미리보기를 끄면 `#preview-panel` 이 `display:none` 이라 역시 빈 쪽. ③ 한 장 방식에서도 화면용 축소(`MainLayout` 의 `transform: scale(0.627)`)가 인쇄에 그대로 남고, `visibility:hidden` 상위 요소들이 높이 2629px 을 차지해 쪽이 3~4장으로 늘고 끝쪽은 빈 쪽이며, `@page` 가 A4 가로였다. 수정(`index.css` 의 `@media print`, `App.tsx` 의 `beforeprint` 훅): 화면 미리보기 대신 PDF 저장이 쓰는 화면 밖 사본 `#pdf-export-container` 를 인쇄하고(미리보기 켬·끔과 무관, 저장 방식을 따라 한 장 용지 또는 `.qd-page` 쪽 용지), 그 밖의 `#root` 자식·포털(토스트·온보딩·저장 목록)은 `display:none`. 사본은 가로 297mm 이므로 `zoom` 0.707 로 A4 세로(210mm)에 맞추고, `@page` 는 `A4 portrait; margin:0`. 한 장 방식에서 내용이 한 쪽보다 길면 `beforeprint` 에서 `--qd-print-zoom` 을 낮춰 PDF 저장처럼 한 쪽에 넣는다. 확인은 `node tools/verify-print.mjs`(dev·빌드 번들 x 한 장/여러 쪽 x 미리보기 켬/끔 x 품목 보통/많음, 쪽 수가 PDF 버튼과 같고 빈 쪽·편집 화면 문구 없음). 새 화면 요소를 `#root` 밖 포털로 만들거나 `#pdf-export-container` 구조를 바꾸면 이 검사를 다시 돌린다. 참고: 운영 번들은 `?bypass-auth` 가 막혀 있어 이 도구의 build 대상은 `NODE_ENV=development vite build` 로 따로 빌드한다.
+
+14. **PDF·PNG 의 모든 금액에서 「원」이 마지막 숫자 위에 겹쳐 찍혔다**(2026-11-06 사용자 보고, 운영 번들·PR #17 이 원인): 합계 영역의 「1,584,000원」 등에서 「원」이 끝자리 「0」과 겹치고 라벨은 「정가  합계」처럼 벌어졌다. 화면 미리보기는 정상. 이분 탐색(같은 견적, dev 서버·빌드 번들 x PDF·PNG): 72c1cab·51875d7 정상, **49d6efc(PR #17)부터 빌드 번들만 겹침**, dev 서버는 CSS 가 `<style>` 이라 해당 없음. 원인: `inlineLinkedStylesheets` 가 복제 문서의 `<link>` 를 `<style>` 로 바꾸면 복제 문서가 스타일시트를 새로 받은 것으로 보고 `@font-face` 를 다시 내려받는다. 증거(`onclone` 안 로그): 교체 전 `FontFace` 3개 모두 `loaded`, 교체 직후 모두 `loading`, 합계 숫자 폭 134.8px → 122.8px(대체 글꼴). html2canvas 는 `onclone` 직후 글자 위치를 재고, 캔버스에는 실제 글꼴로 그리므로 폭이 좁게 계산된 자리에 넓은 글자가 들어가 「원」이 겹친다. 수정: `captureStyles.ts` 의 `prepareClonedDocument`(= 인라인 + `waitForCloneFonts`)를 `onclone` 에 쓴다. `waitForCloneFonts` 는 복제본 `document.fonts` 의 모든 face 를 `load()` 하고 `fonts.ready` 를 기다린다(최대 4초, 실패해도 저장은 계속). html2canvas 는 `onclone` 이 돌려준 Promise 를 기다린다. 404 대비(함정 12)는 그대로다. 검사: `node tools/verify-sum-area.mjs` — 링크 CSS 상태에서 저장한 PDF 한 장·PNG 의 합계 영역(`.qd-sm`)을 **화면 DOM 요소 스크린샷**과 같은 영역 크롭으로 비교(`tools/compare-crop.py`, 흐림 후 밝기차 60 초과 픽셀 비율, 상한 0.06). 실측: 수정 전 PDF 0.2778 · PNG 0.2795(FAIL), 수정 후 PDF 0.0189 · PNG 0.0011(PASS). `verify:export` 10번째 단계. 교훈: 수정 전후 **경로끼리** 비교하는 검사(`verify-pdf-styles`)는 두 경로가 같이 틀리면 통과한다. 기준은 화면 DOM 이어야 한다. 새 `html2canvas` 호출은 `onclone: cloned => prepareClonedDocument(cloned)` 를 쓴다.
 
 ## 5. 검증 도구 표
 
@@ -63,7 +65,7 @@
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print]` | 9종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 7분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea]` | 10종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 7분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
@@ -72,6 +74,7 @@
 | PDF 저장 메뉴 문구를 바꿨을 때 | `tools/verify-pdf-menu-copy.mjs` | 1건·26건 메뉴 문구, 가로 넘침 없음, 스크린샷 |
 | Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
 | `html2canvas` 호출·CSS 로드 방식(index.html, vite 설정)을 바꿨을 때 | `tools/verify-pdf-styles.mjs` | CSS 파일 요청이 404 인 상태에서 저장한 PDF 한 장·여러 쪽·PNG 가 정상 저장본과 픽셀 차 2% 미만(`tools/compare-raster.py`). `verify:export` 8번째 단계. `tools/repro-pdf-paths.mjs` 는 경로별(PDF 버튼·여러 쪽·병합·인쇄) 재현용 |
+| `html2canvas` 복제 처리·글꼴·합계 영역 CSS 를 바꿨을 때 | `tools/verify-sum-area.mjs` | 링크 CSS 상태의 PDF 한 장·PNG 합계 영역이 화면 DOM 크롭과 같음(diff<0.06). 「원」 겹침을 잡는다. `verify:export` 10번째 단계 |
 | 인쇄 CSS(`@media print`)·`#pdf-export-container` 구조·헤더/포털 요소를 바꿨을 때 | `node tools/verify-print.mjs [출력 폴더] [--targets dev,build] [--quick]` | print 미디어 `page.pdf` 가 PDF 버튼과 같은 쪽 수, 빈 쪽 없음, A4 세로, 첫 쪽에 제목·견적번호·합계, 편집 화면 문구 없음. `verify:export` 9번째 단계(dev 대상만). 빌드 번들 대상은 단독 실행(빌드 약 15초 포함) |
 | 하단 종류 판정(브랜딩)을 바꿨을 때 | `tools/verify-footer-kind.mjs` | F1·F2 자동 선택, 새로고침 유지, 초기화 (`verify:export` 에 미포함) |
 | 상태 흐름(초기화·복원) | `tools/verify-quote-scenario.mjs` | 3절 시나리오(SKILL.md) (`verify:export` 에 미포함) |

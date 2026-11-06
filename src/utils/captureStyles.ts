@@ -62,3 +62,31 @@ export function inlineLinkedStylesheets(clonedDoc: Document, sourceDoc: Document
     }
     return replaced;
 }
+
+/** 복제본의 글꼴 로드를 기다리는 최대 시간(ms). 글꼴 파일이 막혀도 저장은 이어져야 한다. */
+const CLONE_FONT_WAIT_MS = 4000;
+
+/**
+ * 복제본에서 선언된 @font-face 를 전부 불러오고 끝날 때까지 기다린다.
+ *
+ * 왜 필요한가(2026-11-06 회귀): <link> 를 <style> 로 바꾸면 복제 문서가 스타일시트를 새로 받은 것으로 보고
+ * 글꼴을 다시 내려받는다(FontFace 상태 loaded → loading). html2canvas 는 onclone 직후 바로 글자 위치를 재므로
+ * 그 순간 복제본은 대체 글꼴로 배치돼 있고, 캔버스에는 실제 글꼴로 그려진다. 폭이 달라(「1,584,000원」 134.8px → 122.8px)
+ * 「원」이 마지막 숫자 위에 겹친다. 글꼴이 이미 로드된 뒤에 배치가 계산되도록 여기서 기다린다.
+ */
+export async function waitForCloneFonts(clonedDoc: Document, timeoutMs: number = CLONE_FONT_WAIT_MS): Promise<void> {
+    const fonts = clonedDoc.fonts;
+    if (!fonts) return;
+    const loading = Promise.all(
+        Array.from(fonts).map(face => face.load().catch(() => undefined)),
+    ).then(() => fonts.ready);
+    await Promise.race([loading, new Promise(resolve => setTimeout(resolve, timeoutMs))]);
+    // 글꼴이 준비된 뒤 배치를 한 번 확정한다
+    void clonedDoc.body?.offsetHeight;
+}
+
+/** html2canvas onclone 에서 쓰는 한 묶음: CSS 를 화면 규칙으로 보장하고, 글꼴이 로드된 뒤에 캡처가 진행되게 한다. */
+export async function prepareClonedDocument(clonedDoc: Document, sourceDoc: Document = document): Promise<void> {
+    inlineLinkedStylesheets(clonedDoc, sourceDoc);
+    await waitForCloneFonts(clonedDoc);
+}

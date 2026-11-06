@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { absolutizeCssUrls, inlineLinkedStylesheets, readSheetCssText } from './captureStyles';
+import { absolutizeCssUrls, inlineLinkedStylesheets, readSheetCssText, waitForCloneFonts } from './captureStyles';
 
 function fakeSheet(href: string | null, rules: string[], ownerTag = 'LINK', ownerHref: string | null = href) {
     return {
@@ -67,5 +67,31 @@ describe('inlineLinkedStylesheets', () => {
         expect(inlineLinkedStylesheets(clone, source)).toBe(0);
         expect(clone.head.querySelectorAll('style')).toHaveLength(0);
         expect(clone.head.querySelectorAll('link')).toHaveLength(3);
+    });
+});
+
+describe('waitForCloneFonts', () => {
+    function fakeDoc(faces: Array<{ load: () => Promise<unknown> }>, ready: Promise<unknown>) {
+        return { fonts: Object.assign([...faces], { ready }), body: { offsetHeight: 0 } } as unknown as Document;
+    }
+    it('loads every declared face and waits for fonts.ready before returning', async () => {
+        const order: string[] = [];
+        const faces = [
+            { load: () => new Promise(r => setTimeout(() => { order.push('a'); r(undefined); }, 10)) },
+            { load: () => Promise.resolve().then(() => { order.push('b'); }) },
+        ];
+        const ready = new Promise(r => setTimeout(() => { order.push('ready'); r(undefined); }, 20));
+        await waitForCloneFonts(fakeDoc(faces, ready));
+        expect(order).toEqual(['b', 'a', 'ready']);
+    });
+    it('still returns when a face fails to load', async () => {
+        const doc = fakeDoc([{ load: () => Promise.reject(new Error('404')) }], Promise.resolve());
+        await expect(waitForCloneFonts(doc)).resolves.toBeUndefined();
+    });
+    it('gives up after the timeout when fonts never finish', async () => {
+        const doc = fakeDoc([{ load: () => new Promise(() => {}) }], new Promise(() => {}));
+        const t0 = Date.now();
+        await waitForCloneFonts(doc, 50);
+        expect(Date.now() - t0).toBeLessThan(1000);
     });
 });
