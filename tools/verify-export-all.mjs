@@ -22,8 +22,9 @@ import { dirname, join, resolve } from 'node:path';
 import { ROOT, startVite } from './lib/quote-driver.mjs';
 
 const args = process.argv.slice(2);
-const OUT = resolve(args.find(a => !a.startsWith('--')) ?? join(ROOT, '.work', 'verify-export'));
 const onlyIdx = args.indexOf('--only');
+// --only 의 값을 출력 폴더로 오인하지 않는다(예전에는 `--only a,b` 만 주면 `a,b` 폴더가 저장소에 생겼다).
+const OUT = resolve(args.find((a, i) => !a.startsWith('--') && i !== onlyIdx + 1) ?? join(ROOT, '.work', 'verify-export'));
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1].split(',')) : null;
 mkdirSync(OUT, { recursive: true });
 
