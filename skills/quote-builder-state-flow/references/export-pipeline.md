@@ -103,7 +103,7 @@ PR 과 main push 마다 job 두 개가 돈다. 비밀값은 쓰지 않는다.
 | job | 내용 | 시간 |
 |---|---|---|
 | `check` | `npm ci` → `npx tsc --noEmit` → `npx vitest run`(정적 회귀 검사 포함) → `npm run build` | 약 2분 |
-| `export` | `npm run verify:export` 10종(ubuntu-latest). 실패하면 출력 폴더(PDF·PNG·results.json·summary.json)를 artifact `verify-export-output` 로 7일 보관 | 약 15~20분(설치 + 빌드 + 검증 8분) |
+| `export` | `npm run verify:export` 10종(ubuntu-24.04 고정 — ubuntu-latest 는 26.04 로 바뀌어 Playwright 1.58 의 브라우저 설치가 거부된다, run 42542043966). 실패하면 출력 폴더(PDF·PNG·results.json·summary.json)를 artifact `verify-export-output` 로 7일 보관 | 약 15~20분(설치 + 빌드 + 검증 8분) |
 
 `export` job 순서: `npm ci` → `pip install pymupdf numpy pillow`(setup-python 3.12) → `apt-get install fonts-noto-cjk` → `npx playwright-core install --with-deps chromium-headless-shell` → `npm run verify:export -- "$RUNNER_TEMP/verify-export"`. 환경변수는 `VITE_SUPABASE_URL=http://127.0.0.1:9`, `VITE_SUPABASE_ANON_KEY=dummy-key`(앱이 값이 없으면 throw 하므로 가짜 값. 서버에는 접속하지 않는다).
 

@@ -32,7 +32,8 @@ jobs:
         run: npm run build
 
   export:
-    runs-on: ubuntu-latest
+    # ubuntu-latest 는 26.04 로 바뀌었고 Playwright 1.58 이 이 OS 를 지원하지 않는다(브라우저·의존 패키지 설치 거부). 지원 OS 로 고정한다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       # 앱이 부팅하려면 값이 있어야 한다(없으면 throw). 서버에 접속하지 않으므로 가짜 값이다.
