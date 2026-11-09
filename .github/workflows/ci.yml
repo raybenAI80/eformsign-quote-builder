@@ -1,5 +1,7 @@
-# 견적서 빌더 기본 검사. PR 과 main push 마다 타입·단위 테스트·정적 회귀 검사(src/__guards__)·빌드를 돈다.
-# 비밀값은 쓰지 않는다. 브라우저 검증(npm run verify:export)은 여기서 돌리지 않는다 — skills/quote-builder-state-flow/references/export-pipeline.md 5절 참조.
+# 견적서 빌더 검사. PR 과 main push 마다
+#   check  : 타입·단위 테스트·정적 회귀 검사(src/__guards__)·빌드
+#   export : PDF·PNG 출력 브라우저 검증 10종(npm run verify:export) — skills/quote-builder-state-flow/references/export-pipeline.md 5절
+# 비밀값은 쓰지 않는다(Supabase 값은 가짜).
 name: CI
 
 on:
@@ -28,3 +30,38 @@ jobs:
         run: npx vitest run
       - name: 빌드
         run: npm run build
+
+  export:
+    # ubuntu-latest 는 26.04 로 바뀌었고 Playwright 1.58 이 이 OS 를 지원하지 않는다(브라우저·의존 패키지 설치 거부). 지원 OS 로 고정한다.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      # 앱이 부팅하려면 값이 있어야 한다(없으면 throw). 서버에 접속하지 않으므로 가짜 값이다.
+      VITE_SUPABASE_URL: http://127.0.0.1:9
+      VITE_SUPABASE_ANON_KEY: dummy-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: PDF 분석용 python 패키지
+        run: python -m pip install pymupdf numpy pillow
+      - name: 한글 글꼴
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: 브라우저 (chrome-headless-shell)
+        run: npx playwright-core install --with-deps chromium-headless-shell
+      - name: 출력물 검증 10종
+        run: npm run verify:export -- "$RUNNER_TEMP/verify-export"
+      - name: 검증 결과 올리기
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-export-output
+          path: ${{ runner.temp }}/verify-export
+          retention-days: 7
+          if-no-files-found: warn

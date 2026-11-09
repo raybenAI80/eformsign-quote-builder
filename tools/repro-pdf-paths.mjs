@@ -5,8 +5,7 @@
 //   경로: main(PDF 버튼) | paged(메뉴 여러 쪽) | print(@media print, Playwright page.pdf)
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT, launchBrowser, runPython } from './lib/quote-driver.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/repro-pdf');
 const only = (process.argv[3] ?? 'main,paged,print').split(',');
@@ -16,14 +15,12 @@ const CSS_DELAY = Number(process.env.QB_CSS_DELAY_MS ?? 0); // 앱이 뜬 뒤 CS
 const vite = await startVite(Number(process.env.QB_PORT ?? 3020));
 
 function analyze(pdf, png) {
-  const env = { ...process.env };
-  delete env.PYI;
-  const r = spawnSync('python', ['-I', join(ROOT, 'tools', 'inspect-pdf-style.py'), pdf, png], { encoding: 'utf8', env });
+  const r = runPython(['-I', join(ROOT, 'tools', 'inspect-pdf-style.py'), pdf, png]);
   return (r.stdout || r.stderr || '').trim();
 }
 
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { page } = await openAndFill(browser, vite.base, {});
     page.on('console', m => { if (/error|fail/i.test(m.type() + m.text())) console.log('  [console]', m.type(), m.text().slice(0, 200)); });

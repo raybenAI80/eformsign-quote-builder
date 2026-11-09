@@ -4,7 +4,7 @@
 // 결과: <출력 폴더>/footer-f2.png, footer-f1.png, footer-general.pdf, results.json. 기대와 다르면 exit 1.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { loadPlaywright, startVite, openAndFill, downloadTo } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, launchBrowser } from './lib/quote-driver.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/verify-footer-copy');
 mkdirSync(OUT, { recursive: true });
@@ -14,7 +14,7 @@ const results = { steps: {}, failures: [] };
 
 const vite = await startVite(Number(process.env.QB_PORT ?? 3017));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { ctx, page } = await openAndFill(browser, vite.base);
     await page.addStyleTag({ content: '[data-sonner-toaster]{display:none!important}' });

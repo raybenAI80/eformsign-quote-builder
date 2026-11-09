@@ -5,7 +5,7 @@
 // 출력: <폴더>/*.png (스크린샷·다운로드), 콘솔에 관찰값
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { loadPlaywright, startVite, openAndFill, downloadTo } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, launchBrowser } from './lib/quote-driver.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/png-button');
 mkdirSync(OUT, { recursive: true });
@@ -15,7 +15,7 @@ const pngSize = (p) => { const b = readFileSync(p); return `${b.readUInt32BE(16)
 const btn = (page) => page.locator('button[title="PNG 이미지로 저장"]');
 
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { page } = await openAndFill(browser, vite.base, { dsf: 1 });
     await page.addStyleTag({ content: '[data-sonner-toaster]{pointer-events:none}' });

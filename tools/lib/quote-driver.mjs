@@ -3,20 +3,113 @@
 //
 // 환경변수는 vite 프로세스에만 필요하다. 호출하는 스크립트를 `node --env-file=<파일>` 로 실행하면
 // 그 값이 vite 자식 프로세스로 상속된다. 값은 출력하지 않는다.
-//   PW_CHROME = chrome-headless-shell.exe 경로
-import { spawn } from 'node:child_process';
+//   PW_CHROME / CHROME_PATH = 브라우저 실행 파일 경로(없으면 resolveChrome 의 탐색 순서)
+//   QB_PYTHON               = PDF 분석용 python 실행 파일(없으면 Windows 는 python, 그 외 python3)
+//   PLAYWRIGHT_CORE         = playwright-core 위치(없으면 저장소 devDependency)
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export function loadPlaywright() {
-  const home = process.env.USERPROFILE || process.env.HOME || '';
-  return createRequire(import.meta.url)(
-    process.env.PLAYWRIGHT_CORE || join(home, '.agent-harness', 'vendor', 'gstack', 'node_modules', 'playwright-core'),
-  );
+  return createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE || 'playwright-core');
 }
+
+/**
+ * 브라우저 실행 파일을 찾는다. 순서: PW_CHROME → CHROME_PATH → ms-playwright 캐시의 최신 chrome-headless-shell
+ * (Windows %LOCALAPPDATA%, Linux ~/.cache, macOS ~/Library/Caches) → undefined(playwright 가 자기 기본 브라우저를 쓴다).
+ * 지정한 경로가 없으면 조용히 넘어가지 않고 예외를 던진다.
+ */
+export function resolveChrome() {
+  const explicit = process.env.PW_CHROME || process.env.CHROME_PATH;
+  if (explicit) {
+    if (!existsSync(explicit)) throw new Error(`브라우저 실행 파일이 없다: ${explicit}`);
+    return explicit;
+  }
+  const plat = process.platform;
+  const custom = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  const cache = custom && custom !== '0' ? custom
+    : plat === 'win32' ? join(process.env.LOCALAPPDATA ?? '', 'ms-playwright')
+      : plat === 'darwin' ? join(homedir(), 'Library', 'Caches', 'ms-playwright')
+        : join(homedir(), '.cache', 'ms-playwright');
+  if (!existsSync(cache)) return undefined;
+  const exe = plat === 'win32' ? ['chrome-headless-shell-win64', 'chrome-headless-shell.exe']
+    : plat === 'darwin' ? [`chrome-headless-shell-mac-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, 'chrome-headless-shell']
+      : ['chrome-headless-shell-linux64', 'chrome-headless-shell'];
+  return readdirSync(cache)
+    .filter(d => d.startsWith('chromium_headless_shell-'))
+    .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))
+    .map(d => join(cache, d, ...exe))
+    .find(existsSync);
+}
+
+/** chromium.launch 래퍼: 실행 파일은 resolveChrome 가 정한다. */
+export function launchBrowser(chromium, options = {}) {
+  return chromium.launch({ executablePath: resolveChrome(), ...options });
+}
+
+/** PDF 분석(pymupdf)용 python 명령. PYI(shim)는 pymupdf 가 없어 쓰지 않는다. */
+export function pythonCmd() {
+  return process.env.QB_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+}
+
+/** python 을 실행한다. PYI 를 지우고, 비-UTF-8 로캘에서도 한글이 깨지지 않게 PYTHONIOENCODING 을 고정한다. */
+export function runPython(args, options = {}) {
+  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', ...(options.env ?? {}) };
+  delete env.PYI;
+  return spawnSync(pythonCmd(), args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...options, env });
+}
+
+/**
+ * 인자 분해. valueFlags 에 든 `--flag 값` / `--flag=값` 의 값을 위치 인자로 오인하지 않는다
+ * (예전에는 `--only seal,png` 의 값이 출력 폴더 이름이 되어 저장소 루트에 `seal,png,footer` 폴더가 생겼다).
+ */
+export function parseArgs(argv, valueFlags = []) {
+  const positional = [];
+  const flags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith('--')) { positional.push(a); continue; }
+    const eq = a.indexOf('=');
+    const name = a.slice(2, eq < 0 ? undefined : eq);
+    if (valueFlags.includes(name)) flags[name] = eq >= 0 ? a.slice(eq + 1) : argv[++i];
+    else flags[name] = eq >= 0 ? a.slice(eq + 1) : true;
+  }
+  return { positional, flags };
+}
+
+/** 운영 번들과 같은 방식(CSS 가 <link> 로 서빙, 해시 파일)으로 빌드하되 ?bypass-auth 가 통하도록 NODE_ENV=development 로 빌드한다. */
+export function buildBypassBundle(outDir) {
+  let last = '';
+  // esbuild 서비스 프로세스가 드물게 중간에 죽는다("The service was stopped", 2026-11-09 로컬 1회). 같은 입력으로 한 번 더 시도한다.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const b = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'development', '--outDir', outDir, '--emptyOutDir'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'development' } });
+    if (b.status === 0) return;
+    last = (b.stderr || b.stdout).slice(-800);
+    console.error(`빌드 실패(시도 ${attempt}/2): ${last.slice(-300)}`);
+  }
+  throw new Error('빌드 실패: ' + last);
+}
+
+/** 빌드 결과를 vite preview 로 서빙한다. 반환: { base, stop }. */
+export async function startPreview(outDir, port) {
+  const proc = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', outDir, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+  proc.stderr.on('data', d => process.stderr.write(String(d)));
+  const base = `http://localhost:${port}`;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(base + '/')).ok) return { base, stop: () => proc.kill() }; } catch { /* 아직 */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  proc.kill();
+  throw new Error('vite preview 가 뜨지 않았다');
+}
+
+/** 임시 빌드 폴더(OS 임시 디렉터리). 저장소와 출력 폴더를 더럽히지 않는다. */
+export const tempBuildDir = tag => mkdtempSync(join(tmpdir(), `qb-${tag}-`));
 
 /** QB_BASE_URL 이 있으면(verify-export-all.mjs 가 vite 를 한 번만 띄운 경우) 새로 띄우지 않고 그 주소를 쓴다. 없으면 vite dev 서버를 띄운다. */
 /** 반환값의 stop() 으로 이 프로세스만 종료한다. */
@@ -84,6 +177,21 @@ export async function addItems(page) {
   await page.waitForTimeout(400);
 }
 
+/**
+ * 앱이 뜰 때까지 기다린 뒤 온보딩 투어를 건너뛴다. 투어는 앱이 마운트되고 1초 뒤(App.tsx)에 뜨고, 이미 완료했으면(localStorage) 뜨지 않는다.
+ * 예전에는 고정 2초를 기다린 뒤 한 번만 확인해서, 느린 실행(CI 러너·번들 로드 지연)에서는 투어가 확인 뒤에 떠 클릭을 가렸다.
+ */
+export async function dismissOnboarding(page) {
+  await page.getByRole('button', { name: /기본 정보/ }).first().waitFor({ state: 'visible', timeout: 30000 });
+  const done = await page.evaluate(() => localStorage.getItem('eformsign_quote_onboarding_completed') === 'true');
+  if (done) return false;
+  const skip = page.getByText('건너뛰기').first();
+  await skip.waitFor({ state: 'visible', timeout: 8000 });
+  await skip.click();
+  await skip.waitFor({ state: 'hidden', timeout: 5000 });
+  return true;
+}
+
 /** 앱을 열고(/?bypass-auth) 온보딩을 건너뛴 뒤 견적을 채운다. 1440x1000, 다운로드 허용, 저장 선택창 제거. */
 export async function openAndFill(browser, base, { customer, dsf = 1 } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: dsf, acceptDownloads: true });
@@ -92,9 +200,7 @@ export async function openAndFill(browser, base, { customer, dsf = 1 } = {}) {
   });
   const page = await ctx.newPage();
   await page.goto(`${base}/?bypass-auth`);
-  await page.waitForTimeout(2000);
-  const skip = page.getByText('건너뛰기');
-  if (await skip.count()) await skip.first().click();
+  await dismissOnboarding(page);
   await page.waitForTimeout(300);
   await fillBasic(page, customer);
   await fillSales(page);

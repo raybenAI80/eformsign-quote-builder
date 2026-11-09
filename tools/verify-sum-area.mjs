@@ -9,8 +9,7 @@
 //   판정: 각 경로의 diff < THRESHOLD. 종료 코드 1 = 실패. PYI 는 비운다. 시스템 python 에 pymupdf·Pillow 필요.
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT, launchBrowser, runPython } from './lib/quote-driver.mjs';
 import { serveCssAsLink } from './lib/css-link.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/verify-sum-area');
@@ -21,7 +20,7 @@ const { chromium } = loadPlaywright();
 const vite = await startVite(Number(process.env.QB_PORT ?? 3023));
 let failed = false;
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { page } = await openAndFill(browser, vite.base, { dsf: 1 });
     await page.addStyleTag({ content: '[data-sonner-toaster]{pointer-events:none}' });
@@ -52,11 +51,9 @@ try {
     await page.locator(`${sel} .qd-sm`).first().screenshot({ path: refPath });
     await page.evaluate(() => { const c = document.querySelector('#pdf-export-container'); c.style.left = c.dataset.qbLeft; c.style.zIndex = ''; c.style.background = ''; });
     for (const { sc, outPath } of files) {
-      const childEnv = { ...process.env };
-      delete childEnv.PYI;
       const cropPath = join(OUT, `sum-${sc.key}-crop.png`);
-      const r = spawnSync('python', ['-I', join(ROOT, 'tools', 'compare-crop.py'), refPath, outPath,
-        String(box.x), String(box.y), String(box.w), String(box.h), String(box.paperW), '--save', cropPath], { encoding: 'utf8', env: childEnv });
+      const r = runPython(['-I', join(ROOT, 'tools', 'compare-crop.py'), refPath, outPath,
+        String(box.x), String(box.y), String(box.w), String(box.h), String(box.paperW), '--save', cropPath]);
       const line = (r.stdout || r.stderr || '').trim();
       const m = /diff=([\d.]+)/.exec(line);
       const diff = m ? Number(m[1]) : NaN;

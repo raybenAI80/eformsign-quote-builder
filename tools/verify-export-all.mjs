@@ -1,5 +1,6 @@
 // 출력물(PDF·PNG·미리보기) 브라우저 검증 일괄 실행기.
-// vite dev 서버를 한 번만 띄우고(QB_BASE_URL) 검증 도구 9종을 차례로 실행한다. 하나라도 실패하면 exit 1.
+// 운영 번들과 같은 방식(CSS 가 <link> 로 서빙, 해시 파일)으로 NODE_ENV=development 빌드(?bypass-auth 가 통하게)를 만들어 vite preview 로 한 번만 띄우고
+// (QB_BASE_URL) 검증 도구 10종을 차례로 실행한다. 하나라도 실패하면 exit 1. dev 서버는 CSS 가 <style> 이라 CSS 로드 결함을 못 잡으므로 기본으로 쓰지 않는다(--dev-server 로만).
 //   1 verify-pagination    PDF 쪽 구성(한 장/여러 쪽)·메뉴·기억·병합·PNG
 //   2 verify-payment-info  결제 정보 블록(Enterprise 견적에서만)
 //   3 verify-seal-options  직인 표시 카드 순서·기본값
@@ -12,20 +13,23 @@
 //  10 verify-sum-area      합계 영역 금액 글자가 화면 DOM 과 같은 위치(「원」 겹침 없음) — 링크 CSS 상태의 PDF·PNG 를 화면 요소 크롭과 픽셀 비교
 // 1~4 는 관찰값만 출력하는 도구라서 이 실행기가 결과(results.json·표준 출력)를 읽어 기대값과 대조한다. 5·6 은 도구가 직접 exit 1 한다.
 //
-// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea]
+// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea] [--dev-server]
+//   출력 폴더 기본값은 <저장소>/.work/verify-export. --only 의 값은 출력 폴더가 아니다(parseArgs).
 //   환경변수 파일(.env·.env.local)은 저장소 루트에서, 없으면(worktree) 메인 체크아웃에서 찾아 읽는다. 값은 출력하지 않는다.
-//   PW_CHROME 이 없으면 %LOCALAPPDATA%\ms-playwright 의 최신 chrome-headless-shell 을 쓴다.
-//   PYI 는 비운다(shim 의 python 에는 pymupdf 가 없다). 시스템 python 에 pymupdf 가 있어야 한다.
+//     둘 다 없으면(CI) VITE_SUPABASE_URL·VITE_SUPABASE_ANON_KEY 는 호출자가 가짜 값으로 준다(앱이 없으면 throw 한다).
+//   브라우저: PW_CHROME / CHROME_PATH, 없으면 ms-playwright 의 chrome-headless-shell, 그것도 없으면 playwright 기본 브라우저(resolveChrome).
+//   python: QB_PYTHON, 없으면 Windows python / 그 외 python3. pymupdf·numpy·Pillow 가 있어야 한다. PYI(shim)는 쓰지 않는다.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { ROOT, startVite } from './lib/quote-driver.mjs';
+import { ROOT, buildBypassBundle, parseArgs, resolveChrome, runPython, startPreview, startVite, tempBuildDir } from './lib/quote-driver.mjs';
 
-const args = process.argv.slice(2);
-const onlyIdx = args.indexOf('--only');
-// --only 의 값을 출력 폴더로 오인하지 않는다(예전에는 `--only a,b` 만 주면 `a,b` 폴더가 저장소에 생겼다).
-const OUT = resolve(args.find((a, i) => !a.startsWith('--') && i !== onlyIdx + 1) ?? join(ROOT, '.work', 'verify-export'));
-const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1].split(',')) : null;
+// --only 의 값(`a,b`)을 출력 폴더로 오인하지 않는다. 예전에는 `--only a,b` 의 값이 출력 폴더 이름이 되어 저장소 루트에 `seal,png,footer` 폴더가 생겼다.
+const { positional, flags } = parseArgs(process.argv.slice(2), ['only']);
+if (positional.length > 1) { console.error(`출력 폴더는 하나만 줄 수 있다: ${positional.join(' ')}`); process.exit(1); }
+if (flags.only === true || flags.only === '') { console.error('--only 에는 단계 이름을 쉼표로 이어 준다(예: --only seal,png).'); process.exit(1); }
+const OUT = resolve(positional[0] ?? join(ROOT, '.work', 'verify-export'));
+const ONLY = flags.only ? new Set(String(flags.only).split(',')) : null;
 mkdirSync(OUT, { recursive: true });
 
 // ---- 환경 준비 ----------------------------------------------------------------------------
@@ -45,18 +49,11 @@ for (const dir of findEnvDirs()) {
 }
 console.log('env 파일:', loaded.length ? loaded.join(', ') : '(없음)');
 
-if (!process.env.PW_CHROME) {
-  const base = join(process.env.LOCALAPPDATA ?? '', 'ms-playwright');
-  const found = existsSync(base)
-    ? readdirSync(base).filter(d => d.startsWith('chromium_headless_shell-')).sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))
-        .map(d => join(base, d, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe')).find(existsSync)
-    : null;
-  if (!found) { console.error('PW_CHROME 를 지정하거나 ms-playwright 에 chrome-headless-shell 을 설치하라.'); process.exit(1); }
-  process.env.PW_CHROME = found;
-}
-delete process.env.PYI;
-const pyCheck = spawnSync('python', ['-c', 'import fitz'], { encoding: 'utf8' });
-if (pyCheck.status !== 0) { console.error('시스템 python 에 pymupdf(fitz)가 없다. PDF 분석 도구가 동작하지 않는다.'); process.exit(1); }
+try {
+  console.log('브라우저:', resolveChrome() ?? '(playwright 기본)');
+} catch (e) { console.error(e.message); process.exit(1); }
+const pyCheck = runPython(['-c', 'import fitz, numpy, PIL']);
+if (pyCheck.status !== 0) { console.error('python 에 pymupdf(fitz)·numpy·Pillow 가 없다. PDF 분석 도구가 동작하지 않는다.\n' + (pyCheck.stderr ?? '')); process.exit(1); }
 
 // ---- 기대값 대조 ---------------------------------------------------------------------------
 const readJson = p => JSON.parse(readFileSync(p, 'utf8'));
@@ -163,8 +160,21 @@ const STEPS = [
   { key: 'sumarea', tool: 'verify-sum-area.mjs', check: () => [] },
 ];
 
-const vite = await startVite(Number(process.env.QB_PORT ?? 3019));
+const port = Number(process.env.QB_PORT ?? 3019);
+let buildDir = null;
+let vite;
+if (flags['dev-server']) {
+  vite = await startVite(port);
+} else {
+  buildDir = tempBuildDir('export');
+  const t0 = Date.now();
+  console.log('번들 빌드(NODE_ENV=development) ...');
+  buildBypassBundle(buildDir);
+  console.log(`빌드 완료 (${Math.round((Date.now() - t0) / 1000)}s)`);
+  vite = await startPreview(buildDir, port);
+}
 process.env.QB_BASE_URL = vite.base;
+console.log('대상 서버:', flags['dev-server'] ? 'vite dev 서버(CSS 가 <style> — 운영과 다름)' : 'vite preview(빌드 번들, CSS 가 <link>)', vite.base);
 const summary = [];
 try {
   for (const step of STEPS) {
@@ -187,6 +197,7 @@ try {
   }
 } finally {
   vite.stop();
+  if (buildDir) rmSync(buildDir, { recursive: true, force: true });
 }
 
 writeFileSync(join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));

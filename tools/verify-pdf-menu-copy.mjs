@@ -4,7 +4,7 @@
 // 결과: <출력 폴더>/menu-1item.png, menu-26items.png, results.json
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { loadPlaywright, startVite, fillBasic, fillSales } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, fillBasic, fillSales, launchBrowser, dismissOnboarding } from './lib/quote-driver.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/verify-pdf-menu-copy');
 mkdirSync(OUT, { recursive: true });
@@ -18,9 +18,7 @@ async function open(browser, base, itemCount) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   await page.goto(`${base}/?bypass-auth`);
-  await page.waitForTimeout(2000);
-  const skip = page.getByText('건너뛰기');
-  if (await skip.count()) await skip.first().click();
+  await dismissOnboarding(page);
   await page.addStyleTag({ content: '[data-sonner-toaster]{display:none!important}' });
   await fillBasic(page);
   await fillSales(page);
@@ -55,7 +53,7 @@ const expect = (key, cond, msg) => { if (!cond) results.failures.push(`${key}: $
 
 const vite = await startVite(Number(process.env.QB_PORT ?? 3018));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     // 한 장에 들어가는 견적: 품목 1건
     {

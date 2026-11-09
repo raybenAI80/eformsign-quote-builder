@@ -5,52 +5,30 @@
 // 실행: node --env-file=<.env> --env-file=<.env.local> tools/verify-print.mjs [출력 폴더] [--targets dev,build] [--quick]
 //   build 대상은 이 도구가 출력 폴더 안에 따로 빌드(--mode development, ?bypass-auth 가 통하도록)해 vite preview 로 연다. CSS 는 운영처럼 <link> 파일.
 //   QB_BASE_URL 이 있으면 그 주소 하나만 'ext' 대상으로 검사한다(verify-export-all 이 쓰는 방식). --quick: 보통 품목 시나리오만.
-//   PW_CHROME 이 없으면 ms-playwright 의 최신 chrome-headless-shell. 시스템 python 에 pymupdf(fitz) 필요. 값은 출력하지 않는다.
-import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+//   브라우저는 PW_CHROME/CHROME_PATH, 없으면 ms-playwright 의 chrome-headless-shell(resolveChrome). 시스템 python 에 pymupdf(fitz) 필요. 값은 출력하지 않는다.
+import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { ROOT, loadPlaywright, startVite, fillBasic, fillSales, addItems, downloadTo } from './lib/quote-driver.mjs';
+import { ROOT, loadPlaywright, startVite, fillBasic, fillSales, addItems, downloadTo, launchBrowser, runPython, parseArgs, buildBypassBundle, startPreview, tempBuildDir, dismissOnboarding } from './lib/quote-driver.mjs';
 
-const args = process.argv.slice(2);
-const tIdx = args.indexOf('--targets');
-const positional = args.filter((a, i) => !a.startsWith('--') && i !== tIdx + 1);
+const { positional, flags } = parseArgs(process.argv.slice(2), ['targets']);
 const OUT = resolve(positional[0] ?? join(ROOT, '.work', 'verify-print'));
-const TARGETS = process.env.QB_BASE_URL ? ['ext'] : (tIdx >= 0 ? args[tIdx + 1] : 'dev,build').split(',');
-const QUICK = args.includes('--quick');
+const TARGETS = process.env.QB_BASE_URL ? ['ext'] : String(flags.targets ?? 'dev,build').split(',');
+const QUICK = !!flags.quick;
 mkdirSync(OUT, { recursive: true });
 
-if (!process.env.PW_CHROME) {
-  const base = join(process.env.LOCALAPPDATA ?? '', 'ms-playwright');
-  const found = existsSync(base)
-    ? readdirSync(base).filter(d => d.startsWith('chromium_headless_shell-')).sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))
-        .map(d => join(base, d, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe')).find(existsSync)
-    : null;
-  if (!found) { console.error('PW_CHROME 를 지정하라.'); process.exit(1); }
-  process.env.PW_CHROME = found;
-}
 const { chromium } = loadPlaywright();
 
 function analyze(pdfPath, prefix) {
-  const env = { ...process.env };
-  delete env.PYI;
-  const r = spawnSync('python', ['-I', join(ROOT, 'tools', 'lib', 'pdf-pages.py'), pdfPath, prefix], { encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 });
+  const r = runPython(['-I', join(ROOT, 'tools', 'lib', 'pdf-pages.py'), pdfPath, prefix]);
   if (r.status !== 0) throw new Error('pdf-pages.py 실패: ' + (r.stderr || r.stdout));
   return JSON.parse(r.stdout).pages;
 }
 
-/** 운영 번들과 같은 방식(CSS 가 <link> 로 서빙, 해시 파일)으로 빌드하되 ?bypass-auth 가 통하도록 --mode development 로 따로 빌드한다. */
-async function startPreview(port) {
-  const outDir = join(OUT, 'dist-bypass');
-  const b = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'development', '--outDir', outDir, '--emptyOutDir'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, NODE_ENV: 'development' } });
-  if (b.status !== 0) throw new Error('빌드 실패: ' + (b.stderr || b.stdout).slice(-600));
-  const proc = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', outDir, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-  const base = `http://localhost:${port}`;
-  for (let i = 0; i < 60; i++) {
-    try { if ((await fetch(base + '/')).ok) return { base, stop: () => proc.kill() }; } catch { /* 아직 */ }
-    await new Promise(r => setTimeout(r, 500));
-  }
-  proc.kill();
-  throw new Error('vite preview 가 뜨지 않았다');
+/** 빌드(NODE_ENV=development, ?bypass-auth 통과) 후 vite preview 로 서빙한다. 빌드 폴더는 OS 임시 디렉터리에 둔다. */
+async function startBuildPreview(port) {
+  const outDir = tempBuildDir('print');
+  buildBypassBundle(outDir);
+  return startPreview(outDir, port);
 }
 
 const MIX = ['+ Enterprise 2,000건', '+ 구독형 Business', '+ 문서 세팅 3건', '+ 추가 문서', '+ 충전형 문서', '+ 계정 구성 지원', '+ 유료 옵션 활용 가능 (10만)', '+ 타임스탬프', '+ 사용자 교육 1H'];
@@ -74,9 +52,7 @@ async function runScenario(browser, base, tag, sc) {
   }, sc.layout);
   const page = await ctx.newPage();
   await page.goto(`${base}/?bypass-auth`);
-  await page.waitForTimeout(2000);
-  const skip = page.getByText('건너뛰기');
-  if (await skip.count()) await skip.first().click();
+  await dismissOnboarding(page);
   await page.waitForTimeout(300);
   await fillBasic(page);
   await fillSales(page);
@@ -122,11 +98,11 @@ async function runScenario(browser, base, tag, sc) {
   rows.push({ target: tag, scenario: sc.id, printPages: printPages.length, buttonPages: btnPages.length, blank: printPages.filter(p => p.nonbg < 0.005).length, nonbgPct: printPages.map(p => +(p.nonbg * 100).toFixed(1)).join('/') });
 }
 
-const browser = await chromium.launch({ executablePath: process.env.PW_CHROME, headless: true });
+const browser = await launchBrowser(chromium, { headless: true });
 try {
   for (const t of TARGETS) {
     const srv = t === 'dev' ? await startVite(Number(process.env.QB_PORT ?? 3041))
-      : t === 'build' ? await startPreview(Number(process.env.QB_PREVIEW_PORT ?? 3042))
+      : t === 'build' ? await startBuildPreview(Number(process.env.QB_PREVIEW_PORT ?? 3042))
       : await startVite(0);
     try {
       for (const sc of SCENARIOS) await runScenario(browser, srv.base, t, sc);
