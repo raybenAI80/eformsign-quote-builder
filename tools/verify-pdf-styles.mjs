@@ -10,8 +10,7 @@
 //   종료 코드 1 = 서식이 빠졌거나 전제(CSS 404 요청)가 만들어지지 않음.
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, ROOT, launchBrowser, runPython } from './lib/quote-driver.mjs';
 import { serveCssAsLink } from './lib/css-link.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/verify-pdf-styles');
@@ -21,9 +20,7 @@ const { chromium } = loadPlaywright();
 const vite = await startVite(Number(process.env.QB_PORT ?? 3022));
 
 function diffAgainst(base, other, savePng) {
-  const env = { ...process.env };
-  delete env.PYI;
-  const r = spawnSync('python', ['-I', join(ROOT, 'tools', 'compare-raster.py'), base, other, '--save', savePng], { encoding: 'utf8', env });
+  const r = runPython(['-I', join(ROOT, 'tools', 'compare-raster.py'), base, other, '--save', savePng]);
   const out = (r.stdout || r.stderr || '').trim();
   const m = /diff=([\d.]+)/.exec(out);
   return { out, diff: m ? Number(m[1]) : NaN };
@@ -32,7 +29,7 @@ function diffAgainst(base, other, savePng) {
 const results = [];
 let failed = false;
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { page } = await openAndFill(browser, vite.base, {});
     await page.addStyleTag({ content: '[data-sonner-toaster]{pointer-events:none}' });

@@ -6,15 +6,13 @@
 //
 // 실행: PW_CHROME=<chrome-headless-shell.exe> PYI=<python> node --env-file=<.env> --env-file=<.env.local> tools/verify-payment-info.mjs <출력 폴더>
 // 환경변수 파일의 값은 vite 프로세스에만 쓰이며 출력하지 않는다.
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPlaywright, startVite, downloadTo, fillBasic, fillSales } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, downloadTo, fillBasic, fillSales, launchBrowser, runPython, dismissOnboarding } from './lib/quote-driver.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(process.argv.slice(2).find(a => !a.startsWith('--')) ?? '.work/verify-payment-info');
-const PY = process.env.PYI ?? 'python';
 mkdirSync(OUT, { recursive: true });
 
 const results = { steps: {}, consoleErrors: [] };
@@ -45,7 +43,7 @@ async function choosePaged(page) {
 
 /** PDF 쪽별로 '결제 정보'·'신한은행'·'사업자등록증' 적중 수와 쪽수 */
 function pdfPay(pdf) {
-  const r = spawnSync(PY, [join(HERE, 'inspect-pdf.py'), pdf, '--find', '결제 정보', '신한은행', '사업자등록증'], { encoding: 'utf8' });
+  const r = runPython([join(HERE, 'inspect-pdf.py'), pdf, '--find', '결제 정보', '신한은행', '사업자등록증']);
   const pages = Number(/pages=(\d+)/.exec(r.stdout)?.[1] ?? 0);
   const out = [];
   let cur = null;
@@ -86,9 +84,7 @@ async function open(browser, base, customer) {
   await ctx.addInitScript(() => { try { delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker; } catch { /* 없음 */ } });
   const page = await ctx.newPage();
   await page.goto(`${base}/?bypass-auth`);
-  await page.waitForTimeout(2000);
-  const skip = page.getByText('건너뛰기');
-  if (await skip.count()) await skip.first().click();
+  await dismissOnboarding(page);
   await page.waitForTimeout(300);
   await page.addStyleTag({ content: '[data-sonner-toaster]{display:none!important}' });
   page.on('console', m => { if (m.type() === 'error') results.consoleErrors.push(m.text().slice(0, 300)); });
@@ -107,7 +103,7 @@ const shotSum = async (page, file) => {
 const { chromium } = loadPlaywright();
 const vite = await startVite(Number(process.env.QB_PORT ?? 3015));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     // A. Enterprise 포함 (한 장)
     {

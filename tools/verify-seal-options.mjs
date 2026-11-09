@@ -1,28 +1,24 @@
 // 옵션 탭 「직인 표시」 카드 순서(숨김·직인 생략·직인 표시)와 기본 선택(숨김), 선택 동작, 미리보기·PDF 직인 표시를 검증한다.
 // 실행: PW_CHROME=<chrome-headless-shell.exe> PYI=<python> node --env-file=<.env> --env-file=<.env.local> tools/verify-seal-options.mjs <출력 폴더>
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPlaywright, startVite, downloadTo, fillBasic, fillSales } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, downloadTo, fillBasic, fillSales, launchBrowser, runPython, dismissOnboarding } from './lib/quote-driver.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(process.argv[2] ?? '.work/verify-seal-options');
-const PY = process.env.PYI ?? 'python';
 mkdirSync(OUT, { recursive: true });
 
 const { chromium } = loadPlaywright();
 const vite = await startVite(Number(process.env.QB_PORT ?? 3016));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
     await ctx.addInitScript(() => { try { delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker; } catch { /* 없음 */ } });
     const page = await ctx.newPage();
     await page.goto(`${vite.base}/?bypass-auth`);
-    await page.waitForTimeout(2000);
-    const skip = page.getByText('건너뛰기');
-    if (await skip.count()) await skip.first().click();
+    await dismissOnboarding(page);
     await page.addStyleTag({ content: '[data-sonner-toaster]{display:none!important}' });
     await fillBasic(page);
     await fillSales(page);
@@ -69,7 +65,7 @@ try {
     await fillBasic(page); await fillSales(page);
     const pdf = join(OUT, 'seal-default.pdf');
     await downloadTo(page, () => page.locator('button[title="PDF / 인쇄"]').click(), pdf, 240000);
-    const r = spawnSync(PY, [join(HERE, 'inspect-pdf.py'), pdf, '--find', '직인 생략', '포시에스\n인', '대표이사'], { encoding: 'utf8' });
+    const r = runPython([join(HERE, 'inspect-pdf.py'), pdf, '--find', '직인 생략', '포시에스\n인', '대표이사']);
     out.pdf = r.stdout.split(/\r?\n/).filter(l => /pages=|search|chars/.test(l));
     console.log(JSON.stringify(out, null, 1));
     writeFileSync(join(OUT, 'results.json'), JSON.stringify(out, null, 2));

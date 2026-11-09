@@ -6,15 +6,13 @@
 // 결과: <출력 폴더>/overage-<날짜>.png(미리보기 품목 표), overage-<날짜>.pdf, overage-<날짜>-pdf.png(PDF 1쪽), results.json
 // PDF 글자 추출은 시스템 python 의 pymupdf(fitz)를 쓴다(PYI 는 비운다).
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
-import { loadPlaywright, startVite, fillBasic, fillSales, downloadTo } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, fillBasic, fillSales, downloadTo, launchBrowser, runPython, dismissOnboarding } from './lib/quote-driver.mjs';
 
 const OUT = resolve(process.argv[2] ?? '.work/verify-business-overage');
 mkdirSync(OUT, { recursive: true });
 const { chromium } = loadPlaywright();
 const results = { steps: {}, failures: [] };
-delete process.env.PYI;
 
 const BEFORE = '(초과 시 600원/건, 2027년 1월 1일부터 800원/건)';
 const AFTER = '(초과 시 800원/건)';
@@ -31,7 +29,7 @@ const fail = (key, msg) => results.failures.push(`${key}: ${msg}`);
 
 function pdfText(file) {
   const py = 'import sys,json,fitz;d=fitz.open(sys.argv[1]);print(json.dumps([p.get_text() for p in d]))';
-  const r = spawnSync('python', ['-c', py, file], { encoding: 'utf8', env: process.env });
+  const r = runPython(['-c', py, file]);
   if (r.status !== 0) throw new Error(`PDF 글자 추출 실패: ${r.stderr}`);
   return JSON.parse(r.stdout);
 }
@@ -39,7 +37,7 @@ function pdfText(file) {
 // PDF 1쪽을 PNG 로 저장한다(눈으로 줄 나눔을 확인하는 용도)
 function pdfPagePng(file, png) {
   const py = 'import sys,fitz;d=fitz.open(sys.argv[1]);d[0].get_pixmap(matrix=fitz.Matrix(2,2),alpha=False).save(sys.argv[2])';
-  const r = spawnSync('python', ['-c', py, file, png], { encoding: 'utf8', env: process.env });
+  const r = runPython(['-c', py, file, png]);
   if (r.status !== 0) throw new Error(`PDF 렌더 실패: ${r.stderr}`);
 }
 
@@ -73,15 +71,13 @@ const readNotes = (page, root) => page.evaluate(root => {
 
 const vite = await startVite(Number(process.env.QB_PORT ?? 3020));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1, acceptDownloads: true });
     await ctx.addInitScript(() => { try { delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker; } catch { /* 이미 없음 */ } });
     const page = await ctx.newPage();
     await page.goto(`${vite.base}/?bypass-auth`);
-    await page.waitForTimeout(2000);
-    const skip = page.getByText('건너뛰기');
-    if (await skip.count()) await skip.first().click();
+    await dismissOnboarding(page);
     await page.addStyleTag({ content: '[data-sonner-toaster]{display:none!important}' });
     await fillBasic(page);
     await fillSales(page);

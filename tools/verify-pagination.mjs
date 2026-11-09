@@ -4,25 +4,23 @@
 //
 // 실행: PW_CHROME=<chrome-headless-shell.exe> PYI=<python> node --env-file=<.env> --env-file=<.env.local> tools/verify-pagination.mjs <출력 폴더> [--only a,b,...]
 // 환경변수 파일의 값은 vite 프로세스에만 쓰이며 출력하지 않는다.
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadPlaywright, startVite, openAndFill, downloadTo, fillBasic, fillSales, addItems } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, downloadTo, fillBasic, fillSales, addItems, launchBrowser, runPython, parseArgs, dismissOnboarding } from './lib/quote-driver.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const args = process.argv.slice(2);
-const OUT = resolve(args.find(a => !a.startsWith('--')) ?? '.work/verify-pagination');
-const onlyArg = args.indexOf('--only');
-const ONLY = onlyArg >= 0 ? new Set(args[onlyArg + 1].split(',')) : null;
-const PY = process.env.PYI ?? 'python';
+// --only 의 값(`a,b`)을 출력 폴더로 오인하지 않도록 parseArgs 로 분해한다.
+const { positional, flags } = parseArgs(process.argv.slice(2), ['only']);
+const OUT = resolve(positional[0] ?? '.work/verify-pagination');
+const ONLY = flags.only ? new Set(String(flags.only).split(',')) : null;
 mkdirSync(OUT, { recursive: true });
 
 const results = { steps: {}, consoleErrors: [] };
 const want = k => !ONLY || ONLY.has(k);
 const log = (k, v) => { results.steps[k] = v; console.log(`[${k}]`, JSON.stringify(v)); };
 
-const py = (script, argv) => spawnSync(PY, [join(HERE, script), ...argv], { encoding: 'utf8', shell: false });
+const py = (script, argv) => runPython([join(HERE, script), ...argv]);
 function pdfFacts(pdf) {
   const r = py('inspect-pdf.py', [pdf, '--find', '/ ']);
   const pages = Number(/pages=(\d+)/.exec(r.stdout)?.[1] ?? 0);
@@ -103,7 +101,7 @@ async function shotPreview(page, file) {
 const { chromium } = loadPlaywright();
 const vite = await startVite(Number(process.env.QB_PORT ?? 3014));
 try {
-  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME });
+  const browser = await launchBrowser(chromium);
   try {
     const { ctx, page } = await openAndFill(browser, vite.base);
     let step = 'setup';
@@ -199,9 +197,7 @@ try {
     await chooseMenu(page, '여러 쪽으로 나눠 저장', 'paged-26b.pdf');
     await page.waitForTimeout(500);
     await page.reload();
-    await page.waitForTimeout(2500);
-    const skip = page.getByText('건너뛰기');
-    if (await skip.count()) await skip.first().click();
+    await dismissOnboarding(page);
     await page.waitForTimeout(500);
     await caretBtn(page).click();
     await page.waitForSelector('[role="menu"]');
