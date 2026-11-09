@@ -9,9 +9,10 @@
 //   7 verify-business-overage Business 구독형 초과 단가 문구(견적일 기준 600→800원, 미리보기·PDF 글자)
 //   8 verify-pdf-styles    저장 중 CSS 파일 요청이 404 여도 PDF·PNG 서식 유지(복제 iframe 의 CSS 재요청 실패)
 //   9 verify-print         브라우저 인쇄(Ctrl+P): 쪽 수가 PDF 버튼과 같고 빈 쪽 없음·견적서만 나옴 (dev 서버 대상. 빌드 번들 대상은 verify-print.mjs 단독 실행)
+//  10 verify-sum-area      합계 영역 금액 글자가 화면 DOM 과 같은 위치(「원」 겹침 없음) — 링크 CSS 상태의 PDF·PNG 를 화면 요소 크롭과 픽셀 비교
 // 1~4 는 관찰값만 출력하는 도구라서 이 실행기가 결과(results.json·표준 출력)를 읽어 기대값과 대조한다. 5·6 은 도구가 직접 exit 1 한다.
 //
-// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print]
+// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea]
 //   환경변수 파일(.env·.env.local)은 저장소 루트에서, 없으면(worktree) 메인 체크아웃에서 찾아 읽는다. 값은 출력하지 않는다.
 //   PW_CHROME 이 없으면 %LOCALAPPDATA%\ms-playwright 의 최신 chrome-headless-shell 을 쓴다.
 //   PYI 는 비운다(shim 의 python 에는 pymupdf 가 없다). 시스템 python 에 pymupdf 가 있어야 한다.
@@ -159,6 +160,7 @@ const STEPS = [
   { key: 'overage', tool: 'verify-business-overage.mjs', check: () => [] },
   { key: 'styles', tool: 'verify-pdf-styles.mjs', check: () => [] },
   { key: 'print', tool: 'verify-print.mjs', check: () => [] },
+  { key: 'sumarea', tool: 'verify-sum-area.mjs', check: () => [] },
 ];
 
 const vite = await startVite(Number(process.env.QB_PORT ?? 3019));

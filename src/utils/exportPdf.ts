@@ -5,7 +5,7 @@ import download from 'downloadjs';
 import { loadPdfFonts, registerPdfFonts, loadScreenFonts, resolvePdfFont } from './fontLoader';
 import { extractTextElements, TextElement } from './textExtractor';
 import { installFontMetricsFix } from './html2canvasMetrics';
-import { inlineLinkedStylesheets } from './captureStyles';
+import { prepareClonedDocument } from './captureStyles';
 import { applyPdfMetadata, buildMergedPdfTitle, MERGED_PDF_KEYWORDS, type PdfInfo } from './pdfMetadata';
 import type { PdfLayout } from './pdfLayoutPref';
 import { QuoteMeta, QuoteItem } from '../types';
@@ -288,7 +288,7 @@ export const exportToImage = async (elementId: string, fileName: string) => {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#ffffff',
-                onclone: cloned => { inlineLinkedStylesheets(cloned); },
+                onclone: cloned => prepareClonedDocument(cloned),
             });
         } finally {
             uninstallMetricsFix();
@@ -483,7 +483,7 @@ async function capturePageIntoPdf(
             useCORS: true,
             backgroundColor: '#ffffff',
             // 복제본이 CSS 파일을 다시 받다 실패하면 서식 없이 찍힌다 — 화면에 로드된 규칙을 직접 넣는다 (captureStyles.ts)
-            onclone: cloned => { inlineLinkedStylesheets(cloned); },
+            onclone: cloned => prepareClonedDocument(cloned),
             logging: false,
             windowWidth: element.scrollWidth,
             windowHeight: element.scrollHeight,
