@@ -9,13 +9,14 @@
 //   M1 같은 이름을 두 번 저장하면 똑같은 행이 둘 보인다(날짜만 있고 시각이 없다).
 //   M2 아주 긴 이름이 행을 밀어내고 토스트가 이름을 그대로 길게 보여 준다.
 //   M3 PDF 글자 층에서 텍스트 노드 사이 공백이 빠져 「사업자등록번호 108-81-85184」(공백 포함)를 검색할 수 없다.
+//   S  (기능) 저장 목록 검색: 이름·고객사로 거르기, NFD 입력, 공백 무시, 특수문자, 지우기·Esc, 가려진 선택의 병합, 다시 열면 비움.
 //
 // 이 도구는 옛 코드(origin/main)에서 실패하고 고친 코드에서 통과해야 한다(2026-11-13 양쪽 실행으로 확인).
 // 실행: PW_CHROME=<chrome-headless-shell> [QB_BASE_URL=<주소>] node --env-file=<env 파일> tools/verify-saved-quotes.mjs <출력 폴더>
 //   판정: 모든 항목 PASS 면 exit 0, 하나라도 FAIL 이면 exit 1. python 에 pymupdf 가 필요하다.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { loadPlaywright, startVite, openAndFill, downloadTo, dismissOnboarding, launchBrowser, runPython, parseArgs } from './lib/quote-driver.mjs';
+import { loadPlaywright, startVite, openAndFill, fillBasic, downloadTo, dismissOnboarding, launchBrowser, runPython, parseArgs } from './lib/quote-driver.mjs';
 
 const { positional } = parseArgs(process.argv.slice(2));
 const OUT = resolve(positional[0] ?? '.work/verify-saved-quotes');
@@ -270,6 +271,122 @@ try {
         check('M2', '긴 이름 행: 불러오기 버튼이 행 안에 보인다', geo.btnInside && geo.rowOverflow <= 1, `넘침 ${geo.rowOverflow}px`);
         await page.screenshot({ path: join(OUT, 'full-list.png') });
       } catch (e) { check('D5', '시나리오가 예외 없이 끝난다', false, String(e.message ?? e).split(String.fromCharCode(10))[0]); } finally { await ctx.close(); }
+    }
+
+    // ---- S: 저장 목록 검색 -------------------------------------------------------------------------
+    {
+      const { ctx, page } = await openAndFill(browser, vite.base, { customer: '(주)한빛물산' });
+      const consoleErrors = [];
+      page.on('pageerror', e => consoleErrors.push(String(e.message ?? e)));
+      page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+      try {
+        await page.addStyleTag({ content: '[data-sonner-toaster]{pointer-events:none}' });
+        const search = page.getByTestId('saved-search-input');
+        const countText = async () => ((await page.getByTestId('saved-search-count').count()) ? await page.getByTestId('saved-search-count').innerText() : '');
+        const visibleNames = async () => (await page.getByTestId('saved-name').allInnerTexts());
+        const typeQuery = async q => { await search.fill(q); await page.waitForTimeout(150); };
+
+        // 고객사가 다른 견적서 3개를 저장한다(구분 이름은 같다).
+        await openPanel(page); await saveNamed(page, '검색A'); await closePanel(page);
+        await fillBasic(page, '대한상사');
+        await openPanel(page); await saveNamed(page, '검색B'); await closePanel(page);
+        await fillBasic(page, '새롬정밀');
+        await openPanel(page); await saveNamed(page, '검색C');
+        check('S', '저장된 견적서 3개', (await rowCount(page)) === 3);
+        check('S', '검색어가 없으면 개수 문구가 없다', (await countText()) === '');
+        check('S', '입력창 안내 문구', (await search.getAttribute('placeholder')) === '이름·고객사·견적번호로 검색');
+
+        await typeQuery('한빛');
+        let names = await visibleNames();
+        check('S', '고객사 「한빛」: 해당 행만 보인다', names.length === 1 && names[0] === '검색A', names.join(','));
+        check('S', '개수 문구 「검색 결과 1건 / 전체 3건」', (await countText()) === '검색 결과 1건 / 전체 3건', await countText());
+        await page.screenshot({ path: join(OUT, 'search-filtered.png') });
+
+        await typeQuery('한빛'.normalize('NFD'));
+        check('S', 'NFD 로 입력해도 NFC 이름·고객사를 찾는다', (await rowCount(page)) === 1, `행 ${await rowCount(page)}`);
+        await typeQuery('대 한 상 사');
+        names = await visibleNames();
+        check('S', '공백은 무시한다(「대 한 상 사」→ 대한상사)', names.length === 1 && names[0] === '검색B', names.join(','));
+        await typeQuery('검색');
+        check('S', '이름 「검색」: 3개 모두, 순서는 그대로(최신순)', (await rowCount(page)) === 3 && (await countText()) === '검색 결과 3건 / 전체 3건');
+        const order = await visibleNames();
+        check('S', '목록 순서는 최신 저장이 위', order.join(',') === '검색C,검색B,검색A', order.join(','));
+
+        for (const q of ['(', '+', '[', '*', '\\']) {
+          await typeQuery(q);
+        }
+        await typeQuery('(');
+        check('S', '「(」 검색: 오류 없음, 「(주)」 고객사 행이 보인다', consoleErrors.length === 0 && (await rowCount(page)) === 1, `오류 ${consoleErrors.length}건 ${consoleErrors[0] ?? ''} 행 ${await rowCount(page)}`);
+        await typeQuery('+');
+        check('S', '「+」 검색: 오류 없음, 결과 없음 안내', consoleErrors.length === 0 && (await page.getByTestId('saved-search-empty').count()) === 1);
+
+        const LONG = '가나다라마바사아자차카타파하'.repeat(4);
+        await typeQuery(LONG);
+        const emptyText = await page.getByTestId('saved-search-empty').innerText();
+        check('S', '결과 없음 문구(긴 검색어는 30자에서 줄임)', emptyText.includes('에 맞는 견적서가 없습니다.') && emptyText.includes(LONG.slice(0, 30) + '…') && !emptyText.includes(LONG.slice(0, 31)), emptyText.slice(0, 80));
+        await typeQuery('없는이름zz');
+        const none = await page.getByTestId('saved-search-empty').innerText();
+        check('S', '결과 없음 문구 「‘없는이름zz’에 맞는 견적서가 없습니다.」', none.trim() === '‘없는이름zz’에 맞는 견적서가 없습니다.', none);
+        check('S', '결과 없음일 때 개수 문구는 0건', (await countText()) === '검색 결과 0건 / 전체 3건', await countText());
+        await page.screenshot({ path: join(OUT, 'search-empty.png') });
+
+        await page.getByTestId('saved-search-clear').click();
+        check('S', '지우기(×) 버튼: 검색어가 비고 3개가 돌아온다', (await search.inputValue()) === '' && (await rowCount(page)) === 3);
+        check('S', '지우기 뒤 입력창에 포커스가 있다', await search.evaluate(el => el === document.activeElement));
+        await typeQuery('한빛');
+        await search.press('Escape');
+        await page.waitForTimeout(150);
+        check('S', 'Esc: 검색어가 비고 3개가 돌아온다', (await search.inputValue()) === '' && (await rowCount(page)) === 3);
+        check('S', 'Esc 로 패널이 닫히지 않는다', (await page.getByPlaceholder(/견적서 이름/).count()) === 1);
+
+        // 선택은 검색을 바꿔도 남는다. 가려진 선택이 있으면 알려 주고, 병합에도 들어간다.
+        const checkbox = nm => page.locator('ul > li', { hasText: nm }).locator('button').first();
+        await checkbox('검색A').click();   // 1번
+        await typeQuery('대한');             // 검색B 만 보인다
+        check('S', '선택한 A 가 검색 「대한」에 가려지면 안내가 보인다', (await page.getByTestId('hidden-selected-notice').count()) === 1);
+        const notice = await page.getByTestId('hidden-selected-notice').innerText();
+        check('S', '안내 문구 「검색에 가려진 선택 1건도 함께 병합됩니다.」', notice.trim() === '검색에 가려진 선택 1건도 함께 병합됩니다.', notice);
+        await checkbox('검색B').click();   // 2번
+        check('S', '가려진 선택 1건 + 보이는 선택 1건: 선택 2개 표시', (await page.getByText('2개 선택됨').count()) === 1);
+        await typeQuery('한빛');             // 이제 B 가 가려진다
+        check('S', '검색을 바꾸면 가려진 수도 바뀐다(B 가려짐 1건)', /가려진 선택 1건/.test(await page.getByTestId('hidden-selected-notice').innerText()));
+        await typeQuery('');
+        check('S', '검색어를 지우면 안내가 사라진다', (await page.getByTestId('hidden-selected-notice').count()) === 0);
+        await typeQuery('새롬');             // A, B 둘 다 가려진다
+        check('S', '선택 둘 다 가려지면 「2건」', /가려진 선택 2건/.test(await page.getByTestId('hidden-selected-notice').innerText()));
+
+        const merged = join(OUT, 'merged-search.pdf');
+        await downloadTo(page, () => page.getByRole('button', { name: /병합 PDF/ }).last().click(), merged, 300000);
+        const m = pdfHits(merged, ['한빛물산', '대한상사', '새롬정밀']);
+        check('S', '검색에 가려진 선택도 병합 PDF 에 들어간다(2쪽: A 한빛, B 대한, 선택 순서)', m.pages === 2 && m.hits[0][0] >= 1 && m.hits[0][1] === 0 && m.hits[1][1] >= 1 && m.hits[1][0] === 0, `쪽 ${m.pages} 1쪽 ${m.hits[0]} 2쪽 ${m.hits[1]}`);
+        check('S', '선택하지 않은 견적 C 는 병합 PDF 에 없다(고객사 새롬정밀 없음)', m.hits.every(h => h[2] === 0), JSON.stringify(m.hits));
+
+        // 닫았다가 다시 열면 검색어는 비어 있다.
+        await page.waitForTimeout(600);
+        if ((await page.getByPlaceholder(/견적서 이름/).count()) === 0) await openPanel(page);
+        else { await closePanel(page); await openPanel(page); }
+        check('S', '패널을 닫았다 열면 검색어가 비어 있다', (await page.getByTestId('saved-search-input').inputValue()) === '' && (await rowCount(page)) === 3);
+
+        // 검색 중에 저장·삭제해도 필터가 유지된다.
+        await typeQuery('대한');
+        await saveNamed(page, '검색D');
+        check('S', '필터 중 저장: 필터 유지, 새 견적(검색D)은 조건에 안 맞아 안 보인다', (await search.inputValue()) === '대한' && (await countText()) === '검색 결과 1건 / 전체 4건', await countText());
+        await page.locator('ul > li', { hasText: '검색B' }).getByRole('button', { name: '삭제' }).click();
+        await page.getByRole('button', { name: '삭제 확인' }).click();
+        await page.waitForTimeout(300);
+        check('S', '필터 중 삭제: 결과 없음 안내와 「0건 / 전체 3건」', (await page.getByTestId('saved-search-empty').count()) === 1 && (await countText()) === '검색 결과 0건 / 전체 3건', await countText());
+        await typeQuery('검색D');
+        check('S', '이름으로 새로 저장한 견적을 찾는다', (await rowCount(page)) === 1);
+        check('S', '시나리오 내내 콘솔 오류 0건', consoleErrors.length === 0, consoleErrors.join(' | ').slice(0, 120));
+      } catch (e) { check('S', '시나리오가 예외 없이 끝난다', false, String(e.message ?? e).split(String.fromCharCode(10))[0]); } finally { await ctx.close(); }
+
+      // 저장된 견적서가 0개이면 검색 입력이 없다.
+      const { ctx: ctx0, page: p0 } = await newPage(browser, null);
+      try {
+        await appRenders(p0, vite.base);
+        await openPanel(p0);
+        check('S', '저장된 견적서가 0개면 검색 입력이 없고 기존 안내가 보인다', (await p0.getByTestId('saved-search-input').count()) === 0 && (await p0.getByText('저장된 견적서가 없습니다.').count()) === 1);
+      } catch (e) { check('S', '0개 시나리오가 예외 없이 끝난다', false, String(e.message ?? e).split(String.fromCharCode(10))[0]); } finally { await ctx0.close(); }
     }
   } finally {
     await browser.close();
