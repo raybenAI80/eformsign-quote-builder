@@ -1,6 +1,6 @@
 # 견적서 빌더 검사. PR 과 main push 마다
 #   check  : 타입·단위 테스트·정적 회귀 검사(src/__guards__)·빌드
-#   export : PDF·PNG 출력 브라우저 검증 10종(npm run verify:export) — skills/quote-builder-state-flow/references/export-pipeline.md 5절
+#   export : PDF·PNG 출력 브라우저 검증 11종(npm run verify:export) — skills/quote-builder-state-flow/references/export-pipeline.md 5절
 # 비밀값은 쓰지 않는다(Supabase 값은 가짜).
 name: CI
 
@@ -55,7 +55,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - name: 브라우저 (chrome-headless-shell)
         run: npx playwright-core install --with-deps chromium-headless-shell
-      - name: 출력물 검증 10종
+      - name: 출력물 검증 11종
         run: npm run verify:export -- "$RUNNER_TEMP/verify-export"
       - name: 검증 결과 올리기
         if: failure()

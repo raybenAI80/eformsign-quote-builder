@@ -1,6 +1,6 @@
 // 출력물(PDF·PNG·미리보기) 브라우저 검증 일괄 실행기.
 // 운영 번들과 같은 방식(CSS 가 <link> 로 서빙, 해시 파일)으로 NODE_ENV=development 빌드(?bypass-auth 가 통하게)를 만들어 vite preview 로 한 번만 띄우고
-// (QB_BASE_URL) 검증 도구 10종을 차례로 실행한다. 하나라도 실패하면 exit 1. dev 서버는 CSS 가 <style> 이라 CSS 로드 결함을 못 잡으므로 기본으로 쓰지 않는다(--dev-server 로만).
+// (QB_BASE_URL) 검증 도구 11종을 차례로 실행한다. 하나라도 실패하면 exit 1. dev 서버는 CSS 가 <style> 이라 CSS 로드 결함을 못 잡으므로 기본으로 쓰지 않는다(--dev-server 로만).
 //   1 verify-pagination    PDF 쪽 구성(한 장/여러 쪽)·메뉴·기억·병합·PNG
 //   2 verify-payment-info  결제 정보 블록(Enterprise 견적에서만)
 //   3 verify-seal-options  직인 표시 카드 순서·기본값
@@ -11,9 +11,10 @@
 //   8 verify-pdf-styles    저장 중 CSS 파일 요청이 404 여도 PDF·PNG 서식 유지(복제 iframe 의 CSS 재요청 실패)
 //   9 verify-print         브라우저 인쇄(Ctrl+P): 쪽 수가 PDF 버튼과 같고 빈 쪽 없음·견적서만 나옴 (dev 서버 대상. 빌드 번들 대상은 verify-print.mjs 단독 실행)
 //  10 verify-sum-area      합계 영역 금액 글자가 화면 DOM 과 같은 위치(「원」 겹침 없음) — 링크 CSS 상태의 PDF·PNG 를 화면 요소 크롭과 픽셀 비교
+//  11 verify-saved-quotes 저장된 견적서(멀티 견적): 깨진 저장소에서도 앱이 뜸·저장 실패 안내·탭 두 개 동시 저장·구분 이름 왕복·20개 한도·긴 이름 행·PDF 글자 층 공백 검색(단일·병합)
 // 1~4 는 관찰값만 출력하는 도구라서 이 실행기가 결과(results.json·표준 출력)를 읽어 기대값과 대조한다. 5·6 은 도구가 직접 exit 1 한다.
 //
-// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea] [--dev-server]
+// 실행: npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea,savedquotes] [--dev-server]
 //   출력 폴더 기본값은 <저장소>/.work/verify-export. --only 의 값은 출력 폴더가 아니다(parseArgs).
 //   환경변수 파일(.env·.env.local)은 저장소 루트에서, 없으면(worktree) 메인 체크아웃에서 찾아 읽는다. 값은 출력하지 않는다.
 //     둘 다 없으면(CI) VITE_SUPABASE_URL·VITE_SUPABASE_ANON_KEY 는 호출자가 가짜 값으로 준다(앱이 없으면 throw 한다).
@@ -158,6 +159,7 @@ const STEPS = [
   { key: 'styles', tool: 'verify-pdf-styles.mjs', check: () => [] },
   { key: 'print', tool: 'verify-print.mjs', check: () => [] },
   { key: 'sumarea', tool: 'verify-sum-area.mjs', check: () => [] },
+  { key: 'savedquotes', tool: 'verify-saved-quotes.mjs', check: () => [] },
 ];
 
 const port = Number(process.env.QB_PORT ?? 3019);

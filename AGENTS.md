@@ -20,7 +20,7 @@
 - Use `docs/checklists/completion-gate.md` as the minimum exit gate.
 - Use `skills/company-workstream-bootstrap/SKILL.md`, `scripts/start-company-workstream.ps1`, and `scripts/activate-company-workstream-lane.ps1` when a task should be staffed across product, design, engineering, QA, or release lanes.
 - Use `skills/quote-builder-state-flow/SKILL.md` for quote state flow (reset, restore, new quote) and, through `skills/quote-builder-state-flow/references/export-pipeline.md`, for PDF/PNG export work: quality constants, pagination, verification tools (`npm run verify:export`), and the production deploy check (`tools/check-prod-deploy.mjs`).
-- Before finishing any change, pick the required checks from the table in `skills/quote-builder-state-flow/SKILL.md` section 9 (변경 종류별 필수 검사). CI (`.github/workflows/ci.yml`) runs typecheck, tests (including the static guards in `src/__guards__`) and build in the `check` job, and the PDF/PNG browser checks (`npm run verify:export`, 10 steps) in the `export` job, on every PR.
+- Before finishing any change, pick the required checks from the table in `skills/quote-builder-state-flow/SKILL.md` section 9 (변경 종류별 필수 검사). CI (`.github/workflows/ci.yml`) runs typecheck, tests (including the static guards in `src/__guards__`) and build in the `check` job, and the PDF/PNG browser checks (`npm run verify:export`, 11 steps) in the `export` job, on every PR.
 - Add or update glossary entries when new terms or renamed concepts appear.
 - Record meaningful progress in `sysint` for substantial work.
 - When changing verification behavior, update `.sysint/system-intelligence.json` in the same work block.

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { SavedQuote } from '../types';
 import type { PdfLayout } from '../utils/pdfLayoutPref';
+import { SAVED_QUOTES_LIMIT, SAVE_FULL_MESSAGE, formatSavedAt } from '../utils/savedQuotesStorage';
 
 interface Props {
   savedQuotes: SavedQuote[];
-  onSaveCurrent: (name: string) => void;
+  /** 저장에 성공하면 true. 실패하면(가득 참·저장 공간 부족) false 이고 입력한 이름을 지우지 않는다 */
+  onSaveCurrent: (name: string) => boolean;
   onLoad: (quote: SavedQuote) => void;
   onDelete: (id: string) => void;
   onMergeExport: (selected: SavedQuote[]) => Promise<boolean>;
@@ -41,28 +43,18 @@ export default function SavedQuotesPanel({
     .map(id => savedQuotes.find(q => q.id === id))
     .filter((q): q is SavedQuote => q !== undefined);
 
+  const isFull = savedQuotes.length >= SAVED_QUOTES_LIMIT;
+
   const handleSave = () => {
+    // 목록이 가득 차도 막지 않고 App 에 맡긴다: 저장 버튼은 비활성이지만 Enter 키로 들어오면 App 이 거절 안내 토스트를 띄운다
     if (!saveName.trim()) return;
-    onSaveCurrent(saveName.trim());
-    setSaveName('');
+    if (onSaveCurrent(saveName.trim())) setSaveName('');
   };
 
   const handleMerge = async () => {
     if (selectedQuotes.length === 0) return;
     // App.tsx handles panel close on success via handleMergeExport
     await onMergeExport(selectedQuotes);
-  };
-
-  const formatDate = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleDateString('ko-KR', {
-        year: '2-digit',
-        month: '2-digit',
-        day: '2-digit',
-      });
-    } catch {
-      return iso.slice(0, 10);
-    }
   };
 
   return (
@@ -96,12 +88,21 @@ export default function SavedQuotesPanel({
             />
             <button
               onClick={handleSave}
-              disabled={!saveName.trim()}
+              disabled={!saveName.trim() || isFull}
+              title={isFull ? SAVE_FULL_MESSAGE : undefined}
               className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               저장
             </button>
           </div>
+          <p className="mt-1.5 text-[11px] text-gray-400">
+            저장됨 {savedQuotes.length}/{SAVED_QUOTES_LIMIT}개
+          </p>
+          {isFull && (
+            <p role="alert" data-testid="saved-full-notice" className="mt-1 text-xs text-amber-700 [word-break:keep-all] [overflow-wrap:break-word]">
+              {SAVE_FULL_MESSAGE}
+            </p>
+          )}
         </div>
 
         {/* Quote list */}
@@ -137,15 +138,23 @@ export default function SavedQuotesPanel({
                     </button>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-semibold text-gray-800 truncate">{q.name}</span>
+                    <div className="flex-1 min-w-0 [word-break:keep-all] [overflow-wrap:break-word]">
+                      <div className="flex items-baseline gap-2 min-w-0">
+                        <span
+                          title={q.name}
+                          className="min-w-0 flex-1 text-sm font-semibold text-gray-800 truncate"
+                          data-testid="saved-name"
+                        >
+                          {q.name}
+                        </span>
                         {q.meta.customerName && (
-                          <span className="text-xs text-gray-400 truncate">{q.meta.customerName}</span>
+                          <span title={q.meta.customerName} className="max-w-[40%] flex-shrink-0 text-xs text-gray-400 truncate">
+                            {q.meta.customerName}
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-xs text-gray-400">{formatDate(q.savedAt)}</span>
+                        <span className="text-xs text-gray-400">{formatSavedAt(q.savedAt)}</span>
                         {q.summary && (
                           <span className="text-xs text-indigo-700 font-medium">
                             합계 {nf.format(q.summary.grand)}원
@@ -228,7 +237,7 @@ export default function SavedQuotesPanel({
                 <span className="text-xs font-semibold text-indigo-700">페이지 순서</span>
                 {selectedQuotes.map((q, i) => (
                   <React.Fragment key={q.id}>
-                    <span className="text-xs text-indigo-800 font-medium bg-white border border-indigo-200 rounded px-1.5 py-0.5">
+                    <span title={q.name} className="text-xs text-indigo-800 font-medium bg-white border border-indigo-200 rounded px-1.5 py-0.5 inline-block align-bottom max-w-[12rem] truncate">
                       {i + 1}. {q.name}
                     </span>
                     {i < selectedQuotes.length - 1 && (

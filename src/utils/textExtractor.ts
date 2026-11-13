@@ -100,6 +100,24 @@ function normalizeText(raw: string): string {
     return raw.replace(/\s*[\r\n]+\s*/g, ' ').trim();
 }
 
+/**
+ * 텍스트 노드 경계의 공백을 텍스트 레이어 문자열에 되살린다.
+ *
+ * `{'사업자등록번호 '}<span>108-81-85184</span>` 처럼 공백이 앞쪽 텍스트 노드 끝에 있으면,
+ * 노드마다 trim 해 내보내던 예전 방식은 그 공백을 버려 PDF 에서 「사업자등록번호 108-81-85184」(공백 포함)를 검색할 수 없었다.
+ * 화면에서 실제로 그려진 공백(폭이 있는 공백)만 다룬다. 줄 끝에서 접힌 공백이나 들여쓰기용 공백은 폭이 0 이라 넣지 않는다.
+ * 원문에 이미 있던 공백만 되살리므로 단어·숫자·한글 어절 안에는 공백이 생기지 않는다.
+ */
+export function withBoundarySpaces(
+    text: string,
+    opts: { leading: boolean; trailing: boolean; prevEndsWithSpace: boolean }
+): string {
+    let out = text;
+    if (opts.leading && !opts.prevEndsWithSpace && !out.startsWith(' ')) out = ' ' + out;
+    if (opts.trailing && !out.endsWith(' ')) out = out + ' ';
+    return out;
+}
+
 interface LineSegment {
     text: string;
     left: number;   // px (viewport)
@@ -172,6 +190,14 @@ function splitIntoRenderedLines(textNode: Text): LineSegment[] {
     return segments;
 }
 
+/** 텍스트 노드의 문자 하나가 화면에서 차지하는 사각형 */
+function charRect(textNode: Text, index: number): DOMRect {
+    const range = document.createRange();
+    range.setStart(textNode, index);
+    range.setEnd(textNode, index + 1);
+    return range.getBoundingClientRect();
+}
+
 /**
  * DOM 컨테이너에서 텍스트 요소들을 추출
  */
@@ -189,8 +215,8 @@ export function extractTextElements(
         NodeFilter.SHOW_TEXT,
         {
             acceptNode: (node) => {
-                const text = node.textContent?.trim();
-                if (!text) return NodeFilter.FILTER_REJECT;
+                // 공백뿐인 노드(`<b>신한은행</b> <span>…</span>` 의 가운데 공백)도 받아서, 아래에서 앞 요소의 끝 공백으로 되살린다
+                if (!node.textContent) return NodeFilter.FILTER_REJECT;
 
                 const parent = node.parentElement;
                 if (!parent || !isVisible(parent)) return NodeFilter.FILTER_REJECT;
@@ -207,7 +233,18 @@ export function extractTextElements(
         if (!parent) continue;
 
         const raw = textNode.textContent ?? '';
-        if (!raw.trim()) continue;
+        if (!raw.trim()) {
+            // 요소 사이에서 실제로 그려진 공백은 같은 줄의 앞 요소 끝 공백으로 남긴다(새 요소를 만들지 않는다)
+            const spaceRange = document.createRange();
+            spaceRange.selectNodeContents(textNode);
+            const spaceRect = spaceRange.getBoundingClientRect();
+            const last = elements[elements.length - 1];
+            if (last && spaceRect.width > 0 && !last.text.endsWith(' ')) {
+                const spaceY = (spaceRect.top - containerRect.top) * pxToMm + yOffset;
+                if (Math.abs(last.y - spaceY) <= last.glyphBoxHeight / 2) last.text += ' ';
+            }
+            continue;
+        }
 
         const fontSize = getFontSizePt(parent, pxToMm);
         const isBold = isBoldFont(parent);
@@ -235,7 +272,15 @@ export function extractTextElements(
             segments = [{ text, left: rect.left, top: rect.top, height: rect.height }];
         }
 
-        for (const seg of segments) {
+        // 노드 앞뒤 경계에 화면에서 그려진 공백이 있는지(폭이 있는 공백만)
+        const leadingRect = /^\s/.test(raw) ? charRect(textNode, 0) : null;
+        const trailingRect = /\s$/.test(raw) ? charRect(textNode, raw.length - 1) : null;
+        const hasLeading = !!leadingRect && leadingRect.width > 0;
+        const hasTrailing = !!trailingRect && trailingRect.width > 0;
+        const prev = elements[elements.length - 1];
+
+        for (let si = 0; si < segments.length; si++) {
+            const seg = segments[si];
             if (seg.height <= 0) continue;
 
             // 중복 방지: 같은 텍스트가 같은 위치에 이미 있으면 스킵
@@ -243,9 +288,17 @@ export function extractTextElements(
             if (processedTexts.has(uniqueKey)) continue;
             processedTexts.add(uniqueKey);
 
+            const leading = si === 0 && hasLeading;
+            const trailing = si === segments.length - 1 && hasTrailing;
+            // 앞 요소가 이미 공백으로 끝나면(앞 노드가 경계 공백을 가져갔으면) 다시 넣지 않는다
+            const prevEndsWithSpace = !prev || prev.text.endsWith(' ');
+            const text = withBoundarySpaces(seg.text, { leading, trailing, prevEndsWithSpace });
+            // 앞 공백을 넣으면 줄의 시작 좌표도 그 공백의 왼쪽으로 옮겨 나머지 글자 위치가 그대로 유지되게 한다
+            const x = leading && !prevEndsWithSpace && leadingRect ? leadingRect.left : seg.left;
+
             elements.push({
-                text: seg.text,
-                x: (seg.left - containerRect.left) * pxToMm,
+                text,
+                x: (x - containerRect.left) * pxToMm,
                 y: (seg.top - containerRect.top) * pxToMm + yOffset,
                 fontSize,
                 isBold,

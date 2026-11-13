@@ -9,6 +9,7 @@ import { prepareClonedDocument } from './captureStyles';
 import { applyPdfMetadata, buildMergedPdfTitle, MERGED_PDF_KEYWORDS, type PdfInfo } from './pdfMetadata';
 import type { PdfLayout } from './pdfLayoutPref';
 import { QuoteMeta, QuoteItem } from '../types';
+import type { CategoryLabel } from '../constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 공용 PDF 레이아웃 / 텍스트 레이어 헬퍼
@@ -534,9 +535,9 @@ async function capturePageIntoPdf(
  * @param layout        'fit' = 견적마다 한 장에 맞춤, 'paged' = 견적마다 여러 쪽(쪽 번호는 견적별)
  */
 export const exportMergedPdf = async (
-    quotes: Array<{ name: string; meta: QuoteMeta; items: QuoteItem[] }>,
+    quotes: Array<{ name: string; meta: QuoteMeta; items: QuoteItem[]; categoryLabels?: CategoryLabel[] }>,
     fileName: string,
-    setRenderData: (data: { meta: QuoteMeta; items: QuoteItem[] } | null) => void,
+    setRenderData: (data: { meta: QuoteMeta; items: QuoteItem[]; categoryLabels?: CategoryLabel[] } | null) => void,
     elementId: string = 'pdf-merge-panel',
     layout: PdfLayout = 'fit'
 ): Promise<boolean> => {
@@ -576,7 +577,7 @@ export const exportMergedPdf = async (
             toast.loading(`병합 PDF 생성 중... (${i + 1}/${quotes.length})`, { id: 'pdf-merge' });
 
             // Swap data in the hidden panel
-            setRenderData({ meta: quotes[i].meta, items: quotes[i].items });
+            setRenderData({ meta: quotes[i].meta, items: quotes[i].items, categoryLabels: quotes[i].categoryLabels });
 
             // Wait for React to re-render (two animation frames = reliable render)
             await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

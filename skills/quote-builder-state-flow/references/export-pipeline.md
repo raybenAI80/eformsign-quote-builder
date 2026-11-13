@@ -58,6 +58,13 @@
 13. **브라우저 인쇄(Ctrl+P)는 빈 쪽·잘린 쪽이 나왔다**(2026-11-05 확정·수정): 옛 `@media print` 는 `body *` 를 `visibility:hidden` 으로 숨기고 `#preview-panel` 만 보이게 했다. 원인 셋. ① 여러 쪽 저장 방식(`pageMode="paged"`)의 미리보기에는 `#preview-panel` 이 없어 보일 요소가 없다(전부 빈 쪽). ② 미리보기를 끄면 `#preview-panel` 이 `display:none` 이라 역시 빈 쪽. ③ 한 장 방식에서도 화면용 축소(`MainLayout` 의 `transform: scale(0.627)`)가 인쇄에 그대로 남고, `visibility:hidden` 상위 요소들이 높이 2629px 을 차지해 쪽이 3~4장으로 늘고 끝쪽은 빈 쪽이며, `@page` 가 A4 가로였다. 수정(`index.css` 의 `@media print`, `App.tsx` 의 `beforeprint` 훅): 화면 미리보기 대신 PDF 저장이 쓰는 화면 밖 사본 `#pdf-export-container` 를 인쇄하고(미리보기 켬·끔과 무관, 저장 방식을 따라 한 장 용지 또는 `.qd-page` 쪽 용지), 그 밖의 `#root` 자식·포털(토스트·온보딩·저장 목록)은 `display:none`. 사본은 가로 297mm 이므로 `zoom` 0.707 로 A4 세로(210mm)에 맞추고, `@page` 는 `A4 portrait; margin:0`. 한 장 방식에서 내용이 한 쪽보다 길면 `beforeprint` 에서 `--qd-print-zoom` 을 낮춰 PDF 저장처럼 한 쪽에 넣는다. 확인은 `node tools/verify-print.mjs`(dev·빌드 번들 x 한 장/여러 쪽 x 미리보기 켬/끔 x 품목 보통/많음, 쪽 수가 PDF 버튼과 같고 빈 쪽·편집 화면 문구 없음). 새 화면 요소를 `#root` 밖 포털로 만들거나 `#pdf-export-container` 구조를 바꾸면 이 검사를 다시 돌린다. 참고: 운영 번들은 `?bypass-auth` 가 막혀 있어 이 도구의 build 대상은 `NODE_ENV=development vite build` 로 따로 빌드한다.
 
 14. **PDF·PNG 의 모든 금액에서 「원」이 마지막 숫자 위에 겹쳐 찍혔다**(2026-11-06 사용자 보고, 운영 번들·PR #17 이 원인): 합계 영역의 「1,584,000원」 등에서 「원」이 끝자리 「0」과 겹치고 라벨은 「정가  합계」처럼 벌어졌다. 화면 미리보기는 정상. 이분 탐색(같은 견적, dev 서버·빌드 번들 x PDF·PNG): 72c1cab·51875d7 정상, **49d6efc(PR #17)부터 빌드 번들만 겹침**, dev 서버는 CSS 가 `<style>` 이라 해당 없음. 원인: `inlineLinkedStylesheets` 가 복제 문서의 `<link>` 를 `<style>` 로 바꾸면 복제 문서가 스타일시트를 새로 받은 것으로 보고 `@font-face` 를 다시 내려받는다. 증거(`onclone` 안 로그): 교체 전 `FontFace` 3개 모두 `loaded`, 교체 직후 모두 `loading`, 합계 숫자 폭 134.8px → 122.8px(대체 글꼴). html2canvas 는 `onclone` 직후 글자 위치를 재고, 캔버스에는 실제 글꼴로 그리므로 폭이 좁게 계산된 자리에 넓은 글자가 들어가 「원」이 겹친다. 수정: `captureStyles.ts` 의 `prepareClonedDocument`(= 인라인 + `waitForCloneFonts`)를 `onclone` 에 쓴다. `waitForCloneFonts` 는 복제본 `document.fonts` 의 모든 face 를 `load()` 하고 `fonts.ready` 를 기다린다(최대 4초, 실패해도 저장은 계속). html2canvas 는 `onclone` 이 돌려준 Promise 를 기다린다. 404 대비(함정 12)는 그대로다. 검사: `node tools/verify-sum-area.mjs` — 링크 CSS 상태에서 저장한 PDF 한 장·PNG 의 합계 영역(`.qd-sm`)을 **화면 DOM 요소 스크린샷**과 같은 영역 크롭으로 비교(`tools/compare-crop.py`, 흐림 후 밝기차 60 초과 픽셀 비율, 상한 0.06). 실측: 수정 전 PDF 0.2778 · PNG 0.2795(FAIL), 수정 후 PDF 0.0189 · PNG 0.0011(PASS). `verify:export` 10번째 단계. 교훈: 수정 전후 **경로끼리** 비교하는 검사(`verify-pdf-styles`)는 두 경로가 같이 틀리면 통과한다. 기준은 화면 DOM 이어야 한다. 새 `html2canvas` 호출은 `onclone: cloned => prepareClonedDocument(cloned)` 를 쓴다.
+15. **저장된 견적서(멀티 견적) 결함 묶음과 PDF 글자 층 공백**(2026-11-13 점검, `claude/fix-saved-quotes`): 
+    - 저장소: `eq_saved_quotes` 가 `{"a":1}`·`null`·`[null]`·meta/items 없는 항목이면 패널을 여는 순간 앱이 흰 화면으로 죽고 계속 그랬다(`loadFromStorage` 가 JSON 오류만 잡았다). 이제 `src/utils/savedQuotesStorage.ts` 의 `parseSavedQuotes` 가 배열·문자열 id·객체 meta·배열 items 만 통과시키고 `name`·`savedAt` 은 기본값으로 채운다(잘못된 `savedAt` 은 빈 문자열 → 「날짜 없음」).
+    - 쓰기: 저장·삭제·이름 변경은 `commitSavedQuotes` 가 **쓰기 직전에 저장소를 다시 읽어** 그 위에 적용한다(탭 두 개가 서로 덮어쓰지 않는다). 쓰기에 실패하면(QuotaExceededError) 화면 상태를 바꾸지 않고 저장소에 있는 목록으로 맞추며, App 이 오류 토스트를 띄운다. setState 갱신 함수 안에서는 저장소를 건드리지 않는다. `storage` 이벤트로 다른 탭의 변경을 따라간다.
+    - 한도: 20개가 차면 가장 오래된 것을 지우지 않고 저장을 막는다(버튼 비활성 + 패널 문구 + Enter 로 시도하면 토스트).
+    - 구분 이름: `SavedQuote.categoryLabels`(선택)에 저장하고 불러오기·병합 PDF 가 각 견적의 값을 쓴다. 이 필드가 없는 옛 저장본은 현재 화면의 구분 이름으로 대신한다(`App.tsx` 주석).
+    - **PDF 글자 층 공백**: `textExtractor.ts` 는 텍스트 노드마다 `trim()` 해서 내보냈으므로 `{'사업자등록번호 '}<span>108-81-85184</span>` 의 공백(노드 끝)과 `<b>신한은행</b> <span>계좌</span>` 의 공백(**공백뿐인 노드**)이 버려져 공백 포함 검색이 안 됐다(공백 없는 검색은 됐다). 지금은 화면에서 **폭이 있게 그려진 공백만**(줄 끝에서 접힌 공백은 폭 0) 앞 요소 끝 공백 또는 다음 요소 앞 공백으로 되살린다. 원문에 있던 공백만 쓰므로 숫자·한글 어절 안에는 공백이 생기지 않고, 앞 공백을 넣으면 x 좌표도 그 공백 왼쪽으로 옮겨 나머지 글자 위치는 그대로다. 글자 층은 투명이라 화면·이미지는 달라지지 않는다.
+    - 검사: `node tools/verify-saved-quotes.mjs <출력 폴더>`(`verify:export` 11번째 단계 `savedquotes`). 옛 코드(origin/main 549a828)에서는 50개 중 28개 FAIL, 고친 코드에서는 63개 전부 PASS. 함정: sonner 토스트도 `<li>` 라서 저장 목록 행은 `ul > li` 로 센다. localStorage 가득 채우기는 큰 조각(100000자)부터 1자 조각까지 순서대로 `setItem` 이 던질 때까지 넣는다. 단위 테스트: `savedQuotesStorage.test.ts`·`useSavedQuotes.test.ts`·`textExtractor.test.ts`(jsdom 은 레이아웃이 없어 `Range` 사각형을 직접 정해 흉내 낸다).
 
 ## 5. 검증 도구 표
 
@@ -65,7 +72,7 @@
 
 | 언제 | 도구 | 판정 |
 |---|---|---|
-| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea]` | 10종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 7분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
+| **출력물을 바꾼 뒤 전부** | `npm run verify:export [-- <출력 폴더>] [--only pagination,payment,seal,png,footer,menu,overage,styles,print,sumarea,savedquotes]` | 11종을 순서대로 실행, 하나라도 실패하면 exit 1. 약 9분(쪽 구성 160초 + 인쇄 85초 + 결제 정보 75초가 대부분) |
 | 쪽 나눔·PDF 메뉴·병합·PNG 를 바꿨을 때 | `tools/verify-pagination.mjs` | 쪽 수·글자 위치(dy)·잘린 행·메뉴 키보드·기억·병합. 결과 `results.json` |
 | 결제 정보·합계 영역을 바꿨을 때 | `tools/verify-payment-info.mjs` | Enterprise 있음/없음, 여러 쪽, 병합, 기록 스냅샷 |
 | 직인 표시·옵션 탭 카드를 바꿨을 때 | `tools/verify-seal-options.mjs` | 카드 순서·기본값·PDF 직인 글자 |
@@ -75,6 +82,7 @@
 | Business 구독형 초과 단가 문구(견적일 기준 600→800원)를 바꿨을 때 | `tools/verify-business-overage.mjs` | 견적일 2026-12-15·12-31·2027-01-01 의 미리보기·PDF 글자·줄 수. 문구 규칙은 `preview/overageNotice.ts` |
 | `html2canvas` 호출·CSS 로드 방식(index.html, vite 설정)을 바꿨을 때 | `tools/verify-pdf-styles.mjs` | CSS 파일 요청이 404 인 상태에서 저장한 PDF 한 장·여러 쪽·PNG 가 정상 저장본과 픽셀 차 2% 미만(`tools/compare-raster.py`). `verify:export` 8번째 단계. `tools/repro-pdf-paths.mjs` 는 경로별(PDF 버튼·여러 쪽·병합·인쇄) 재현용 |
 | `html2canvas` 복제 처리·글꼴·합계 영역 CSS 를 바꿨을 때 | `tools/verify-sum-area.mjs` | 링크 CSS 상태의 PDF 한 장·PNG 합계 영역이 화면 DOM 크롭과 같음(diff<0.06). 「원」 겹침을 잡는다. `verify:export` 10번째 단계 |
+| 저장된 견적서(`useSavedQuotes`·`savedQuotesStorage`·`SavedQuotesPanel`)·병합 PDF 의 견적별 구분 이름·PDF 글자 층(`textExtractor`)을 바꿨을 때 | `tools/verify-saved-quotes.mjs` | 깨진 저장소·저장 실패·탭 두 개·구분 이름 왕복·20개 한도·긴 이름 행·글자 층 공백 검색(단일·병합, pymupdf `search_for`) 63개 항목. 옛 코드에서 FAIL, 고친 코드에서 PASS. `verify:export` 11번째 단계(함정 15) |
 | 인쇄 CSS(`@media print`)·`#pdf-export-container` 구조·헤더/포털 요소를 바꿨을 때 | `node tools/verify-print.mjs [출력 폴더] [--targets dev,build] [--quick]` | print 미디어 `page.pdf` 가 PDF 버튼과 같은 쪽 수, 빈 쪽 없음, A4 세로, 첫 쪽에 제목·견적번호·합계, 편집 화면 문구 없음. `verify:export` 9번째 단계(실행기가 띄운 빌드 번들 하나만 대상). 단독 실행하면 dev 서버와 빌드 번들 둘 다(빌드 약 15초 포함) |
 | 숫자 입력칸·숫자/날짜 글자 변환 코드를 바꿨을 때, 모든 변경 | `npx vitest run src/__guards__` | 날 숫자 입력칸(`ThousandsInput` 밖)·인자 없는 `toLocale*String()`·진입점에서 도달 불가한 `src` 모듈을 실패시킨다. 각 검사에 일부러 위반을 넣어 실패하는지 확인하는 테스트가 들어 있다 |
 | 컴포넌트·모듈을 추가·삭제했을 때 | `node tools/check-unused-modules.mjs [루트]` | `index.html` 진입 스크립트에서 import 그래프를 따라 도달하지 않는 `src` 의 `.ts`/`.tsx`(테스트·`.d.ts` 제외)를 나열, 있으면 exit 1. 의도적 보존은 이 파일의 `ALLOW` 에 이유와 함께 적는다 |
@@ -103,7 +111,7 @@ PR 과 main push 마다 job 두 개가 돈다. 비밀값은 쓰지 않는다.
 | job | 내용 | 시간 |
 |---|---|---|
 | `check` | `npm ci` → `npx tsc --noEmit` → `npx vitest run`(정적 회귀 검사 포함) → `npm run build` | 약 2분 |
-| `export` | `npm run verify:export` 10종(ubuntu-24.04 고정 — ubuntu-latest 는 26.04 로 바뀌어 Playwright 1.58 의 브라우저 설치가 거부된다, run 42542043966). 실패하면 출력 폴더(PDF·PNG·results.json·summary.json)를 artifact `verify-export-output` 로 7일 보관 | 약 15~20분(설치 + 빌드 + 검증 8분) |
+| `export` | `npm run verify:export` 11종(ubuntu-24.04 고정 — ubuntu-latest 는 26.04 로 바뀌어 Playwright 1.58 의 브라우저 설치가 거부된다, run 42542043966). 실패하면 출력 폴더(PDF·PNG·results.json·summary.json)를 artifact `verify-export-output` 로 7일 보관 | 약 15~20분(설치 + 빌드 + 검증 8분) |
 
 `export` job 순서: `npm ci` → `pip install pymupdf numpy pillow`(setup-python 3.12) → `apt-get install fonts-noto-cjk` → `npx playwright-core install --with-deps chromium-headless-shell` → `npm run verify:export -- "$RUNNER_TEMP/verify-export"`. 환경변수는 `VITE_SUPABASE_URL=http://127.0.0.1:9`, `VITE_SUPABASE_ANON_KEY=dummy-key`(앱이 값이 없으면 throw 하므로 가짜 값. 서버에는 접속하지 않는다).
 

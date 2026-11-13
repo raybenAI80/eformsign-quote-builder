@@ -1,3 +1,4 @@
+import type { CategoryLabel } from './constants';
 
 export interface QuoteItem {
   id: string;
@@ -133,4 +134,9 @@ export interface SavedQuote {
     offerSum: number;
     grand: number;
   };
+  /**
+   * 저장 당시의 구분 이름(문서·크레딧 등). 불러오기와 병합 PDF 는 이 값을 쓴다.
+   * 이 필드가 생기기 전에 저장한 견적서에는 없으므로, 없으면 현재 화면의 구분 이름으로 대신한다.
+   */
+  categoryLabels?: CategoryLabel[];
 }
