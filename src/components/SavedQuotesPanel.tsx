@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { SavedQuote } from '../types';
 import type { PdfLayout } from '../utils/pdfLayoutPref';
 import { SAVED_QUOTES_LIMIT, SAVE_FULL_MESSAGE, formatSavedAt } from '../utils/savedQuotesStorage';
+import { filterSavedQuotes, truncateQueryForDisplay } from '../utils/savedQuotesSearch';
 
 interface Props {
   savedQuotes: SavedQuote[];
@@ -32,6 +33,9 @@ export default function SavedQuotesPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmLoadId, setConfirmLoadId] = useState<string | null>(null);
+  // 검색어는 이 패널 안에서만 산다: 패널을 닫으면 컴포넌트가 사라지므로 다시 열면 비어 있다
+  const [query, setQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -44,6 +48,17 @@ export default function SavedQuotesPanel({
     .filter((q): q is SavedQuote => q !== undefined);
 
   const isFull = savedQuotes.length >= SAVED_QUOTES_LIMIT;
+
+  const isFiltering = query.trim() !== '';
+  const visibleQuotes = isFiltering ? filterSavedQuotes(savedQuotes, query) : savedQuotes;
+  const visibleIds = new Set(visibleQuotes.map(q => q.id));
+  // 선택은 검색을 바꿔도 남는다. 검색에 가려진 선택도 병합에 들어가므로 그 수를 알려 준다
+  const hiddenSelectedCount = isFiltering ? selectedQuotes.filter(q => !visibleIds.has(q.id)).length : 0;
+
+  const clearSearch = () => {
+    setQuery('');
+    searchInputRef.current?.focus();
+  };
 
   const handleSave = () => {
     // 목록이 가득 차도 막지 않고 App 에 맡긴다: 저장 버튼은 비활성이지만 Enter 키로 들어오면 App 이 거절 안내 토스트를 띄운다
@@ -105,15 +120,71 @@ export default function SavedQuotesPanel({
           )}
         </div>
 
+        {/* Search */}
+        {savedQuotes.length > 0 && (
+          <div className="px-5 pt-3 pb-1">
+            <div className="relative">
+              <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape' && query !== '') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setQuery('');
+                  }
+                }}
+                placeholder="이름·고객사·견적번호로 검색"
+                aria-label="저장된 견적서 검색"
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="saved-search-input"
+                className="w-full text-sm border border-gray-300 rounded-md pl-8 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+              {query !== '' && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  aria-label="검색어 지우기"
+                  title="검색어 지우기"
+                  data-testid="saved-search-clear"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {isFiltering && (
+              <p role="status" data-testid="saved-search-count" className="mt-1.5 text-[11px] text-gray-500">
+                검색 결과 {visibleQuotes.length}건 / 전체 {savedQuotes.length}건
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Quote list */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {savedQuotes.length === 0 ? (
             <div className="text-center text-sm text-gray-400 py-10">
               저장된 견적서가 없습니다.
             </div>
+          ) : visibleQuotes.length === 0 ? (
+            <div
+              data-testid="saved-search-empty"
+              className="text-center text-sm text-gray-400 py-10 px-2 [word-break:keep-all] [overflow-wrap:break-word]"
+            >
+              ‘{truncateQueryForDisplay(query)}’에 맞는 견적서가 없습니다.
+            </div>
           ) : (
             <ul className="space-y-2">
-              {savedQuotes.map(q => {
+              {visibleQuotes.map(q => {
                 const isSelected = selectedIds.includes(q.id);
                 const orderIdx = selectedIds.indexOf(q.id);
                 return (
@@ -252,6 +323,16 @@ export default function SavedQuotesPanel({
                   : '선택한 견적서가 순서대로 각 1페이지씩 합쳐져 하나의 PDF 파일로 저장됩니다.'}
               </p>
             </div>
+          )}
+
+          {hiddenSelectedCount > 0 && (
+            <p
+              role="status"
+              data-testid="hidden-selected-notice"
+              className="mb-2 text-xs text-amber-700 [word-break:keep-all] [overflow-wrap:break-word]"
+            >
+              검색에 가려진 선택 {hiddenSelectedCount}건도 함께 병합됩니다.
+            </p>
           )}
 
           <div className="flex items-center justify-between gap-3">
