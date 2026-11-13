@@ -3,6 +3,8 @@ import { Toaster, toast } from 'sonner';
 
 import { useQuote, calculateQuote, getLocalToday, normalizeItems } from './hooks/useQuote';
 import { useSavedQuotes } from './hooks/useSavedQuotes';
+import { SAVE_FULL_MESSAGE, SAVE_STORAGE_FAIL_MESSAGE, MUTATE_STORAGE_FAIL_MESSAGE, shortenName } from './utils/savedQuotesStorage';
+import type { CategoryLabel } from './constants';
 import { exportToImage, exportToPdf, exportMergedPdf, estimatePdfFitScale } from './utils/exportPdf';
 import { readPdfLayout, writePdfLayout, type PdfLayout } from './utils/pdfLayoutPref';
 import { measureFlowPaper, paginate } from './components/preview/pagination';
@@ -38,7 +40,7 @@ function QuoteBuilder() {
   const [showPreview, setShowPreview] = useState(true);
   const [previewSnapshot, setPreviewSnapshot] = useState<QuoteSnapshot | null>(null);
   const [showSavedPanel, setShowSavedPanel] = useState(false);
-  const [mergeRenderData, setMergeRenderData] = useState<{ meta: QuoteMeta; items: QuoteItem[] } | null>(null);
+  const [mergeRenderData, setMergeRenderData] = useState<{ meta: QuoteMeta; items: QuoteItem[]; categoryLabels?: CategoryLabel[] } | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   // PDF 저장 방식: 마지막으로 고른 방식을 사용자 기기에 기억한다 (기본 = A4 한 장에 맞춤)
   const [pdfLayout, setPdfLayout] = useState<PdfLayout>(readPdfLayout);
@@ -287,10 +289,23 @@ function QuoteBuilder() {
         offerSum: calculation.offerSum,
         grand: calculation.grand,
       };
-      saveQuote(name, meta, items, summary);
-      toast.success(`"${name}" 견적서가 저장되었습니다.`);
+      const result = saveQuote(name, meta, items, summary, categoryLabels);
+      if (!result.ok) {
+        toast.error(result.reason === 'full' ? SAVE_FULL_MESSAGE : SAVE_STORAGE_FAIL_MESSAGE);
+        return false;
+      }
+      toast.success(`"${shortenName(result.name)}" 견적서가 저장되었습니다.`);
+      return true;
     },
-    [meta, items, calculation, saveQuote]
+    [meta, items, calculation, categoryLabels, saveQuote]
+  );
+
+  const handleDeleteSavedQuote = useCallback(
+    (id: string) => {
+      const result = removeSavedQuote(id);
+      if (!result.ok) toast.error(MUTATE_STORAGE_FAIL_MESSAGE);
+    },
+    [removeSavedQuote]
   );
 
   const handleLoadSavedQuote = useCallback(
@@ -302,8 +317,10 @@ function QuoteBuilder() {
           restoreCustomerPlaceholders(quote.meta.referenceNotes, quote.meta.customerName) ?? quote.meta.referenceNotes,
       }));
       actions.setItems(normalizeItems(quote.items));
+      // 저장 당시의 구분 이름을 되돌린다. 이 필드가 없는 옛 저장본은 현재 화면의 구분 이름을 그대로 둔다.
+      if (quote.categoryLabels) actions.setCategoryLabels(quote.categoryLabels.map(l => ({ ...l })));
       setShowSavedPanel(false);
-      toast.success(`"${quote.name}" 견적서를 불러왔습니다. 미리보기가 업데이트되었습니다.`);
+      toast.success(`"${shortenName(quote.name)}" 견적서를 불러왔습니다. 미리보기가 업데이트되었습니다.`);
     },
     [actions]
   );
@@ -315,7 +332,7 @@ function QuoteBuilder() {
         const dateStr = getLocalToday();
         const filename = `이폼사인_병합견적서_${selected.length}건_${dateStr}`;
         const ok = await exportMergedPdf(
-          selected.map(q => ({ name: q.name, meta: q.meta, items: q.items })),
+          selected.map(q => ({ name: q.name, meta: q.meta, items: q.items, categoryLabels: q.categoryLabels })),
           filename,
           setMergeRenderData,
           'pdf-merge-panel',
@@ -516,7 +533,7 @@ function QuoteBuilder() {
           savedQuotes={savedQuotes}
           onSaveCurrent={handleSaveCurrentQuote}
           onLoad={handleLoadSavedQuote}
-          onDelete={removeSavedQuote}
+          onDelete={handleDeleteSavedQuote}
           onMergeExport={handleMergeExport}
           onClose={() => setShowSavedPanel(false)}
           isMerging={isMerging}
@@ -541,7 +558,8 @@ function QuoteBuilder() {
             <PreviewPanel
               meta={mergeRenderData.meta}
               calculation={calculateQuote(mergeRenderData.items, mergeRenderData.meta.vatRate, { sector: mergeRenderData.meta.sector, subsidyRate: mergeRenderData.meta.subsidyRate, roundingUnit: mergeRenderData.meta.roundingUnit })}
-              categoryLabels={categoryLabels}
+              // 저장 당시의 구분 이름으로 그린다. 옛 저장본(필드 없음)은 현재 화면의 구분 이름으로 대신한다.
+              categoryLabels={mergeRenderData.categoryLabels ?? categoryLabels}
               showPolicies={true}
               pageMode={pdfLayout}
               forExport

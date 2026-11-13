@@ -1,8 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SavedQuote, QuoteMeta, QuoteItem } from '../types';
-
-const SAVED_QUOTES_KEY = 'eq_saved_quotes';
-const SAVED_QUOTES_LIMIT = 20;
+import type { CategoryLabel } from '../constants';
+import {
+  SAVED_QUOTES_KEY,
+  addSavedQuoteEntry,
+  loadFromStorage,
+  removeSavedQuoteEntry,
+  renameSavedQuoteEntry,
+  type MutateResult,
+  type SaveResult,
+} from '../utils/savedQuotesStorage';
 
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -11,66 +18,56 @@ const generateId = (): string => {
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-function loadFromStorage(): SavedQuote[] {
-  try {
-    const raw = localStorage.getItem(SAVED_QUOTES_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as SavedQuote[];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(quotes: SavedQuote[]): void {
-  try {
-    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(quotes));
-  } catch {
-    // storage full — ignore
-  }
-}
-
 export function useSavedQuotes() {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => loadFromStorage());
+
+  // 다른 탭에서 저장·삭제하면 이 탭의 목록도 따라간다.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== SAVED_QUOTES_KEY) return;
+      setSavedQuotes(loadFromStorage());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const saveQuote = useCallback(
     (
       name: string,
       meta: QuoteMeta,
       items: QuoteItem[],
-      summary?: { msrpSum: number; offerSum: number; grand: number }
-    ) => {
+      summary?: { msrpSum: number; offerSum: number; grand: number },
+      categoryLabels?: CategoryLabel[]
+    ): SaveResult => {
+      const now = new Date();
       const entry: SavedQuote = {
         id: generateId(),
-        name: name.trim() || `견적서 ${new Date().toLocaleDateString('ko-KR')} ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`,
+        name: name.trim() || `견적서 ${now.toLocaleDateString('ko-KR')} ${now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`,
         meta: JSON.parse(JSON.stringify(meta)),
         items: JSON.parse(JSON.stringify(items)),
-        savedAt: new Date().toISOString(),
+        savedAt: now.toISOString(),
         summary,
+        categoryLabels: categoryLabels ? JSON.parse(JSON.stringify(categoryLabels)) : undefined,
       };
-      setSavedQuotes(prev => {
-        const next = [entry, ...prev].slice(0, SAVED_QUOTES_LIMIT);
-        saveToStorage(next);
-        return next;
-      });
-      return entry.id;
+      const r = addSavedQuoteEntry(entry);
+      setSavedQuotes(r.list);
+      if ('reason' in r) return { ok: false, reason: r.reason === 'full' ? 'full' : 'storage' };
+      return { ok: true, id: entry.id, name: entry.name };
     },
     []
   );
 
-  const removeSavedQuote = useCallback((id: string) => {
-    setSavedQuotes(prev => {
-      const next = prev.filter(q => q.id !== id);
-      saveToStorage(next);
-      return next;
-    });
+  const removeSavedQuote = useCallback((id: string): MutateResult => {
+    const r = removeSavedQuoteEntry(id);
+    setSavedQuotes(r.list);
+    return 'reason' in r ? { ok: false, reason: 'storage' } : { ok: true };
   }, []);
 
-  const renameSavedQuote = useCallback((id: string, name: string) => {
-    setSavedQuotes(prev => {
-      const next = prev.map(q => (q.id === id ? { ...q, name: name.trim() || q.name } : q));
-      saveToStorage(next);
-      return next;
-    });
+  const renameSavedQuote = useCallback((id: string, name: string): MutateResult => {
+    const r = renameSavedQuoteEntry(id, name);
+    setSavedQuotes(r.list);
+    if ('reason' in r) return { ok: false, reason: r.reason === 'missing' ? 'missing' : 'storage' };
+    return { ok: true };
   }, []);
 
   const getSavedQuote = useCallback(
