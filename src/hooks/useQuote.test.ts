@@ -369,6 +369,74 @@ describe('calculateQuote', () => {
             }
         });
     });
+
+    describe('요약 할인율 - 크레딧 행 제외', () => {
+        // 실례: Enterprise 문서 4,000건, 정가 3,200,000 → 제안가 2,000,000 (37.5%, 화면 표기 38%)
+        const enterprise: QuoteItem = {
+            id: 'ent',
+            section: 'SaaS',
+            category: '문서',
+            item: '이폼사인 Enterprise 4,000건',
+            unitLabel: '건',
+            qty: 4000,
+            unitPrice: 800,
+            discountPct: 37.5,
+            offerUnitPrice: 500,
+            notes: '',
+        };
+        const credit = (amount: number): QuoteItem => ({
+            id: `credit-${amount}`,
+            section: 'Credit',
+            category: '추가 옵션',
+            item: '유료 옵션 활용 가능',
+            unitLabel: '-',
+            qty: 1,
+            unitPrice: amount,
+            discountPct: 0,
+            notes: '',
+        });
+
+        it('크레딧 0원 / 10,000원 / 100,000원 모두 품목 줄 할인율(38%)과 같다', () => {
+            for (const amount of [0, 10000, 100000]) {
+                const r = calculateQuote([enterprise, credit(amount)], 10);
+                expect(r.totalDiscountPct).toBeCloseTo(37.5, 5);
+                expect(Math.round(r.totalDiscountPct)).toBe(38);
+                // 금액은 크레딧을 포함한 그대로
+                expect(r.discountAmount).toBe(1200000);
+                expect(r.msrpSum).toBe(3200000 + amount);
+                expect(r.offerSum).toBe(2000000 + amount);
+            }
+        });
+
+        it('크레딧 행만 있으면 할인율 0', () => {
+            const r = calculateQuote([credit(100000)], 10);
+            expect(r.totalDiscountPct).toBe(0);
+            expect(r.msrpSum).toBe(100000);
+        });
+
+        it('0% 할인 일반 상품 행은 분모에 남는다', () => {
+            const setup: QuoteItem = {
+                id: 'svc',
+                section: 'Service',
+                category: '프리미엄 서비스',
+                item: '문서 세팅',
+                unitLabel: '건',
+                qty: 1,
+                unitPrice: 800000,
+                discountPct: 0,
+                notes: '',
+            };
+            const r = calculateQuote([enterprise, setup, credit(100000)], 10);
+            // 정가 3,200,000 + 800,000 = 4,000,000, 제안가 2,000,000 + 800,000 = 2,800,000 → 30%
+            expect(r.totalDiscountPct).toBeCloseTo(30, 5);
+            expect(r.discountAmount).toBe(1200000);
+        });
+
+        it('지원사업용은 크레딧이 있어도 지원율 그대로', () => {
+            const r = calculateQuote([enterprise, credit(100000)], 10, { sector: 'subsidy', subsidyRate: 70 });
+            expect(r.totalDiscountPct).toBe(70);
+        });
+    });
 });
 
 describe('createDefaultMeta', () => {

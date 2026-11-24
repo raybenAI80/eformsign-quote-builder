@@ -320,10 +320,17 @@ export const calculateQuote = (
     ? msrpSum + vat - subsidyAmount
     : offerSum + vat;
 
-  // totalDiscountPct: 지원사업용일 때는 지원율, 그 외는 기존 계산
+  // totalDiscountPct: 지원사업용일 때는 지원율, 그 외는 크레딧 행을 뺀 정가·제안가로 계산한다.
+  // 크레딧(section 'Credit')은 할인 없이 붙는 선불 충전액이라, 분모에 넣으면 정가합계만 커져
+  // 요약 할인율이 품목 줄 할인율보다 낮게 보인다(예: 정가 320만원·제안가 200만원(38%) + 크레딧 10만원 → 36%).
+  // 0% 할인 일반 상품 행은 실제로 할인하지 않은 금액이므로 분모에 남긴다.
+  // 금액(msrpSum·offerSum·discountAmount 등)은 크레딧을 포함한 그대로이고, 바뀌는 것은 이 비율 하나다.
+  const nonCreditRows = rows.filter(row => row.section !== 'Credit');
+  const nonCreditMsrpSum = nonCreditRows.reduce((sum, row) => sum + row.msrp, 0);
+  const nonCreditOfferSum = nonCreditRows.reduce((sum, row) => sum + row.offer, 0);
   const totalDiscountPct = isSubsidy
     ? subsidyRate
-    : (msrpSum > 0 ? (1 - offerSum / msrpSum) * 100 : 0);
+    : (nonCreditMsrpSum > 0 ? (1 - nonCreditOfferSum / nonCreditMsrpSum) * 100 : 0);
 
   // Calculate docsPaidQty and perDocPaid for compatibility
   let docsPaidQty = 0;
